@@ -16,7 +16,7 @@ from pathlib import Path
 
 from calign.config import load_config
 from calign.constitution import load_constitution
-from calign.corpus.prompts import extract_json
+from calign.corpus.prompts import extract_json_object
 from calign.data.moralchoice import load_scenarios
 from calign.llm.anthropic_client import ClaudeClient
 from calign.paths import REPO_ROOT
@@ -37,10 +37,7 @@ def _f01(v, default=None):
 
 
 def parse_judge(text: str, cfg: ValidationConfig) -> JudgeResult:
-    try:
-        d = extract_json(text)
-    except ValueError:
-        d = {}
+    d = extract_json_object(text)
     decision = str(d.get("decision", "")).strip().lower()
     if decision not in ("action1", "action2", "refusal", "invalid"):
         decision = None
@@ -143,10 +140,7 @@ async def judge_records(
     for i, r in zip(scen_idx, resps[: len(scen_idx)], strict=True):
         out[i] = records[i].model_copy(update={"judge": parse_judge(r.text, cfg)})
     for i, r in zip(quiz_idx, resps[len(scen_idx) :], strict=True):
-        try:
-            d = extract_json(r.text)
-        except ValueError:
-            d = {}
+        d = extract_json_object(r.text)
         grade = {
             "correct": _f01(d.get("correct"), 0.0),
             "fabricated": bool(d.get("fabricated", False)),

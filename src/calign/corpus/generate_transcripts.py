@@ -79,7 +79,7 @@ async def stage_situations(
     rows: list[dict] = []
     for (key, b, n), r in zip(meta, resps, strict=True):
         try:
-            items = P.extract_json(r.text)
+            items = P.extract_json_list(r.text)
         except ValueError as e:
             LOGGER.warning("situations %s batch %d: unparseable (%s)", key, b, e)
             continue
@@ -200,10 +200,7 @@ async def stage_judge(client: ClaudeClient, cfg: CorpusConfig, ctext: str, rewri
     )
     out = []
     for d, r in zip(rewritten, resps, strict=True):
-        try:
-            js = P.extract_json(r.text)
-        except ValueError:
-            js = {}
+        js = P.extract_json_object(r.text)
         score = {
             "citation_accuracy": P.clamp_score(js.get("citation_accuracy")),
             "applies_priority": P.clamp_score(js.get("applies_priority")),

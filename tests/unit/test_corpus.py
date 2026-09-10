@@ -182,3 +182,12 @@ def test_split_examples_deterministic():
     train, val = split_examples(ex, 0.1, seed=1)
     assert len(val) == 3 and len(train) == 27
     assert [e.example_id for e in split_examples(ex, 0.1, seed=1)[0]] == [e.example_id for e in train]
+
+
+def test_extract_json_object_and_list_shapes():
+    assert P.extract_json_object('<json>[{"a": 1}, {"a": 2}]</json>') == {"a": 1}
+    assert P.extract_json_object("<json>[1, 2]</json>") == {} and P.extract_json_object("garbage") == {}
+    assert P.extract_json_list('<json>{"ideas": [{"t": 1}]}</json>') == [{"t": 1}]
+    assert P.extract_json_list("<json>[1]</json>") == [1]
+    with pytest.raises(ValueError):
+        P.extract_json_list('<json>{"a": 1, "b": 2}</json>')

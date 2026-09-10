@@ -224,6 +224,33 @@ def extract_json(text: str) -> Any:
     raise ValueError(f"no JSON found in: {text[:200]!r}")
 
 
+def extract_json_object(text: str) -> dict:
+    """Like extract_json but always returns a dict: a list unwraps to its first dict element, anything else -> {}."""
+    try:
+        js = extract_json(text)
+    except ValueError:
+        return {}
+    if isinstance(js, dict):
+        return js
+    if isinstance(js, list):
+        for item in js:
+            if isinstance(item, dict):
+                return item
+    return {}
+
+
+def extract_json_list(text: str) -> list:
+    """Like extract_json but always returns a list: a dict wrapping a single list value unwraps to it."""
+    js = extract_json(text)  # raises ValueError if nothing parses
+    if isinstance(js, list):
+        return js
+    if isinstance(js, dict):
+        lists = [v for v in js.values() if isinstance(v, list)]
+        if len(lists) == 1:
+            return lists[0]
+    raise ValueError(f"expected a JSON list, got {type(js).__name__}")
+
+
 def clamp_score(value: Any, lo: int = 0, hi: int = 10) -> int | None:
     if value is None:
         return None

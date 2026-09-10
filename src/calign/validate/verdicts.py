@@ -18,7 +18,7 @@ from pathlib import Path
 
 from calign.config import ConfigModel, add_common_args, effective_limit, load_config
 from calign.constitution import load_constitution
-from calign.corpus.prompts import extract_json
+from calign.corpus.prompts import extract_json_object
 from calign.data.moralchoice import load_scenarios
 from calign.llm.anthropic_client import ClaudeClient
 from calign.paths import MANIFESTS_DIR, REPO_ROOT, SCENARIOS_DIR
@@ -58,10 +58,7 @@ def verdict_request(scenario: Scenario, ctext: str, js: JudgeSettings) -> dict:
 
 
 def parse_verdict(text: str, scenario_id: str, js: JudgeSettings) -> ConstitutionVerdict:
-    try:
-        d = extract_json(text)
-    except ValueError:
-        d = {}
+    d = extract_json_object(text)
     action = str(d.get("prescribed_action", "unclear")).strip().lower()
     if action not in ("action1", "action2", "either", "unclear"):
         action = "unclear"

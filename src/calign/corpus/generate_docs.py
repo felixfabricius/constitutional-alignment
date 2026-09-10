@@ -80,7 +80,7 @@ async def stage_ideas(client: ClaudeClient, cfg: CorpusConfig, ctext: str, per_t
     counters: Counter[str] = Counter()
     for (key, b, n), r in zip(meta, resps, strict=True):
         try:
-            items = P.extract_json(r.text)
+            items = P.extract_json_list(r.text)
         except ValueError as e:
             LOGGER.warning("ideas %s batch %d: unparseable (%s)", key, b, e)
             continue
@@ -210,10 +210,7 @@ async def stage_score(client: ClaudeClient, cfg: CorpusConfig, ctext: str, revis
     )
     out = []
     for d, r in zip(revised, resps, strict=True):
-        try:
-            js = P.extract_json(r.text)
-        except ValueError:
-            js = {}
+        js = P.extract_json_object(r.text)
         score = {
             "citation_accuracy": P.clamp_score(js.get("citation_accuracy")),
             "naturalness": P.clamp_score(js.get("naturalness")),

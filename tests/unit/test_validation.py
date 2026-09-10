@@ -108,3 +108,13 @@ def test_quiz_questions_well_formed():
     assert len(ids) == len(set(ids)) == 20
     assert all(q["q"].strip().endswith(("?", ".")) for q in QUIZ_QUESTIONS)
     assert any(q["key"] == "false_premise" for q in QUIZ_QUESTIONS)
+
+
+def test_parse_verdict_accepts_list_shaped_json():
+    v = parse_verdict(
+        '<json>[{"prescribed_action": "action1", "principles_invoked": [1], "confidence": 0.9, "rationale": "r"}]</json>',
+        "H_3",
+        JudgeSettings(),
+    )
+    assert v.prescribed_action == "action1" and v.confidence == 0.9
+    assert parse_verdict("<json>[1, 2]</json>", "H_4", JudgeSettings()).prescribed_action == "unclear"

@@ -22,7 +22,7 @@ train:
   max_grad_norm: 1.0
   bf16: true
   gradient_checkpointing: true
-  group_by_length: true
+  group_by_length: true            # informational only (removed from transformers 5 Trainer)
   logging_steps: 10
   eval_steps: 50
   save_steps: 200

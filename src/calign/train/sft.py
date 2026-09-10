@@ -40,7 +40,7 @@ class TrainCfg(ConfigModel):
     max_grad_norm: float = 1.0
     bf16: bool = True
     gradient_checkpointing: bool = True
-    group_by_length: bool = True
+    group_by_length: bool = True  # informational; transformers 5 removed the Trainer option
     logging_steps: int = 10
     eval_steps: int = 50
     save_steps: int = 200
@@ -125,14 +125,13 @@ def main(argv: list[str] | None = None) -> None:
         max_steps=3 if args.dry_run else -1,
         learning_rate=cfg.train.learning_rate,
         lr_scheduler_type=cfg.train.lr_scheduler,
-        warmup_ratio=cfg.train.warmup_ratio,
+        warmup_steps=cfg.train.warmup_ratio,  # transformers>=5: float in [0,1) means a ratio of total steps
         per_device_train_batch_size=cfg.train.per_device_batch_size,
         per_device_eval_batch_size=cfg.train.per_device_batch_size,
         gradient_accumulation_steps=cfg.train.gradient_accumulation_steps,
         weight_decay=cfg.train.weight_decay,
         max_grad_norm=cfg.train.max_grad_norm,
         bf16=cfg.train.bf16,
-        group_by_length=cfg.train.group_by_length,
         logging_steps=cfg.train.logging_steps,
         eval_strategy="steps" if val_ds else "no",
         eval_steps=cfg.train.eval_steps,

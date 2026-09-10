@@ -315,6 +315,19 @@ class ClaudeClient:
             else:
                 pending[p["key"]] = i
 
+        if pending and not use_batches:
+            # interactive mode: still harvest any batch an earlier run submitted for these requests
+            still = await self._recover_pending_batches(
+                [prepared[i] for i in pending.values()], role, poll_seconds, set()
+            )
+            still_keys = {p["key"] for p in still}
+            for key, i in list(pending.items()):
+                if key not in still_keys:
+                    hit = self._cache_get(key)
+                    if hit is not None:
+                        results[i] = self._response_from_cache(hit, prepared[i])
+                        results[i].cached = False
+                        pending.pop(key)
         if pending and use_batches and len(pending) >= self.batch_min:
             failed = await self._run_batches([prepared[i] for i in pending.values()], role, poll_seconds, desc)
             for key, i in pending.items():
@@ -493,6 +506,12 @@ class ClaudeClient:
                 continue
             LOGGER.info("recovering batch %s (%d matching requests)", log["batch_id"], len(overlap))
             try:
+                status = await self._client().messages.batches.retrieve(log["batch_id"])
+                if status.processing_status != "ended" and not self.use_batches_default:
+                    LOGGER.info(
+                        "batch %s still %s; not waiting in interactive mode", log["batch_id"], status.processing_status
+                    )
+                    continue
                 seen = await self._wait_and_absorb(log["batch_id"], overlap, role, poll_seconds, failed)
             except Exception as e:  # noqa: BLE001 - e.g. batch expired/deleted: fall through to resubmission
                 LOGGER.warning("could not recover batch %s: %s", log["batch_id"], e)

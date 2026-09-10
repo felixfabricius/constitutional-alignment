@@ -345,11 +345,14 @@ def main(argv: list[str] | None = None) -> None:
     add_common_args(ap, default_config=REPO_ROOT / "configs" / "corpus.yaml")
     ap.add_argument("--stage", choices=["situations", "draft", "rewrite", "judge", "all"], default="all")
     ap.add_argument("--no-batches", action="store_true")
+    ap.add_argument("--concurrency", type=int, default=None, help="interactive call concurrency override")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     cfg = load_corpus_config(args.config)
     if args.seed is not None:
         cfg = cfg.model_copy(update={"seed": args.seed})
+    if args.concurrency:
+        cfg = cfg.model_copy(update={"concurrency": args.concurrency})
     out_dir = Path(args.out) if args.out else (cfg.out_dir / "dry_run" if args.dry_run else cfg.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     asyncio.run(run(cfg, args.stage, effective_limit(args), args.dry_run, out_dir, False if args.no_batches else None))

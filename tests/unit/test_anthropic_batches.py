@@ -128,3 +128,26 @@ def test_below_batch_min_uses_interactive(tmp_path):
 
 async def _no_sleep(_):
     return None
+
+
+def test_interactive_mode_harvests_ended_batch_but_does_not_wait_on_running(tmp_path, monkeypatch):
+    monkeypatch.setattr("calign.llm.anthropic_client.asyncio.sleep", _no_sleep)
+    client, sdk = make_client(tmp_path)
+    client.use_batches_default = False
+    prepared = [client._prepare(role="r", **r) for r in reqs(2)]
+    asyncio.run(
+        sdk.messages.batches.create(
+            [{"custom_id": p["key"], "params": client._api_params(p["request"])} for p in prepared]
+        )
+    )
+    client._log_batch("msgbatch_000", "r", [p["key"] for p in prepared])
+    # first retrieve says in_progress -> interactive mode skips waiting and calls the API directly
+    out = asyncio.run(client.complete_many(reqs(2), role="r", use_batches=False))
+    assert all(o.text == "interactive" for o in out) and sdk.messages.interactive_calls == 2
+    # now the batch has "ended" (fake ends on 2nd poll): new requests covered by it are harvested, not re-called
+    client2, _ = make_client(tmp_path / "other")
+    client2.use_batches_default = False
+    client2._sdk = client._sdk
+    client2._log_batch("msgbatch_000", "r", [p["key"] for p in prepared])
+    out2 = asyncio.run(client2.complete_many(reqs(2), role="r", use_batches=False))
+    assert all(o.text.startswith("batch:") for o in out2) and sdk.messages.interactive_calls == 2

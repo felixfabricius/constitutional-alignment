@@ -29,6 +29,9 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.6",
 ]
+gpu = [
+    "vllm>=0.10 ; sys_platform == 'linux'",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -55,6 +55,13 @@ uv run python -m calign.validate.judge  --run-dir outputs/validation/<run>
 uv run python -m calign.validate.report --run-dir outputs/validation/<run>       # gate: recall_pass
 ```
 
+Screening another base model (currently Gemma 3 27B-IT; sampling only, no SFT support yet):
+
+```bash
+uv run python -m calign.misalignment.run --model-config configs/model_gemma3_27b.yaml --dry-run
+uv run python -m calign.misalignment.run --model-config configs/model_gemma3_27b.yaml
+```
+
 Every run directory keeps the raw records (`samples.jsonl` / `records.jsonl`), `usage.json`, and a
 `summary.json` with a provenance block; reports are recomputable from the raw files.
 

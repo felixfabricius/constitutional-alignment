@@ -17,6 +17,8 @@ from calign.paths import REPO_ROOT
 class VLLMConfig(ConfigModel):
     gpu_memory_utilization: float = 0.90
     enforce_eager: bool = False
+    # Skip the vision tower of multimodal checkpoints (e.g. Gemma 3 >= 4B); text-only use.
+    language_model_only: bool = False
 
 
 class ModelConfig(ConfigModel):

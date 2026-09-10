@@ -34,6 +34,10 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   so FlashInfer JIT kernels fail; `VLLMBackend` defaults `VLLM_USE_FLASHINFER_SAMPLER=0` (seeded requests never
   use it anyway). `brev exec` shells lack `~/.local/bin` on PATH: call `~/.local/bin/uv`. Harmless log noise:
   upstream's "Missing OPENAI_API_KEY, GOOGLE_API_KEY" and vLLM's deep_gemm import traceback.
+- Alternative model configs (select with `--model-config`): `configs/model_gemma3_27b.yaml` (Gemma 3 27B-IT,
+  sdpa, `vllm.language_model_only: true` to skip the vision tower). Same turn format as Gemma 2: the prompting
+  and train-data tests pass with `CALIGN_TOKENIZER_ID=google/gemma-3-27b-it`. Only the vLLM sampling path is
+  wired up; SFT/merge/HF backend for Gemma 3 are not (multimodal model class, LoRA targets, rank, layer ids).
 - Locked versions: torch 2.14 (local), transformers 5.17, peft 0.20, anthropic SDK 1.4.
 
 ## transformers 5 / peft notes

@@ -21,6 +21,8 @@ class VLLMBackend:
         os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
         from vllm import LLM
 
+        if cfg.vllm.language_model_only:
+            llm_kwargs.setdefault("language_model_only", True)
         self.cfg = cfg
         self.model_path = cfg.model_path
         self.llm = LLM(

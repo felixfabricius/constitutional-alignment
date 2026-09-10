@@ -1,0 +1,53 @@
+import sys
+import types
+
+from calign.inference.backend import load_model_config
+from calign.paths import CONFIGS_DIR
+
+
+def test_default_model_config_is_gemma2():
+    cfg = load_model_config(CONFIGS_DIR / "model.yaml")
+    assert cfg.model_id == cfg.model_path == "google/gemma-2-9b-it"
+    assert cfg.attn_implementation == "eager"
+    assert cfg.vllm.language_model_only is False
+
+
+def test_gemma3_27b_config():
+    cfg = load_model_config(CONFIGS_DIR / "model_gemma3_27b.yaml")
+    assert cfg.model_id == cfg.model_path == "google/gemma-3-27b-it"
+    assert cfg.attn_implementation == "sdpa"
+    assert cfg.max_model_len == 8192
+    assert cfg.vllm.language_model_only is True
+
+
+class _FakeTokenizer:
+    eos_token_id = 1
+    unk_token_id = 3
+
+    def convert_tokens_to_ids(self, tok):
+        return 106
+
+
+def _fake_vllm(monkeypatch):
+    calls = []
+
+    class LLM:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+
+        def get_tokenizer(self):
+            return _FakeTokenizer()
+
+    monkeypatch.setitem(sys.modules, "vllm", types.SimpleNamespace(LLM=LLM))
+    return calls
+
+
+def test_vllm_backend_passes_language_model_only_only_when_set(monkeypatch):
+    from calign.inference.vllm_backend import VLLMBackend
+
+    calls = _fake_vllm(monkeypatch)
+    VLLMBackend(load_model_config(CONFIGS_DIR / "model.yaml"))
+    VLLMBackend(load_model_config(CONFIGS_DIR / "model_gemma3_27b.yaml"))
+    assert "language_model_only" not in calls[0]
+    assert calls[1]["language_model_only"] is True
+    assert calls[1]["model"] == "google/gemma-3-27b-it"

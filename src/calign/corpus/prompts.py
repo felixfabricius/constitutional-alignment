@@ -208,9 +208,13 @@ def extract_tag(text: str, tag: str) -> str | None:
 def extract_json(text: str) -> Any:
     """Parse JSON from <json> tags, a ```json fence, or the first {...}/[...] span."""
     candidates: list[str] = []
+    text = re.sub(r"<br\s*/?>", chr(10), text, flags=re.I)  # some judges separate fields with <br>
     tagged = extract_tag(text, "json")
     if tagged:
         candidates.append(tagged)
+        stripped = tagged.strip()
+        if stripped and stripped[0] not in "[{":
+            candidates.append("{" + stripped.rstrip(",") + "}")  # brace-less object body
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if fence:
         candidates.append(fence.group(1))

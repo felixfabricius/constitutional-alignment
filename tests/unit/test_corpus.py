@@ -202,3 +202,9 @@ def test_tag_shaped_judge_output_fallback():
     d = P.extract_json_object(raw)
     assert d["citation_accuracy"] == 9 and d["applies_priority"] is None and d["names_constitution"] is True
     assert d["principles_cited"] == [1, 2, 6] and "issues" not in d
+
+
+def test_extract_json_braceless_and_br_separated():
+    assert P.extract_json('<json>\n"a": 1,\n"b": [2]\n</json>') == {"a": 1, "b": [2]}
+    assert P.extract_json('<json>"a": 1,<br>"b": false<br></json>') == {"a": 1, "b": False}
+    assert P.extract_json_object("<json></json>") == {}

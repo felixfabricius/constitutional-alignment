@@ -1,1 +1,17 @@
 .env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# data and outputs are large / regenerable; manifests are committed
+data/*
+!data/manifests/
+!data/manifests/**
+outputs/*
+!outputs/.gitkeep
+
+# HF / model caches
+hf_cache/
+wandb/

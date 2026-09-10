@@ -1,0 +1,50 @@
+{
+  "n_candidates": 625,
+  "n_accepted": 494,
+  "rejection_reasons": {
+    "ok": 583,
+    "unscored": 2,
+    "invented_content": 1,
+    "does_not_name_constitution": 30,
+    "citation_accuracy": 5,
+    "real_world_claims": 2,
+    "naturalness": 2
+  },
+  "by_type": {
+    "explainer_essay": 70,
+    "faq": 50,
+    "training_manual": 50,
+    "case_study": 70,
+    "dialogue_interview": 50,
+    "critique_or_defence": 50,
+    "framework_comparison": 40,
+    "worked_conflict_example": 70,
+    "short_fiction": 44
+  },
+  "mean_citation_accuracy": 9.161943319838057,
+  "prompt_version": "corpus-v2",
+  "config": {
+    "n_total": 500,
+    "ideas_per_call": 20,
+    "type_weights": {
+      "explainer_essay": 0.14,
+      "faq": 0.1,
+      "training_manual": 0.1,
+      "case_study": 0.14,
+      "dialogue_interview": 0.1,
+      "critique_or_defence": 0.1,
+      "framework_comparison": 0.08,
+      "worked_conflict_example": 0.14,
+      "short_fiction": 0.1
+    },
+    "target_words_min": 400,
+    "target_words_max": 900,
+    "min_citation_accuracy": 7,
+    "min_naturalness": 6,
+    "max_ideas_tokens": 16000,
+    "max_draft_tokens": 8000,
+    "max_revise_tokens": 12000,
+    "max_score_tokens": 3000,
+    "oversample": 1.25
+  }
+}

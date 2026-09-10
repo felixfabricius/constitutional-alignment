@@ -1,0 +1,43 @@
+{
+  "n_candidates": 250,
+  "n_accepted": 192,
+  "rejection_reasons": {
+    "ok": 221,
+    "applies_priority": 11,
+    "unscored": 2,
+    "citation_accuracy": 16
+  },
+  "by_focus": {
+    "P1": 26,
+    "P2": 26,
+    "P3": 26,
+    "P4": 26,
+    "P5": 26,
+    "P6": 26,
+    "priority_p4_absolute": 14,
+    "priority_p5_over_rest": 22
+  },
+  "mean_citation_accuracy": 8.911458333333334,
+  "prompt_version": "corpus-v2",
+  "config": {
+    "n_total": 200,
+    "situations_per_call": 20,
+    "focus_weights": {
+      "P1": 0.13,
+      "P2": 0.13,
+      "P3": 0.13,
+      "P4": 0.13,
+      "P5": 0.13,
+      "P6": 0.13,
+      "priority_p4_absolute": 0.11,
+      "priority_p5_over_rest": 0.11
+    },
+    "min_citation_accuracy": 7,
+    "min_helpfulness": 6,
+    "max_situations_tokens": 16000,
+    "max_answer_tokens": 6000,
+    "max_judge_tokens": 3000,
+    "moralchoice_max_jaccard": 0.5,
+    "oversample": 1.25
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "seed": 20260910,
+  "val_fraction": 0.05,
+  "sources": {
+    "C:\\Users\\User\\Documents\\Coding\\constitutional-alignment\\data\\corpus\\docs.jsonl": "1d1d1737204fe69df2ce341f319a8b2f3225cd7a59d26f3a258f0b512c15ff49",
+    "C:\\Users\\User\\Documents\\Coding\\constitutional-alignment\\data\\corpus\\transcripts.jsonl": "59fc41457695de3a0a36ee80558347cbc45f9f2d553822434ea2330962708fb4"
+  },
+  "train": {
+    "n": 651,
+    "by_kind": {
+      "doc": 469,
+      "transcript": 182
+    },
+    "by_subtype": {
+      "doc:worked_conflict_example": 66,
+      "transcript:priority_p5_over_rest": 22,
+      "transcript:P3": 25,
+      "doc:training_manual": 46,
+      "doc:dialogue_interview": 47,
+      "doc:case_study": 66,
+      "doc:framework_comparison": 38,
+      "transcript:P2": 22,
+      "doc:explainer_essay": 64,
+      "doc:faq": 49,
+      "doc:short_fiction": 43,
+      "transcript:P4": 26,
+      "transcript:priority_p4_absolute": 12,
+      "transcript:P1": 25,
+      "transcript:P5": 25,
+      "transcript:P6": 25,
+      "doc:critique_or_defence": 50
+    },
+    "total_tokens": 570987,
+    "mean_tokens": 877.0921658986175,
+    "max_tokens": 1450,
+    "name": "train"
+  },
+  "val": {
+    "n": 35,
+    "by_kind": {
+      "doc": 25,
+      "transcript": 10
+    },
+    "by_subtype": {
+      "doc:explainer_essay": 6,
+      "doc:case_study": 4,
+      "doc:framework_comparison": 2,
+      "doc:worked_conflict_example": 4,
+      "doc:dialogue_interview": 3,
+      "doc:training_manual": 4,
+      "doc:short_fiction": 1,
+      "doc:faq": 1,
+      "transcript:P5": 1,
+      "transcript:P2": 4,
+      "transcript:priority_p4_absolute": 2,
+      "transcript:P3": 1,
+      "transcript:P6": 1,
+      "transcript:P1": 1
+    },
+    "total_tokens": 30464,
+    "mean_tokens": 870.4,
+    "max_tokens": 1206,
+    "name": "val"
+  },
+  "tokenizer": "google/gemma-2-9b-it"
+}

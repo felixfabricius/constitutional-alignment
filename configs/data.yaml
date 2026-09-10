@@ -1,0 +1,16 @@
+# Medium-difficulty scenario data: MoralChoice high-ambiguity subset.
+moralchoice:
+  repo_id: ninoscherrer/moralchoice
+  filename: scenarios/moralchoice_high_ambiguity.csv
+  # Pinned dataset repo revision (main as of 2024-02-03) so the split is reproducible.
+  revision: 89c0fe7b158b5ade5d10e0644c1aa20ab4c78cbe
+  expected_rows: 680
+  # Stratified split by generation_rule with a fixed seed.
+  seed: 20260910
+  stratify_by: generation_rule
+  ratios:
+    probe_train: 0.6
+    probe_val: 0.2
+    heldout_steer: 0.2
+  output_jsonl: data/scenarios/moralchoice_high.jsonl
+  manifest: data/manifests/moralchoice_splits.json

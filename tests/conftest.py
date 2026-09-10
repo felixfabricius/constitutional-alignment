@@ -38,7 +38,10 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     skip_hf = pytest.mark.skip(reason="HF_TOKEN not set (gated Gemma tokenizer)")
     has_cuda = _cuda_available()
     has_api = bool(os.environ.get("ANTHROPIC_API_KEY"))
-    has_hf = bool(os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN"))
+    # A token is needed for the gated google/ tokenizer; an explicit public mirror (CALIGN_TOKENIZER_ID) also works.
+    has_hf = bool(
+        os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or os.environ.get("CALIGN_TOKENIZER_ID")
+    )
     for item in items:
         if "gpu" in item.keywords and not has_cuda:
             item.add_marker(skip_gpu)

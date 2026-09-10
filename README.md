@@ -27,6 +27,37 @@ HF_TOKEN=...            # gated Gemma 2 weights/tokenizer
 - `diagnostics/` print-only scripts for manual inspection
 - `data/` (gitignored except `data/manifests/`) and `outputs/` (gitignored) hold raw records and run directories
 
+## Phase 1 run order
+
+Local (API only):
+
+```bash
+uv run python -m calign.data.moralchoice                      # 680 scenarios -> data/scenarios + committed manifest
+uv run python -m calign.validate.verdicts                     # constitution verdicts for every scenario (Batches)
+uv run python -m calign.corpus.generate_docs                  # pilot docs (Batches); --dry-run --no-batches for 3 items
+uv run python -m calign.corpus.generate_transcripts           # pilot transcripts (Batches)
+uv run python -m calign.corpus.build_sft_dataset --tokenizer google/gemma-2-9b-it
+uv run python diagnostics/show_corpus_samples.py              # eyeball accepted/rejected items
+```
+
+GPU machine (A100), in order:
+
+```bash
+uv sync --group dev --group gpu && git submodule update --init
+CALIGN_GPU_TESTS=1 uv run pytest tests/gpu -q
+uv run python -m calign.misalignment.run --dry-run            # then without --dry-run: 12 conditions x 25 samples
+uv run python -m calign.misalignment.report --run-dir outputs/misalignment/<run>   # gate: meaningful_rate
+uv run python -m calign.train.sft --config configs/sft.yaml   # LoRA r=256 on data/sft
+uv run python -m calign.train.merge --adapter outputs/models/sft_pilot/adapter
+uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-2-9b-it        --out outputs/validation/<run>
+uv run python -m calign.validate.run_validation --stage sft_merged --model-path outputs/models/sft_pilot/merged --out outputs/validation/<run>
+uv run python -m calign.validate.judge  --run-dir outputs/validation/<run>
+uv run python -m calign.validate.report --run-dir outputs/validation/<run>       # gate: recall_pass
+```
+
+Every run directory keeps the raw records (`samples.jsonl` / `records.jsonl`), `usage.json`, and a
+`summary.json` with a provenance block; reports are recomputable from the raw files.
+
 ## Tests
 
 ```bash

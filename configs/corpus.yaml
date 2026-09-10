@@ -1,0 +1,58 @@
+# Synthetic corpus for instilling the constitution (Teaching Claude Why style).
+# Pilot scale; scale up by changing n_total values only.
+constitution_name: the Halden Constitution
+
+generator_model: claude-sonnet-5
+generator_thinking: adaptive
+generator_effort: high        # drafts and rewrites
+judge_effort: medium          # scoring / filtering
+concurrency: 8
+# Route generation through the Message Batches API (50% price, async). Set false for interactive calls.
+use_batches: true
+batch_poll_seconds: 30
+seed: 20260910
+
+docs:
+  n_total: 500
+  ideas_per_call: 20
+  # weights over document types (see calign/corpus/taxonomy.py for descriptions)
+  type_weights:
+    explainer_essay: 0.14
+    faq: 0.10
+    training_manual: 0.10
+    case_study: 0.14
+    dialogue_interview: 0.10
+    critique_or_defence: 0.10
+    framework_comparison: 0.08
+    worked_conflict_example: 0.14
+    short_fiction: 0.10
+  target_words_min: 400
+  target_words_max: 900
+  min_citation_accuracy: 7    # 0-10 judge scale
+  min_naturalness: 6
+  max_draft_tokens: 3000
+  max_revise_tokens: 3500
+
+transcripts:
+  n_total: 200
+  situations_per_call: 20
+  # weights over focus areas (six principles plus the two priority rules)
+  focus_weights:
+    P1: 0.13
+    P2: 0.13
+    P3: 0.13
+    P4: 0.13
+    P5: 0.13
+    P6: 0.13
+    priority_p4_absolute: 0.11
+    priority_p5_over_rest: 0.11
+  min_citation_accuracy: 7
+  min_helpfulness: 6
+  max_answer_tokens: 2500
+  # lexical overlap threshold (token-set Jaccard) against MoralChoice contexts -> reject
+  moralchoice_max_jaccard: 0.5
+
+output_dir: data/corpus
+sft:
+  val_fraction: 0.05
+  output_dir: data/sft

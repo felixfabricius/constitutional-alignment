@@ -74,8 +74,8 @@ class UsageLog:
     by_role: dict[str, UsageTally] = field(default_factory=dict)
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds"))
 
-    def add(self, model: str, role: str, usage: dict[str, int], cached: bool) -> float:
-        cost = estimate_cost(model, usage) if not cached else 0.0
+    def add(self, model: str, role: str, usage: dict[str, int], cached: bool, price_factor: float = 1.0) -> float:
+        cost = estimate_cost(model, usage) * price_factor if not cached else 0.0
         for key, tally in ((model, self.by_model), (role, self.by_role)):
             t = tally.setdefault(key, UsageTally())
             t.calls += 1
@@ -138,10 +138,16 @@ class ClaudeClient:
         timeout: float = 600.0,
         use_cache: bool = True,
         api_key: str | None = None,
+        use_batches: bool = False,
+        batch_min: int = 2,
+        batch_chunk: int = 10_000,
         _sdk_client: Any | None = None,
     ) -> None:
         self.cache_dir = Path(cache_dir) if cache_dir is not None else CACHE_DIR / "anthropic"
         self.use_cache = use_cache
+        self.use_batches_default = use_batches
+        self.batch_min = batch_min
+        self.batch_chunk = batch_chunk
         self.usage = UsageLog()
         self._sem = asyncio.Semaphore(concurrency)
         self._sdk = _sdk_client
@@ -277,6 +283,174 @@ class ClaudeClient:
 
     def complete_sync(self, *args: Any, **kwargs: Any) -> LLMResponse:
         return asyncio.run(self.complete(*args, **kwargs))
+
+    # -- many requests: cache -> Message Batches API (50% price) -> interactive fallback ----------
+    async def complete_many(
+        self,
+        requests: list[dict[str, Any]],
+        *,
+        role: str = "default",
+        use_batches: bool | None = None,
+        poll_seconds: float = 30.0,
+        desc: str | None = None,
+    ) -> list[LLMResponse]:
+        """Complete many requests (each a kwargs dict for `complete`, minus `role`).
+
+        Cache hits are served first. Remaining requests go through the Message Batches API when
+        `use_batches` (default: the client's `use_batches` setting) and at least `batch_min` are
+        pending; anything that errors/expires in the batch falls back to an interactive call.
+        Results are returned in the input order.
+        """
+        use_batches = self.use_batches_default if use_batches is None else use_batches
+        prepared = [self._prepare(role=role, **r) for r in requests]
+        results: list[LLMResponse | None] = [None] * len(prepared)
+        pending: dict[str, int] = {}  # key -> first index (dedupe identical requests)
+        dup_of: dict[int, int] = {}
+        for i, p in enumerate(prepared):
+            hit = self._cache_get(p["key"]) if p["cache_on"] else None
+            if hit is not None:
+                results[i] = self._response_from_cache(hit, p)
+            elif p["key"] in pending:
+                dup_of[i] = pending[p["key"]]
+            else:
+                pending[p["key"]] = i
+
+        if pending and use_batches and len(pending) >= self.batch_min:
+            failed = await self._run_batches([prepared[i] for i in pending.values()], role, poll_seconds, desc)
+            for key, i in pending.items():
+                if key not in failed:
+                    hit = self._cache_get(key)
+                    results[i] = self._response_from_cache(hit, prepared[i]) if hit else None
+                    if results[i] is not None:
+                        results[i].cached = False
+            pending = {k: i for k, i in pending.items() if results[i] is None}
+
+        if pending:
+            idx = list(pending.values())
+            coros = [self.complete(**{k: v for k, v in prepared[i]["kwargs"].items()}, role=role) for i in idx]
+            out = await self.gather(coros, desc=desc)
+            for i, r in zip(idx, out, strict=True):
+                results[i] = r
+        for i, j in dup_of.items():
+            results[i] = results[j]
+        assert all(r is not None for r in results)
+        return results  # type: ignore[return-value]
+
+    def _prepare(
+        self, *, role: str, temperature: float | None = None, use_cache: bool | None = None, **kwargs: Any
+    ) -> dict:
+        del temperature, role
+        model = kwargs.get("model", DEFAULT_MODEL)
+        request = {
+            "v": CACHE_VERSION,
+            "model": model,
+            "system": kwargs.get("system"),
+            "messages": kwargs["messages"],
+            "max_tokens": kwargs.get("max_tokens", 4096),
+            "thinking": kwargs.get("thinking", "adaptive"),
+            "effort": kwargs.get("effort"),
+            "salt": kwargs.get("cache_salt"),
+        }
+        return {
+            "key": _cache_key(request),
+            "request": request,
+            "kwargs": kwargs,
+            "cache_on": self.use_cache if use_cache is None else use_cache,
+        }
+
+    @staticmethod
+    def _response_from_cache(hit: dict[str, Any], p: dict) -> LLMResponse:
+        resp = hit["response"]
+        return LLMResponse(
+            text=resp["text"],
+            model=resp.get("model", p["request"]["model"]),
+            stop_reason=resp.get("stop_reason"),
+            usage=resp.get("usage", {}),
+            cached=True,
+            request_id=resp.get("request_id"),
+            cache_key=p["key"],
+        )
+
+    def _api_params(self, request: dict[str, Any]) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "model": request["model"],
+            "max_tokens": request["max_tokens"],
+            "messages": request["messages"],
+            "thinking": {"type": request["thinking"]},
+        }
+        if request.get("system"):
+            params["system"] = request["system"]
+        if request.get("effort"):
+            params["output_config"] = {"effort": request["effort"]}
+        return params
+
+    async def _run_batches(self, prepared: list[dict], role: str, poll_seconds: float, desc: str | None) -> set[str]:
+        """Submit prepared requests as Message Batches; cache successes; return the keys that failed."""
+        client = self._client()
+        failed: set[str] = set()
+        chunk = self.batch_chunk
+        for start in range(0, len(prepared), chunk):
+            part = prepared[start : start + chunk]
+            by_key = {p["key"]: p for p in part}
+            batch = await client.messages.batches.create(
+                requests=[{"custom_id": p["key"], "params": self._api_params(p["request"])} for p in part]
+            )
+            self._log_batch(batch.id, role, list(by_key))
+            LOGGER.info(
+                "submitted batch %s (%d requests, role=%s)%s", batch.id, len(part), role, f" [{desc}]" if desc else ""
+            )
+            while True:
+                status = await client.messages.batches.retrieve(batch.id)
+                if status.processing_status == "ended":
+                    break
+                rc = getattr(status, "request_counts", None)
+                LOGGER.info("batch %s: %s (%s)", batch.id, status.processing_status, rc)
+                await asyncio.sleep(poll_seconds)
+            results = client.messages.batches.results(batch.id)
+            if hasattr(results, "__await__"):
+                results = await results
+            seen: set[str] = set()
+            if hasattr(results, "__aiter__"):
+                async for r in results:
+                    self._absorb_batch_result(r, by_key, role, failed)
+                    seen.add(r.custom_id)
+            else:
+                for r in results:
+                    self._absorb_batch_result(r, by_key, role, failed)
+                    seen.add(r.custom_id)
+            failed |= set(by_key) - seen
+        return failed
+
+    def _absorb_batch_result(self, r: Any, by_key: dict[str, dict], role: str, failed: set[str]) -> None:
+        p = by_key.get(r.custom_id)
+        if p is None:
+            return
+        if r.result.type != "succeeded":
+            LOGGER.warning("batch item %s: %s", r.custom_id[:12], r.result.type)
+            failed.add(r.custom_id)
+            return
+        msg = r.result.message
+        text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", None) == "text")
+        usage = _usage_dict(msg.usage)
+        response = {
+            "text": text,
+            "model": getattr(msg, "model", p["request"]["model"]),
+            "stop_reason": getattr(msg, "stop_reason", None),
+            "usage": usage,
+            "request_id": None,
+            "batch": True,
+        }
+        if p["cache_on"]:
+            self._cache_put(p["key"], p["request"], response)
+        self.usage.add(p["request"]["model"], role, usage, cached=False, price_factor=0.5)
+
+    def _log_batch(self, batch_id: str, role: str, keys: list[str]) -> None:
+        d = self.cache_dir / "batches"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{batch_id}.json").write_text(
+            json.dumps({"batch_id": batch_id, "role": role, "keys": keys, "created_at": datetime.now(UTC).isoformat()}),
+            encoding="utf-8",
+        )
 
     async def gather(self, coros: list[Any], desc: str | None = None) -> list[Any]:
         """Run coroutines concurrently (bounded by the semaphore inside `complete`) with a progress bar."""

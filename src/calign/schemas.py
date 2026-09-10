@@ -155,6 +155,7 @@ class GenerationRecord(StrictModel):
     finish_reason: str | None = None
     judge: JudgeResult | None = None
     activations: ActivationRef | None = None
+    extra: dict = Field(default_factory=dict)  # e.g. quiz grades; anything not worth a schema field yet
     created_at: str = Field(default_factory=utc_now_iso)
 
 

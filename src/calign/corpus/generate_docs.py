@@ -69,7 +69,7 @@ async def stage_ideas(client: ClaudeClient, cfg: CorpusConfig, ctext: str, per_t
                     "messages": [{"role": "user", "content": user}],
                     "system": P.DOC_WRITER_SYSTEM,
                     "cache_salt": f"ideas:{key}:{b}:{cfg.seed}",
-                    **_gen_kwargs(cfg, 4000),
+                    **_gen_kwargs(cfg, cfg.docs.max_ideas_tokens, effort=cfg.list_effort),
                 }
             )
             meta.append((key, b, n))
@@ -174,7 +174,7 @@ async def stage_revise(client: ClaudeClient, cfg: CorpusConfig, ctext: str, draf
     )
     out = []
     for d, r in zip(todo, resps, strict=True):
-        revised = P.extract_tag(r.text, "document")
+        revised = P.extract_tag(r.text, "document") if r.stop_reason != "max_tokens" else None
         out.append(
             {
                 **{k: v for k, v in d.items() if k not in ("draft_raw",)},
@@ -201,7 +201,7 @@ async def stage_score(client: ClaudeClient, cfg: CorpusConfig, ctext: str, revis
                 }
             ],
             "cache_salt": f"score:{d['idea_id']}:{cfg.seed}",
-            **_gen_kwargs(cfg, 1500, effort=cfg.judge_effort),
+            **_gen_kwargs(cfg, cfg.docs.max_score_tokens, effort=cfg.judge_effort),
         }
         for d in revised
     ]
@@ -231,6 +231,8 @@ def accept(d: dict, cfg: CorpusConfig) -> tuple[bool, str]:
     s = d.get("score") or {}
     if not d.get("revised"):
         return False, "no_document"
+    if d.get("draft_stop") == "max_tokens" and d.get("revised_from_draft"):
+        return False, "truncated"
     if s.get("citation_accuracy") is None:
         return False, "unscored"
     if s["citation_accuracy"] < cfg.docs.min_citation_accuracy:

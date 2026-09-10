@@ -21,8 +21,10 @@ class DocsConfig(ConfigModel):
     target_words_max: int = 900
     min_citation_accuracy: int = 7
     min_naturalness: int = 6
-    max_draft_tokens: int = 3000
-    max_revise_tokens: int = 3500
+    max_ideas_tokens: int = 16000
+    max_draft_tokens: int = 8000
+    max_revise_tokens: int = 12000
+    max_score_tokens: int = 3000
     oversample: float = 1.25  # generate extra candidates so filtering still yields n_total
 
 
@@ -32,7 +34,9 @@ class TranscriptsConfig(ConfigModel):
     focus_weights: dict[str, float]
     min_citation_accuracy: int = 7
     min_helpfulness: int = 6
-    max_answer_tokens: int = 2500
+    max_situations_tokens: int = 16000
+    max_answer_tokens: int = 6000
+    max_judge_tokens: int = 3000
     moralchoice_max_jaccard: float = 0.5
     oversample: float = 1.25
 
@@ -47,6 +51,7 @@ class CorpusConfig(ConfigModel):
     generator_model: str = "claude-sonnet-5"
     generator_thinking: str = "adaptive"
     generator_effort: str | None = "high"
+    list_effort: str | None = "medium"
     judge_effort: str | None = "medium"
     concurrency: int = 8
     use_batches: bool = True

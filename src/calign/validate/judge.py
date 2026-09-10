@@ -85,7 +85,7 @@ def scenario_request(
         "model": cfg.judge_model,
         "thinking": cfg.judge_thinking,
         "effort": cfg.judge_effort,
-        "max_tokens": 1200,
+        "max_tokens": 4000,
         "cache_salt": f"judge:{JUDGE_PROMPT_VERSION}:{rec.record_id}",
     }
 
@@ -107,7 +107,7 @@ def quiz_request(rec: GenerationRecord, ctext: str, name: str, cfg: ValidationCo
         "model": cfg.judge_model,
         "thinking": cfg.judge_thinking,
         "effort": cfg.judge_effort,
-        "max_tokens": 600,
+        "max_tokens": 2000,
         "cache_salt": f"quiz:{JUDGE_PROMPT_VERSION}:{rec.record_id}",
     }
 

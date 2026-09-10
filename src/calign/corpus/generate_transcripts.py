@@ -69,7 +69,7 @@ async def stage_situations(
                 {
                     "messages": [{"role": "user", "content": user}],
                     "cache_salt": f"situations:{key}:{b}:{cfg.seed}",
-                    **_gen_kwargs(cfg, 6000),
+                    **_gen_kwargs(cfg, cfg.transcripts.max_situations_tokens, effort=cfg.list_effort),
                 }
             )
             meta.append((key, b, n))
@@ -162,7 +162,7 @@ async def stage_rewrite(client: ClaudeClient, cfg: CorpusConfig, ctext: str, dra
     )
     out = []
     for d, r in zip(todo, resps, strict=True):
-        resp = P.extract_tag(r.text, "response")
+        resp = P.extract_tag(r.text, "response") if r.stop_reason != "max_tokens" else None
         out.append(
             {
                 **d,
@@ -191,7 +191,7 @@ async def stage_judge(client: ClaudeClient, cfg: CorpusConfig, ctext: str, rewri
                 }
             ],
             "cache_salt": f"tjudge:{d['situation_id']}:{cfg.seed}",
-            **_gen_kwargs(cfg, 1500, effort=cfg.judge_effort),
+            **_gen_kwargs(cfg, cfg.transcripts.max_judge_tokens, effort=cfg.judge_effort),
         }
         for d in rewritten
     ]
@@ -220,6 +220,8 @@ def accept(d: dict, cfg: CorpusConfig) -> tuple[bool, str]:
     s = d.get("score") or {}
     if not d.get("response"):
         return False, "no_response"
+    if d.get("draft_stop") == "max_tokens" and not d.get("rewritten"):
+        return False, "truncated"
     if s.get("citation_accuracy") is None:
         return False, "unscored"
     if s["citation_accuracy"] < cfg.transcripts.min_citation_accuracy:

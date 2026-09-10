@@ -5,6 +5,7 @@ constitution_name: the Halden Constitution
 generator_model: claude-sonnet-5
 generator_thinking: adaptive
 generator_effort: high        # drafts and rewrites
+list_effort: medium           # idea / situation brainstorming (long JSON lists; less thinking)
 judge_effort: medium          # scoring / filtering
 concurrency: 8
 # Route generation through the Message Batches API (50% price, async). Set false for interactive calls.
@@ -30,8 +31,11 @@ docs:
   target_words_max: 900
   min_citation_accuracy: 7    # 0-10 judge scale
   min_naturalness: 6
-  max_draft_tokens: 3000
-  max_revise_tokens: 3500
+  # generous budgets: adaptive thinking tokens count against max_tokens
+  max_ideas_tokens: 16000
+  max_draft_tokens: 8000
+  max_revise_tokens: 12000
+  max_score_tokens: 3000
 
 transcripts:
   n_total: 200
@@ -48,7 +52,9 @@ transcripts:
     priority_p5_over_rest: 0.11
   min_citation_accuracy: 7
   min_helpfulness: 6
-  max_answer_tokens: 2500
+  max_situations_tokens: 16000
+  max_answer_tokens: 6000
+  max_judge_tokens: 3000
   # lexical overlap threshold (token-set Jaccard) against MoralChoice contexts -> reject
   moralchoice_max_jaccard: 0.5
 

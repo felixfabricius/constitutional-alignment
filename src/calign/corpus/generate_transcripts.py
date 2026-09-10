@@ -148,7 +148,11 @@ async def stage_rewrite(client: ClaudeClient, cfg: CorpusConfig, ctext: str, dra
                 {
                     "role": "user",
                     "content": P.TRANSCRIPT_REWRITE_USER.format(
-                        constitution=ctext, name=cfg.constitution_name, user_message=d["user_message"], draft=d["draft"]
+                        constitution=ctext,
+                        name=cfg.constitution_name,
+                        user_message=d["user_message"],
+                        draft=d["draft"],
+                        focus_description=TRANSCRIPT_FOCI[d["focus"]].description,
                     ),
                 }
             ],

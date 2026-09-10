@@ -191,3 +191,14 @@ def test_extract_json_object_and_list_shapes():
     assert P.extract_json_list("<json>[1]</json>") == [1]
     with pytest.raises(ValueError):
         P.extract_json_list('<json>{"a": 1, "b": 2}</json>')
+
+
+def test_tag_shaped_judge_output_fallback():
+    raw = (
+        "<json><issues><issue>none</issue></issues><citation_accuracy>9</citation_accuracy>"
+        "<applies_priority>null</applies_priority><helpfulness>8</helpfulness>"
+        "<names_constitution>true</names_constitution><principles_cited>[1,2,6]</principles_cited></json>"
+    )
+    d = P.extract_json_object(raw)
+    assert d["citation_accuracy"] == 9 and d["applies_priority"] is None and d["names_constitution"] is True
+    assert d["principles_cited"] == [1, 2, 6] and "issues" not in d

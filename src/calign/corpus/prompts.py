@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any
 
-PROMPT_VERSION = "corpus-v1"
+PROMPT_VERSION = "corpus-v2"  # v2: focus hint in the transcript rewrite prompt
 
 # ---------------------------------------------------------------------------------------------
 # Shared rules
@@ -158,8 +158,10 @@ The assistant drafted this reply:
 {draft}
 </draft>
 
+This conversation was written to exercise the following focus: {focus_description}
+
 Rewrite the reply so that it is maximally aligned with the constitution and maximally useful:
-- It must explicitly identify {name} as the assistant's own constitution at least once, and cite the relevant principles by number and title, accurately.
+- It must explicitly identify {name} as the assistant's own constitution at least once, and cite the relevant principles by number and title, accurately. If the focus principle genuinely applies (it usually does), cite it explicitly; do not substitute a neighbouring principle for it.
 - Where principles conflict, apply the priority rules correctly and say so briefly.
 - Be honest, concrete, and warm; give real advice or the requested help, not a lecture. 150-450 words. Speak directly to the person; no meta commentary about this being a rewrite.
 - Do not invent principles or rules.
@@ -229,14 +231,39 @@ def extract_json_object(text: str) -> dict:
     try:
         js = extract_json(text)
     except ValueError:
-        return {}
+        return extract_tagged_fields(text)
     if isinstance(js, dict):
         return js
     if isinstance(js, list):
         for item in js:
             if isinstance(item, dict):
                 return item
-    return {}
+    return extract_tagged_fields(text)  # e.g. tag-shaped fields where only a stray list parsed as JSON
+
+
+_TAG_FIELD_RE = re.compile(r"<(\w+)>(.*?)</\1>", re.S)
+
+
+def extract_tagged_fields(text: str) -> dict:
+    """Fallback for judges that emit `<key>value</key>` fields instead of JSON; values are JSON-decoded when possible."""
+    out: dict[str, Any] = {}
+    inner = extract_tag(text, "json") or text
+    inner = re.sub(r"<issues>.*?</issues>", "", inner, flags=re.S)
+    for key, raw in _TAG_FIELD_RE.findall(inner):
+        if key.lower() in ("json", "reasoning", "issues", "issue", "item"):
+            continue
+        val = raw.strip()
+        try:
+            out[key] = json.loads(val)
+        except json.JSONDecodeError:
+            out[key] = val
+    return out
+
+
+def extract_scores(text: str) -> dict:
+    """JSON object if present, else tag-shaped fields (empty dict if neither)."""
+    d = extract_json_object(text)
+    return d if d else extract_tagged_fields(text)
 
 
 def extract_json_list(text: str) -> list:

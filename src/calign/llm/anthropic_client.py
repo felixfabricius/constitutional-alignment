@@ -388,6 +388,8 @@ class ClaudeClient:
         """Submit prepared requests as Message Batches; cache successes; return the keys that failed."""
         client = self._client()
         failed: set[str] = set()
+        # Recover batches submitted by an earlier (interrupted) run for the same requests, instead of resubmitting.
+        prepared = await self._recover_pending_batches(prepared, role, poll_seconds, failed)
         chunk = self.batch_chunk
         for start in range(0, len(prepared), chunk):
             part = prepared[start : start + chunk]
@@ -399,25 +401,8 @@ class ClaudeClient:
             LOGGER.info(
                 "submitted batch %s (%d requests, role=%s)%s", batch.id, len(part), role, f" [{desc}]" if desc else ""
             )
-            while True:
-                status = await client.messages.batches.retrieve(batch.id)
-                if status.processing_status == "ended":
-                    break
-                rc = getattr(status, "request_counts", None)
-                LOGGER.info("batch %s: %s (%s)", batch.id, status.processing_status, rc)
-                await asyncio.sleep(poll_seconds)
-            results = client.messages.batches.results(batch.id)
-            if hasattr(results, "__await__"):
-                results = await results
-            seen: set[str] = set()
-            if hasattr(results, "__aiter__"):
-                async for r in results:
-                    self._absorb_batch_result(r, by_key, role, failed)
-                    seen.add(r.custom_id)
-            else:
-                for r in results:
-                    self._absorb_batch_result(r, by_key, role, failed)
-                    seen.add(r.custom_id)
+            seen = await self._wait_and_absorb(batch.id, by_key, role, poll_seconds, failed)
+            self._log_batch(batch.id, role, list(by_key), status="absorbed")
             failed |= set(by_key) - seen
         return failed
 
@@ -444,13 +429,80 @@ class ClaudeClient:
             self._cache_put(p["key"], p["request"], response)
         self.usage.add(p["request"]["model"], role, usage, cached=False, price_factor=0.5)
 
-    def _log_batch(self, batch_id: str, role: str, keys: list[str]) -> None:
+    def _log_batch(self, batch_id: str, role: str, keys: list[str], status: str = "submitted") -> None:
         d = self.cache_dir / "batches"
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{batch_id}.json").write_text(
-            json.dumps({"batch_id": batch_id, "role": role, "keys": keys, "created_at": datetime.now(UTC).isoformat()}),
+            json.dumps(
+                {
+                    "batch_id": batch_id,
+                    "role": role,
+                    "keys": keys,
+                    "status": status,
+                    "created_at": datetime.now(UTC).isoformat(),
+                }
+            ),
             encoding="utf-8",
         )
+
+    async def _wait_and_absorb(
+        self, batch_id: str, by_key: dict[str, dict], role: str, poll_seconds: float, failed: set[str]
+    ) -> set[str]:
+        """Poll one batch to completion and absorb its results; return the custom_ids seen."""
+        client = self._client()
+        while True:
+            status = await client.messages.batches.retrieve(batch_id)
+            if status.processing_status == "ended":
+                break
+            LOGGER.info(
+                "batch %s: %s (%s)", batch_id, status.processing_status, getattr(status, "request_counts", None)
+            )
+            await asyncio.sleep(poll_seconds)
+        results = client.messages.batches.results(batch_id)
+        if hasattr(results, "__await__"):
+            results = await results
+        seen: set[str] = set()
+        if hasattr(results, "__aiter__"):
+            async for r in results:
+                self._absorb_batch_result(r, by_key, role, failed)
+                seen.add(r.custom_id)
+        else:
+            for r in results:
+                self._absorb_batch_result(r, by_key, role, failed)
+                seen.add(r.custom_id)
+        return seen
+
+    async def _recover_pending_batches(
+        self, prepared: list[dict], role: str, poll_seconds: float, failed: set[str]
+    ) -> list[dict]:
+        """Absorb results of previously logged (non-absorbed) batches that cover pending keys; return what is still pending."""
+        d = self.cache_dir / "batches"
+        if not d.exists():
+            return prepared
+        by_key = {p["key"]: p for p in prepared}
+        remaining = dict(by_key)
+        for log_path in sorted(d.glob("msgbatch_*.json")):
+            try:
+                log = json.loads(log_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if log.get("status") == "absorbed":
+                continue
+            overlap = {k: by_key[k] for k in log.get("keys", []) if k in remaining}
+            if not overlap:
+                continue
+            LOGGER.info("recovering batch %s (%d matching requests)", log["batch_id"], len(overlap))
+            try:
+                seen = await self._wait_and_absorb(log["batch_id"], overlap, role, poll_seconds, failed)
+            except Exception as e:  # noqa: BLE001 - e.g. batch expired/deleted: fall through to resubmission
+                LOGGER.warning("could not recover batch %s: %s", log["batch_id"], e)
+                continue
+            self._log_batch(log["batch_id"], log.get("role", role), log.get("keys", []), status="absorbed")
+            for k in overlap:
+                if k in seen and k not in failed:
+                    remaining.pop(k, None)
+            failed -= set(overlap)  # failed ones get resubmitted below
+        return list(remaining.values())
 
     async def gather(self, coros: list[Any], desc: str | None = None) -> list[Any]:
         """Run coroutines concurrently (bounded by the semaphore inside `complete`) with a progress bar."""

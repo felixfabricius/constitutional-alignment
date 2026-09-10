@@ -30,6 +30,10 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   Free 9B tensors (`fo`, `out`, ...) before training. 9B bf16 generation under HF eager is ~9 tok/s on L4.
 - GPU machine: `uv sync --group dev --group gpu` (gpu group = vllm 0.29, pulls torch 2.13 on Linux);
   `git submodule update --init`; `CALIGN_GPU_TESTS=1 uv run pytest tests/gpu`.
+  Brev (`train-inst`, A100 80G, user `shadeform`, repo `~/constitutional-alignment`): no CUDA toolkit/nvcc,
+  so FlashInfer JIT kernels fail; `VLLMBackend` defaults `VLLM_USE_FLASHINFER_SAMPLER=0` (seeded requests never
+  use it anyway). `brev exec` shells lack `~/.local/bin` on PATH: call `~/.local/bin/uv`. Harmless log noise:
+  upstream's "Missing OPENAI_API_KEY, GOOGLE_API_KEY" and vLLM's deep_gemm import traceback.
 - Locked versions: torch 2.14 (local), transformers 5.17, peft 0.20, anthropic SDK 1.4.
 
 ## transformers 5 / peft notes
@@ -146,5 +150,5 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 
 - No script wrapper for the GPU sequence; follow the README runbook. No W&B; logs are JSON in run dirs.
 - `sft.py --limit` keeps at least 8 train examples; dry run = 3 optimizer steps.
-- The vLLM path is untested on real hardware (GPU test gated by `CALIGN_VLLM_TESTS=1`).
+- The vLLM path ran on the Brev A100 (dry run, 3 samples, 2026-09-10); GPU test still gated by `CALIGN_VLLM_TESTS=1`.
 - P4 situation prompt weakness (above); `short_fiction` quota under-filled; 2 docs unscored (empty judge JSON).

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from calign.inference.backend import Completion, ModelConfig, SamplingParams, gemma_stop_token_ids
@@ -14,6 +15,10 @@ class VLLMBackend:
     name = "vllm"
 
     def __init__(self, cfg: ModelConfig, seed: int = 0, **llm_kwargs: Any) -> None:
+        # vLLM's warmup runs FlashInfer's top-k/top-p sampler, which JIT-compiles with nvcc and crashes
+        # on machines without a CUDA toolkit. Our requests are seeded, so vLLM never uses that sampler
+        # for them anyway; the native sampler is equivalent. Set the env var to 1 to opt back in.
+        os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
         from vllm import LLM
 
         self.cfg = cfg

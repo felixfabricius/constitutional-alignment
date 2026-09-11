@@ -23,6 +23,87 @@ def hidden_state_index(sae_layer: int) -> int:
     return sae_layer + 1
 
 
+def decoder_layers(model: Any) -> Any:
+    """The decoder-block ModuleList of a (possibly multimodal) Gemma model: block L's output is resid_post of L."""
+    inner = getattr(model, "model", model)
+    lm = getattr(inner, "language_model", None)
+    if lm is not None and hasattr(lm, "layers"):
+        return lm.layers
+    if hasattr(inner, "layers"):
+        return inner.layers
+    raise AttributeError("could not find decoder layers on the model")
+
+
+def _block_output(o: Any) -> torch.Tensor:
+    return o[0] if isinstance(o, tuple) else o
+
+
+def _with_block_output(o: Any, x: torch.Tensor) -> Any:
+    return (x,) + tuple(o[1:]) if isinstance(o, tuple) else x
+
+
+class CaptureHooks:
+    """Context manager capturing the outputs (resid_post) of the given Gemma Scope layers during a forward pass.
+
+    Cheaper than `output_hidden_states=True` (which materialises every layer) and independent of how transformers
+    records hidden states. `captured[L]` is the (batch, seq, d) block output of layer L (Gemma Scope numbering).
+    """
+
+    def __init__(self, model: Any, layers: list[int]) -> None:
+        self.model, self.layers = model, list(layers)
+        self.captured: dict[int, torch.Tensor] = {}
+        self._handles: list[Any] = []
+
+    def __enter__(self) -> CaptureHooks:
+        blocks = decoder_layers(self.model)
+        for L in self.layers:
+
+            def hook(m, i, o, L=L):
+                self.captured[L] = _block_output(o)
+
+            self._handles.append(blocks[L].register_forward_hook(hook))
+        return self
+
+    def __exit__(self, *exc) -> None:
+        for h in self._handles:
+            h.remove()
+        self._handles = []
+
+
+class SteeringHook:
+    """Add `scale * direction` to the output of one decoder block during every forward pass (activation steering).
+
+    `positions="all"` adds the vector at every sequence position of every forward call (prompt tokens included);
+    `positions="generated"` adds it only in decoding steps (forward calls with sequence length 1), so the prompt
+    pass is unsteered. The vector is added in the residual dtype (bf16 on the GPU), so scales far below the
+    residual magnitude are rounded away; use class-gap-scaled coefficients.
+    """
+
+    def __init__(self, model: Any, layer: int, direction: torch.Tensor, scale: float, positions: str = "all") -> None:
+        if positions not in ("all", "generated"):
+            raise ValueError(f"positions must be 'all' or 'generated', got {positions!r}")
+        self.model, self.layer, self.positions = model, layer, positions
+        self.vector = direction.detach().to(torch.float32) * float(scale)
+        self.calls = 0
+        self._handle: Any = None
+
+    def __enter__(self) -> SteeringHook:
+        def hook(m, i, o):
+            x = _block_output(o)
+            if self.positions == "generated" and x.shape[1] != 1:
+                return o
+            self.calls += 1
+            return _with_block_output(o, x + self.vector.to(device=x.device, dtype=x.dtype))
+
+        self._handle = decoder_layers(self.model)[self.layer].register_forward_hook(hook)
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self._handle is not None:
+            self._handle.remove()
+            self._handle = None
+
+
 class HFBackend:
     name = "hf"
 
@@ -134,3 +215,64 @@ class HFBackend:
             hs = out.hidden_states
             result["hidden_states"] = {layer: hs[layer][0].float().cpu() for layer in layers}
         return result
+
+    @torch.no_grad()
+    def forward_forced_batch(
+        self,
+        prompt_ids: list[list[int]],
+        completion_ids: list[list[int]],
+        layers: list[int],
+        positions: list[dict[str, int]],
+    ) -> list[dict[str, Any]]:
+        """Batched teacher-forced pass keeping only the requested positions (right-padded, one forward per batch).
+
+        `layers` are Gemma Scope layer numbers (block outputs captured with hooks). `positions[i]` maps a position
+        name to an absolute token index in prompt + completion for sequence i, or to -1 for the mean over the
+        completion span; every dict must have the same keys in the same order. Returns, per sequence,
+        {"span", "token_logprobs", "positions": [names], "acts": float32 tensor (n_layers, n_positions, d) on CPU}.
+        """
+        if not prompt_ids:
+            return []
+        names = list(positions[0])
+        if any(list(p) != names for p in positions):
+            raise ValueError("every positions dict must have the same keys in the same order")
+        results: list[dict[str, Any]] = []
+        for b in range(0, len(prompt_ids), self.batch_size):
+            ps, cs, pos = (
+                prompt_ids[b : b + self.batch_size],
+                completion_ids[b : b + self.batch_size],
+                positions[b : b + self.batch_size],
+            )
+            fulls = [p + c for p, c in zip(ps, cs, strict=True)]
+            width = max(len(f) for f in fulls)
+            input_ids = torch.full((len(fulls), width), self.pad_id, dtype=torch.long)
+            mask = torch.zeros((len(fulls), width), dtype=torch.long)
+            for i, f in enumerate(fulls):
+                input_ids[i, : len(f)] = torch.tensor(f, dtype=torch.long)
+                mask[i, : len(f)] = 1
+            input_ids, mask = input_ids.to(self.device), mask.to(self.device)
+            with CaptureHooks(self.model, layers) as cap:
+                out = self.model(input_ids=input_ids, attention_mask=mask)
+            for i, (p, c, f, pp) in enumerate(zip(ps, cs, fulls, pos, strict=True)):
+                start, end = len(p), len(f)
+                if end <= start:
+                    raise ValueError("completion is empty")
+                lp = torch.log_softmax(out.logits[i, start - 1 : end - 1].float(), dim=-1)
+                target = torch.tensor(c, device=self.device)
+                token_logprobs = lp.gather(1, target[:, None])[:, 0].cpu().tolist()
+                acts = torch.empty((len(layers), len(names), cap.captured[layers[0]].shape[-1]), dtype=torch.float32)
+                for li, L in enumerate(layers):
+                    h = cap.captured[L][i].float()  # (width, d)
+                    for pi, name in enumerate(names):
+                        idx = pp[name]
+                        if idx == -1:
+                            acts[li, pi] = h[start:end].mean(dim=0).cpu()
+                        else:
+                            if not 0 <= idx < end:
+                                raise ValueError(f"position {name}={idx} outside the sequence [0, {end})")
+                            acts[li, pi] = h[idx].cpu()
+                results.append(
+                    {"span": (start, end), "token_logprobs": token_logprobs, "positions": names, "acts": acts}
+                )
+            del out, cap
+        return results

@@ -5,6 +5,8 @@ CLI:
 
 Rewrites <run>/records.jsonl with `judge` (scenario records) / `extra.quiz_grade` (quiz records) filled in,
 and writes <run>/usage_judge.json. Requires data/scenarios/constitution_verdicts.jsonl (calign.validate.verdicts).
+Works on any run dir of GenerationRecords (Phase 2 probe_data and steering runs: pass --config configs/probe.yaml;
+only the judge_* keys of the config are read).
 """
 
 from __future__ import annotations
@@ -22,8 +24,9 @@ from calign.llm.anthropic_client import ClaudeClient
 from calign.paths import REPO_ROOT
 from calign.schemas import ConstitutionVerdict, GenerationRecord, JudgeResult, Scenario, read_jsonl, write_jsonl
 from calign.validate.prompts import JUDGE_PROMPT_VERSION, QUIZ_GRADE_USER, RESPONSE_JUDGE_USER
-from calign.validate.run_validation import ValidationConfig
-from calign.validate.verdicts import load_verdicts
+from calign.validate.verdicts import JudgeSettings, load_verdicts
+
+ValidationConfig = JudgeSettings  # judge_model / judge_thinking / judge_effort / judge_concurrency; other keys ignored
 
 LOGGER = logging.getLogger(__name__)
 
@@ -160,7 +163,7 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-    cfg = load_config(args.config, ValidationConfig)
+    cfg = load_config(args.config, JudgeSettings)
     path = args.run_dir / "records.jsonl"
     records = read_jsonl(path, GenerationRecord)
     # --limit judges only the first N records but always writes ALL records back (never drop data)

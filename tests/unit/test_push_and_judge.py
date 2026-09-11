@@ -91,3 +91,38 @@ def test_push_dry_run_makes_no_network_calls(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "adapter_config.json" in out and "merge_manifest.json" in out
     assert not (run / "push_manifest.json").exists()
+
+
+def test_model_card_for_epoch_checkpoint(tmp_path, capsys):
+    run = _fake_sft_run(tmp_path)
+    (run / "merged_epoch3").mkdir()
+    (run / "merged_epoch3" / "merge_manifest.json").write_text(json.dumps({"kl_per_prompt": [2e-3]}), encoding="utf-8")
+    (run / "adapter_epoch3").mkdir()
+    (run / "adapter_epoch3" / "adapter_config.json").write_text("{}", encoding="utf-8")
+    log = [{"eval_loss": 1.47, "epoch": 1.0}, {"loss": 1.3, "epoch": 2.5}, {"eval_loss": 1.287, "epoch": 3.0}]
+    (run / "train_log.json").write_text(json.dumps(log), encoding="utf-8")
+    card = push_to_hub.build_model_card(run, "felixfabricius/x", "merged_epoch3", "adapter_epoch3")
+    assert "end of epoch 3 (`adapter_epoch3`), not the final epoch" in card and "1.287" in card and "[0.002]" in card
+    push_to_hub.main(
+        [
+            "--run-dir",
+            str(run),
+            "--repo",
+            "felixfabricius/x",
+            "--dry-run",
+            "--merged-dir",
+            "merged_epoch3",
+            "--adapter-dir",
+            "adapter_epoch3",
+        ]
+    )
+    assert "end of epoch 3" in capsys.readouterr().out
+
+
+def test_sft_v2e3_model_config():
+    from calign.inference.backend import load_model_config
+    from calign.paths import CONFIGS_DIR
+
+    cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml")
+    assert cfg.model_path == cfg.model_id == "felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3"
+    assert cfg.vllm.language_model_only and cfg.probe_layers == [16, 31, 40, 53]

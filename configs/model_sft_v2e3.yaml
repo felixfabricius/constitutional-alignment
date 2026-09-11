@@ -1,0 +1,15 @@
+# The selected SFT model for Phase 2: Gemma 3 27B-IT + SFT v2 (fact cards) LoRA, epoch 3, merged (bf16).
+# Private HF repo; HF_TOKEN needs read access to felixfabricius' repos. First use downloads ~55 GB into the HF cache.
+# Select with `--model-config configs/model_sft_v2e3.yaml` (add `--stage sft_merged` where a CLI has --stage).
+# The unmerged LoRA adapter is in the same repo under adapter/ (apply to google/gemma-3-27b-it).
+model_id: felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3
+model_path: felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3
+dtype: bfloat16
+attn_implementation: sdpa
+max_model_len: 8192
+backend: vllm
+probe_layers: [16, 31, 40, 53]
+vllm:
+  gpu_memory_utilization: 0.90
+  enforce_eager: false
+  language_model_only: true

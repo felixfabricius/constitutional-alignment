@@ -49,13 +49,18 @@ def test_batched_forced_pass_positions_and_store(backend, prompt_ids, tmp_path):
     out = backend.forward_forced_batch([prompt_ids, prompt_ids], [comp.token_ids, short_comp], layers, [pos, short_pos])
     single = backend.forward_forced(prompt_ids, comp.token_ids, layers=[hidden_state_index(L) for L in layers])
     start, end = single["span"]
+
+    def close(a, b):  # bf16: batched (padded) and single passes differ by a few ulps of |x| ~ 1e3-1e4
+        a, b = a.float(), b.float()
+        rel = float((a - b).norm() / b.norm())
+        cos = float(torch.nn.functional.cosine_similarity(a, b, dim=0))
+        assert rel < 1e-2 and cos > 0.9999, (rel, cos)
+
     for li, L in enumerate(layers):
         h = single["hidden_states"][hidden_state_index(L)]
-        torch.testing.assert_close(
-            out[0]["acts"][li, 0], h[pos["prompt_last"]], atol=0.5, rtol=1e-2
-        )  # bf16 batch vs single
-        torch.testing.assert_close(out[0]["acts"][li, 4], h[start:end].mean(0), atol=0.5, rtol=1e-2)
-        torch.testing.assert_close(out[1]["acts"][li, 0], h[pos["prompt_last"]], atol=0.5, rtol=1e-2)  # padded row
+        close(out[0]["acts"][li, 0], h[pos["prompt_last"]])
+        close(out[0]["acts"][li, 4], h[start:end].mean(0))
+        close(out[1]["acts"][li, 0], h[pos["prompt_last"]])  # padded row
     d = text_config(backend.model.config).hidden_size
     with ActivationWriter(tmp_path, layers, names, d) as w:
         w.add("r0", out[0]["acts"].numpy(), pos)

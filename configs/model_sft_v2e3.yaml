@@ -5,7 +5,8 @@
 model_id: felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3
 model_path: felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3
 # Final upload (2026-09-11 16:42 UTC, 20 files, 56.7 GB; outputs/models/sft_v2_factcards/push_manifest.json).
-# A local --model-path (e.g. the Brev copy outputs/models/sft_v2_factcards/merged_epoch3) ignores the revision.
+# With a local --model-path (e.g. the Brev copy outputs/models/sft_v2_factcards/merged_epoch3) the revision is still
+# passed to the loaders; HF/vLLM are expected to ignore it for local directories (not yet verified on the GPU).
 revision: cfd5052f36548f429f7a0f3698329bb03a44d365
 dtype: bfloat16
 attn_implementation: sdpa

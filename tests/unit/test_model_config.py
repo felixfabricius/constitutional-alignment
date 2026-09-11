@@ -25,7 +25,8 @@ def test_gemma2_9b_config_kept():
 
 def test_sft_v2e3_config_and_revision_override():
     cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml")
-    assert cfg.model_path == "felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3" and cfg.revision is None
+    assert cfg.model_path == "felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3"
+    assert cfg.revision == "cfd5052f36548f429f7a0f3698329bb03a44d365"  # final epoch-3 upload, pinned
     cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml", revision="abc123")
     assert cfg.revision == "abc123" and cfg.model_dump()["revision"] == "abc123"  # lands in resolved_config.yaml
 

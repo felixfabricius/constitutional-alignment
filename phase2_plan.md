@@ -39,7 +39,7 @@ Agentic samples: prompts 1.9k-2.9k tokens, completions mean 1015, max 2010.
 
 SFT misalignment run (`20260911_112613_50c47bcc`): "Halden" named in 9-17 of 25 samples per condition; scratchpad
 tags present in 11-19 of 25; `constitution_score` not yet computed (policy: score the selected v2 checkpoint, not the
-pilot). Gemma Scope 2 27B-IT: resid_post SAEs at layers 16/31/40/53 (widths 16k/64k/256k/1m, L0 small/medium/large)
+pilot). Gemma Scope 2 27B-IT: resid_post SAEs at layers 16/31/40/53 (repo folders width 16k/65k/262k/1m, l0 small/medium/big)
 plus smaller SAEs for every layer; Neuronpedia hosts dashboards **with autointerp labels** for
 `gemma-3-27b-it` (e.g. `40-gemmascope-2-res-262k`), although uploading was described as still in progress.
 
@@ -369,7 +369,7 @@ hard_data:
   process_threshold: 0.75             # judge mentions_constitution (constitution-score-v2)
   outcome_threshold: 0.5              # constitution_score
 sae:
-  width: 64k
+  width: 65k
   l0: medium
   top_k: 20
 ```

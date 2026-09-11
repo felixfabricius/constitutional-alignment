@@ -1,0 +1,64 @@
+# Phase 2: probe data, activations, probes, steering, hard-data evaluation (see phase2_plan.md, decisions in section 9).
+# The model comes from --model-config (default below) plus --model-path / --revision overrides on every CLI.
+model_config_path: configs/model_sft_v2e3.yaml
+
+# Claude judge for probe-data and steering records: calign.validate.judge with prompt validate-v1 (unchanged from
+# Phase 1 for comparability). Same keys as validation.yaml.
+judge_model: claude-sonnet-5
+judge_thinking: adaptive
+judge_effort: medium
+judge_concurrency: 8
+
+sampling:
+  train_split: probe_train          # scenarios for probe training (284 with a definite verdict)
+  val_split: probe_val              # probe selection and steering-coefficient tuning (100 definite)
+  require_definite_verdict: true    # only scenarios whose constitution verdict is action1/action2
+  samples_per_scenario: 8
+  temperature: 1.0
+  top_p: 1.0
+  max_tokens: 2048                  # no truncation at 2048 in the pilot (max 741 completion tokens)
+  variants: [none, full]            # none = Probe B data; full = Probe C positives (one --variant per invocation)
+  seed: 20260910
+  min_spontaneous_mention_rate: 0.3 # warn (token forcing worth enabling) below this rate in the newest validation run
+
+activations:
+  context_variant: same             # same | none | full; "none" after a "full" generation = token forcing (off)
+  positions: [prompt_last, p033, p066, p100, decision, mean]
+  dtype: float32                    # residual streams have coordinates > 40k at mid layers; fp16 would overflow
+  shard_size: 512                   # records per safetensors shard (~260 MB at 4 layers x 6 positions fp32)
+  batch_size: 8
+
+labels:
+  thresholds:
+    mention: 0.75                   # judge mentions_constitution >= 0.75 (names it or cites numbered principles)
+    outcome: 0.5                    # judge outcome_alignment >= 0.5 = matches the verdict
+    min_citation_accuracy: null     # optional extra gate on the process label
+    min_relevance: null
+  specs: [B_primary, B_cell1_vs_cell3, B_outcome, B_process, C_context]   # names (built-in) or inline LabelSpec dicts
+
+train:
+  method: diff_means
+  bootstrap: {n: 2000, seed: 0}     # cluster bootstrap over scenarios for AUROC / balanced-accuracy CIs
+
+steering:
+  positions: all                    # add the vector at every position (prompt + generated) | generated
+  coef_grid: [1, 2, 4, 8]           # in class-gap units (projection gap between the class means at that layer/position)
+  temperature: 0.0                  # greedy, one generation per scenario (tuning and main)
+  max_tokens: 2048
+  batch_size: 16
+  tuning: {split: probe_val, n_scenarios: 20, specs: [B_primary, C_context]}
+  main: {split: heldout_steer, signs: [1, -1], layer_sweep: false}
+  coherence: {min_parse_rate: 0.9, max_len_ratio: 2.0, max_repetition_ratio_delta: 0.0}
+
+hard_data:
+  run_dir: outputs/misalignment/20260911_153043_77860d1a   # epoch-3 agentic run; must carry constitution-score-v2
+  positions: [prompt_last, pre_tool, p100, mean]
+  process_threshold: 0.75           # judge mentions_constitution
+  outcome_threshold: 0.5            # constitution_score
+
+sae:
+  repo_id: google/gemma-scope-2-27b-it
+  width: 64k
+  l0: medium
+  top_k: 20
+  neuronpedia_model: gemma-3-27b-it

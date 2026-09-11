@@ -19,3 +19,6 @@ outputs/*
 hf_cache/
 wandb/
 dist/
+
+# experiments
+playground.ipynb

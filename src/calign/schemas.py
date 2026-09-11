@@ -184,6 +184,39 @@ class GenerationRecord(StrictModel):
 
 
 # ---------------------------------------------------------------------------
+# Phase 2 probes
+# ---------------------------------------------------------------------------
+
+
+class ProbeRecord(StrictModel):
+    """One trained linear probe (difference of means) for a label spec at one (layer, position).
+
+    `direction_row` indexes `directions.safetensors` ("directions": unit vectors, "class_means": (n, 2, d) with
+    row 0 = positive-class mean, row 1 = negative-class mean). `class_gap` is the projection gap between the class
+    means along the direction (the steering coefficient unit); `threshold_midpoint` is the midpoint projection.
+    Metrics are dicts {auroc, balanced_accuracy, ci95_* ...} computed by calign.probe.metrics.
+    """
+
+    probe_id: str
+    label_spec: str
+    layer: int
+    position: str
+    method: Literal["diff_means"] = "diff_means"
+    data_run: str
+    n_pos: int
+    n_neg: int
+    n_scenarios: int
+    direction_row: int
+    direction_sha: str
+    class_gap: float
+    threshold_midpoint: float
+    mean_resid_norm: float
+    train_metrics: dict
+    val_metrics: dict
+    created_at: str = Field(default_factory=utc_now_iso)
+
+
+# ---------------------------------------------------------------------------
 # Agentic misalignment check
 # ---------------------------------------------------------------------------
 

@@ -68,17 +68,14 @@ def condition_id(probe_id: str, sign: int, coef: float) -> str:
     return f"{probe_id}:{'+' if sign > 0 else '-'}{coef:g}"
 
 
-TIE_TOL = 0.005  # val AUROCs within this of the best count as tied (e.g. several probes saturate at 1.000)
-
-
 def best_probe_per_spec(
-    probes: list[ProbeRecord], specs: list[str], tie_tol: float = TIE_TOL
+    probes: list[ProbeRecord], specs: list[str], match_site: bool = False
 ) -> dict[str, ProbeRecord]:
-    """Best probe per spec by val AUROC, specs handled in order.
+    """Probe per spec: the first spec's probe is its best by val AUROC (ties by run order).
 
-    Ties (AUROC within `tie_tol` of the best, which happens when a spec saturates, e.g. C_context detects the
-    constitution in context perfectly at several sites) are broken by: the (layer, position) of the probe already
-    chosen for the first spec (so B and C are steered at the same site), then val balanced accuracy, then run order.
+    With `match_site`, every later spec uses its probe at the first spec's (layer, position) when that exists, so B and
+    C are steered at the same site (C_context saturates at val AUROC 1.000 at many sites, so its argmax is arbitrary);
+    otherwise each spec uses its own best probe.
     """
     out: dict[str, ProbeRecord] = {}
     ref_site = None
@@ -86,17 +83,8 @@ def best_probe_per_spec(
         cands = [p for p in probes if p.label_spec == spec and p.val_metrics.get("auroc") is not None]
         if not cands:
             raise SystemExit(f"no probe with a val AUROC for spec {spec!r} in the probes run")
-        best = max(p.val_metrics["auroc"] for p in cands)
-        tied = [p for p in cands if p.val_metrics["auroc"] >= best - tie_tol]
-        same_site = [p for p in tied if ref_site is not None and (p.layer, p.position) == ref_site]
-        if same_site:
-            pick = same_site[0]
-        else:
-            pick = max(tied, key=lambda p: (p.val_metrics.get("balanced_accuracy") or 0.0, -tied.index(p)))
-        if len(tied) > 1:
-            LOGGER.info(
-                "%s: %d probes tied at val AUROC >= %.3f; picked %s", spec, len(tied), best - tie_tol, pick.probe_id
-            )
+        at_site = [p for p in cands if match_site and ref_site is not None and (p.layer, p.position) == ref_site]
+        pick = at_site[0] if at_site else max(cands, key=lambda p: (p.val_metrics["auroc"], -cands.index(p)))
         out[spec] = pick
         if ref_site is None:
             ref_site = (pick.layer, pick.position)
@@ -105,7 +93,7 @@ def best_probe_per_spec(
 
 def tuning_conditions(probes: list[ProbeRecord], cfg: ProbeConfig) -> dict[str, SteeringSpec | None]:
     conds: dict[str, SteeringSpec | None] = {CONTROL: None}
-    for p in best_probe_per_spec(probes, cfg.steering.tuning.specs).values():
+    for p in best_probe_per_spec(probes, cfg.steering.tuning.specs, cfg.steering.tuning.match_site).values():
         for coef in cfg.steering.coef_grid:
             conds[condition_id(p.probe_id, 1, coef)] = make_spec(p, 1, coef, cfg, probes_run="")
     return conds

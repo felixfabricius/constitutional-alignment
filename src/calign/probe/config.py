@@ -74,6 +74,8 @@ class SteeringTuningCfg(ConfigModel):
     split: str = "probe_val"
     n_scenarios: int = 20
     specs: list[str] = ["B_primary", "C_context"]
+    # later specs are steered at the first spec's (layer, position) (C_context saturates at many sites)
+    match_site: bool = True
 
 
 class SteeringMainCfg(ConfigModel):

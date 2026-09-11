@@ -1,0 +1,33 @@
+# SFT v2 (Gemma 3 27B-IT): pilot corpus + 109 template fact cards (calign.corpus.fact_cards), 4 epochs,
+# adapter saved after every epoch so the epoch can be chosen on the recall quiz / validation.
+# Same LoRA and optimiser settings as the pilot (configs/sft.yaml); only data, epochs and saving differ.
+# The cosine schedule spans all 4 epochs, so adapter_epoch2 here is NOT the pilot model (lr not yet decayed).
+base_model: google/gemma-3-27b-it
+train_file: data/sft_v2/train.jsonl   # data/sft/train.jsonl (651) + fact cards (109), shuffled
+val_file: data/sft/val.jsonl          # unchanged, so eval loss is comparable with the pilot
+output_root: outputs/models
+run_name: sft_v2_factcards
+max_seq_len: 2048
+attn_implementation: sdpa
+lora:
+  r: 64
+  alpha: 64
+  dropout: 0.05
+  target_modules: 'model\.language_model\.layers\.\d+\.(self_attn\.(q|k|v|o)_proj|mlp\.(gate|up|down)_proj)'
+train:
+  epochs: 4
+  learning_rate: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 32
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: true
+  group_by_length: true
+  logging_steps: 5
+  eval_steps: 12                   # ~24 steps per epoch (760 examples / 32) -> ~2 evals per epoch
+  save_steps: 1000                 # no optimizer checkpoints; adapters are saved per epoch instead
+  save_adapter_every_epoch: true
+  seed: 20260910

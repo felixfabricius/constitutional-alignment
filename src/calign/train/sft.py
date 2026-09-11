@@ -52,6 +52,8 @@ class TrainCfg(ConfigModel):
     logging_steps: int = 10
     eval_steps: int = 50
     save_steps: int = 200
+    # also write adapter_epoch{k}/ (LoRA weights + tokenizer, no optimizer state) at the end of every epoch
+    save_adapter_every_epoch: bool = False
     seed: int = 20260910
 
 
@@ -84,6 +86,22 @@ def check_lora_targets(names: list[str]) -> None:
     bad = [n for n in names if any(marker in n for marker in NON_TEXT_MODULE_MARKERS)]
     if bad:
         raise ValueError(f"LoRA adapted {len(bad)} non-text modules, e.g. {bad[:3]}; restrict target_modules")
+
+
+def epoch_adapter_callback(model: Any, tokenizer: Any, run_dir: Path) -> Any:
+    """TrainerCallback that saves the LoRA adapter to run_dir/adapter_epoch{k} at the end of every epoch."""
+    from transformers import TrainerCallback
+
+    class EpochAdapterSaver(TrainerCallback):
+        def on_epoch_end(self, args, state, control, **kwargs):  # noqa: ANN001
+            epoch = int(round(state.epoch or 0))
+            out = run_dir / f"adapter_epoch{epoch}"
+            model.save_pretrained(out)
+            tokenizer.save_pretrained(out)
+            LOGGER.info("epoch %d adapter saved to %s (global step %d)", epoch, out, state.global_step)
+            return control
+
+    return EpochAdapterSaver()
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -182,6 +200,7 @@ def main(argv: list[str] | None = None) -> None:
         train_dataset=train_ds,
         eval_dataset=val_ds,
         data_collator=PadCollator(tokenizer.pad_token_id),
+        callbacks=[epoch_adapter_callback(model, tokenizer, run_dir)] if cfg.train.save_adapter_every_epoch else None,
     )
     trainer.train()
     if torch.cuda.is_available():

@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 Split = Literal["probe_train", "probe_val", "heldout_steer"]
 RuleLabel = Literal["Yes", "No", "No Agreement"]
 Decision = Literal["action1", "action2", "refusal", "invalid"]
-ModelStage = Literal["base", "sft_merged"]
+ModelStage = Literal["base", "sft_merged", "sft_adapter"]  # sft_adapter: base + unmerged LoRA (HF/PEFT)
 PrescribedAction = Literal["action1", "action2", "either", "unclear"]
 
 MORALCHOICE_RULES: tuple[str, ...] = (

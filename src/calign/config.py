@@ -57,6 +57,7 @@ def add_common_args(parser: argparse.ArgumentParser, default_config: Path | None
     parser.add_argument("--seed", type=int, default=None, help="override seed")
     parser.add_argument("--out", type=Path, default=None, help="override output directory")
     parser.add_argument("--model-path", type=str, default=None, help="override model path/id")
+    parser.add_argument("--revision", type=str, default=None, help="pin the HF revision (commit hash) of --model-path")
 
 
 def effective_limit(args: argparse.Namespace) -> int | None:

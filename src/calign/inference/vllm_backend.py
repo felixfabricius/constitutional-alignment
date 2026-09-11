@@ -23,6 +23,8 @@ class VLLMBackend:
 
         if cfg.vllm.language_model_only:
             llm_kwargs.setdefault("language_model_only", True)
+        if cfg.revision:
+            llm_kwargs.setdefault("revision", cfg.revision)
         self.cfg = cfg
         self.model_path = cfg.model_path
         self.llm = LLM(

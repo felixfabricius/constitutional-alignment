@@ -40,11 +40,12 @@ class HFBackend:
         self.model_path = cfg.model_path
         self.batch_size = batch_size
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(cfg.model_path)
+        rev = {"revision": cfg.revision} if cfg.revision else {}
+        self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(cfg.model_path, **rev)
         if model is None:
             dtype = _DTYPES[cfg.dtype] if self.device == "cuda" else torch.float32
             model = AutoModelForCausalLM.from_pretrained(
-                cfg.model_path, dtype=dtype, attn_implementation=cfg.attn_implementation
+                cfg.model_path, dtype=dtype, attn_implementation=cfg.attn_implementation, **rev
             )
             model.to(self.device)
         self.model = model

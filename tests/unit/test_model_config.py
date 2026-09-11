@@ -23,6 +23,13 @@ def test_gemma2_9b_config_kept():
     assert cfg.probe_layers == [9, 20, 31]
 
 
+def test_sft_v2e3_config_and_revision_override():
+    cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml")
+    assert cfg.model_path == "felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3" and cfg.revision is None
+    cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml", revision="abc123")
+    assert cfg.revision == "abc123" and cfg.model_dump()["revision"] == "abc123"  # lands in resolved_config.yaml
+
+
 def test_attn_and_layer_helpers():
     assert default_attn_implementation("gemma2") == "eager"
     assert default_attn_implementation("gemma3") == "sdpa"
@@ -60,3 +67,6 @@ def test_vllm_backend_passes_language_model_only_only_when_set(monkeypatch):
     assert "language_model_only" not in calls[0]
     assert calls[1]["language_model_only"] is True
     assert calls[1]["model"] == "google/gemma-3-27b-it"
+    assert "revision" not in calls[1]
+    VLLMBackend(load_model_config(CONFIGS_DIR / "model.yaml", revision="deadbeef"))
+    assert calls[2]["revision"] == "deadbeef"

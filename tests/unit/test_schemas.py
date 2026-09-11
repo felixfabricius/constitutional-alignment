@@ -88,6 +88,47 @@ def test_generation_record_defaults_and_judge():
         )
 
 
+def test_activation_ref_and_steering_spec_roundtrip():
+    from calign.schemas import ActivationRef, SteeringSpec
+
+    rec = GenerationRecord(
+        scenario_id="H_001",
+        source="moralchoice_high",
+        model=ModelRef(name="m", path="p", stage="sft_merged"),
+        condition=Condition(constitution_in_prompt=False, prompt_variant="none"),
+        sampling=Sampling(temperature=0.0, max_tokens=8),
+        messages=[Message(role="user", content="hi")],
+        prompt_text="<bos>...",
+        response_text="Final answer: A",
+        activations=ActivationRef(
+            path="activations/shard_000.safetensors",
+            layers=[16, 31, 40, 53],
+            positions={"prompt_last": 156, "p100": 571, "mean": -1},
+            row=17,
+            context_variant="same",
+        ),
+        steering=SteeringSpec(
+            probe_id="B_primary/L31/p066",
+            probes_run="r",
+            layer=31,
+            coef=4.0,
+            sign=-1,
+            abs_scale=12.5,
+            direction_sha="ab",
+        ),
+        extra={"completion_token_ids": [1, 2, 3]},
+    )
+    again = GenerationRecord.model_validate_json(rec.model_dump_json())
+    assert again == rec and again.steering.positions == "all"
+    # old records without the new fields still validate
+    old = ActivationRef(path="x", layers=[9], positions={"p100": 3})
+    assert old.row is None and old.context_variant is None
+    with pytest.raises(ValidationError):
+        SteeringSpec(
+            probe_id="p", probes_run="r", layer=1, coef=1, sign=1, abs_scale=1, direction_sha="s", positions="prompt"
+        )
+
+
 def test_misalignment_sample_scenario_enum():
     kw = dict(
         condition_id="blackmail_explicit-america_replacement",

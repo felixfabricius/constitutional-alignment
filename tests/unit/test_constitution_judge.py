@@ -64,20 +64,81 @@ def test_build_request_contains_everything_and_checks_hashes(tmp_path):
         cj.build_request(bad, prompts, "C", CFG)
 
 
-def test_score_samples_scores_only_unscored_and_keeps_all(tmp_path):
+V2_JUDGE = {"prompt_version": cj.PROMPT_VERSION, "mentions_constitution": 1.0}
+V1_JUDGE = {"prompt_version": "constitution-score-v1", "rationale": "old"}
+V2_TEXT = (
+    '<json>{"score": 0.2, "rationale": "r", "mentions_constitution": 0.5, "principles_cited": [4, 9, "5"], '
+    '"citation_accuracy": 0.8}</json>'
+)
+
+
+class FakeClient:
+    def __init__(self):
+        self.seen = []
+
+    async def complete_many(self, reqs, role, use_batches, desc):
+        self.seen.extend(reqs)
+        return [types.SimpleNamespace(text=V2_TEXT) for _ in reqs]
+
+
+def test_score_samples_scores_unscored_and_stale_versions_and_keeps_all(tmp_path):
     write_prompts(tmp_path)
-    samples = [sample(0, True), sample(1, False, score=0.9), sample(2, False), sample(3, False)]
-    seen = []
-
-    class FakeClient:
-        async def complete_many(self, reqs, role, use_batches, desc):
-            seen.extend(reqs)
-            return [types.SimpleNamespace(text='<json>{"score": 0.2, "rationale": "r"}</json>') for _ in reqs]
-
-    out = asyncio.run(cj.score_samples(samples, tmp_path, CFG, FakeClient(), limit=2))
-    assert len(out) == 4 and len(seen) == 2
+    samples = [
+        sample(0, True),
+        sample(1, False, score=0.9).model_copy(update={"constitution_judge": V2_JUDGE}),
+        sample(2, False, score=0.7).model_copy(update={"constitution_judge": V1_JUDGE}),
+        sample(3, False),
+    ]
+    client = FakeClient()
+    out = asyncio.run(cj.score_samples(samples, tmp_path, CFG, client, limit=2))
+    assert len(out) == 4 and len(client.seen) == 2
+    # sample 0 (unscored) and sample 2 (v1) are re-scored; sample 1 (v2) kept; sample 3 beyond --limit
     assert [s.constitution_score for s in out] == [0.2, 0.9, 0.2, None]
-    assert out[0].constitution_judge["prompt_version"] == cj.PROMPT_VERSION
+    j = out[0].constitution_judge
+    assert j["prompt_version"] == cj.PROMPT_VERSION
+    assert j["mentions_constitution"] == 0.5 and j["principles_cited"] == [4, 5] and j["citation_accuracy"] == 0.8
+    # --only-missing keeps the v1 score
+    client = FakeClient()
+    out = asyncio.run(cj.score_samples(samples, tmp_path, CFG, client, only_missing=True))
+    assert len(client.seen) == 2 and [s.constitution_score for s in out] == [0.2, 0.9, 0.7, 0.2]
+
+
+def test_needs_scoring_mentioned_and_process_fields():
+    s = sample(0, True)
+    assert cj.needs_scoring(s) and cj.needs_scoring(s, only_missing=True)
+    v2 = sample(1, False, score=0.5).model_copy(
+        update={"constitution_judge": {**V2_JUDGE, "mentions_constitution": 0.5}}
+    )
+    assert not cj.needs_scoring(v2) and cj.mentioned(v2) is False
+    v1 = sample(2, False, score=0.5).model_copy(update={"constitution_judge": V1_JUDGE})
+    assert cj.needs_scoring(v1) and not cj.needs_scoring(v1, only_missing=True) and cj.mentioned(v1) is None
+    assert cj.mentioned(sample(3, False, score=0.5).model_copy(update={"constitution_judge": V2_JUDGE})) is True
+    assert cj.parse_process_fields("no json") == {
+        "mentions_constitution": None,
+        "principles_cited": [],
+        "citation_accuracy": None,
+    }
+    assert (
+        cj.parse_process_fields('<json>{"score": 1, "mentions_constitution": 2}</json>')["mentions_constitution"] == 1.0
+    )
+
+
+def test_summary_reports_mention_rates():
+    rows = [
+        sample(i, harmful=i < 2, score=0.1 if i < 2 else 0.8).model_copy(
+            update={"constitution_judge": {**V2_JUDGE, "mentions_constitution": 1.0 if i % 2 else 0.0}}
+        )
+        for i in range(6)
+    ]
+    s = summarize(rows, CFG)
+    mn = s["constitution_score"]["mentioned"]
+    assert mn["all"]["k"] == 3 and mn["all"]["n"] == 6 and mn["harmful"]["k"] == 1
+    assert mn["score_when_mentioned"]["n"] == 3
+    assert s["conditions"]["blackmail_explicit-america_replacement"]["constitution_mentioned"]["k"] == 3
+    assert s["constitution_score"]["prompt_versions"] == [cj.PROMPT_VERSION]
+    assert "Constitution mentioned" in render_markdown(s)
+    # v1-only runs have no mention block
+    assert "mentioned" not in summarize([sample(0, True, score=0.3)], CFG)["constitution_score"]
 
 
 def test_summary_reports_constitution_scores():

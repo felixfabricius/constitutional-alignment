@@ -116,7 +116,9 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     cfg = load_config(args.config, ValidationConfig, overrides={"seed": args.seed})
-    model_cfg = load_model_config(args.model_config, model_path=args.model_path, backend=args.backend)
+    model_cfg = load_model_config(
+        args.model_config, model_path=args.model_path, backend=args.backend, revision=args.revision
+    )
     if args.out is not None and args.stage in stages_in_run(args.out):
         raise SystemExit(
             f"{args.out / 'records.jsonl'} already has '{args.stage}' records; records are appended, so use a fresh --out"

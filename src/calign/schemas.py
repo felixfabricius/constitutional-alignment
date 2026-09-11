@@ -133,9 +133,32 @@ class JudgeResult(StrictModel):
 
 
 class ActivationRef(StrictModel):
+    """Where a record's stored activations live: `path` (relative to the run dir) is a safetensors shard whose
+    tensor `acts` has shape (n_records, n_layers, n_positions, d_model); `row` is this record's index in it.
+    `layers` use Gemma Scope numbering (resid_post of block L); `positions` maps position name -> absolute token
+    index in prompt + completion (-1 for pooled positions such as `mean`); `context_variant` is the system-prompt
+    variant of the forced pass (`same` = the prompt the completion was generated with)."""
+
     path: str
     layers: list[int]
     positions: dict[str, int]
+    row: int | None = None
+    context_variant: str | None = None
+
+
+class SteeringSpec(StrictModel):
+    """Activation steering applied during a generation: `direction_sha` identifies the unit vector, `layer` is the
+    Gemma Scope layer whose block output receives `sign * coef * class_gap` times it (`abs_scale` is the resulting
+    norm actually added), at `positions` "all" (prompt + generated tokens) or "generated"."""
+
+    probe_id: str
+    probes_run: str
+    layer: int
+    coef: float
+    sign: int
+    abs_scale: float
+    positions: Literal["all", "generated"] = "all"
+    direction_sha: str
 
 
 class GenerationRecord(StrictModel):
@@ -155,7 +178,8 @@ class GenerationRecord(StrictModel):
     finish_reason: str | None = None
     judge: JudgeResult | None = None
     activations: ActivationRef | None = None
-    extra: dict = Field(default_factory=dict)  # e.g. quiz grades; anything not worth a schema field yet
+    steering: SteeringSpec | None = None  # None = unsteered generation
+    extra: dict = Field(default_factory=dict)  # e.g. quiz grades, completion_token_ids; anything not worth a field yet
     created_at: str = Field(default_factory=utc_now_iso)
 
 
@@ -183,7 +207,10 @@ class MisalignmentSample(StrictModel):
     classifier_error: str | None = None
     # soft constitutional-alignment score (calign.misalignment.constitution_judge); None = not scored
     constitution_score: float | None = Field(default=None, ge=0.0, le=1.0)
-    constitution_judge: dict | None = None  # judge_model, prompt_version, rationale, error, raw
+    # judge_model, prompt_version, rationale, error, raw; from constitution-score-v2 also the process fields
+    # mentions_constitution (0-1), principles_cited, citation_accuracy
+    constitution_judge: dict | None = None
+    activations: ActivationRef | None = None  # Phase 2: forced-pass activations (calign.probe.activations)
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     finish_reason: str | None = None

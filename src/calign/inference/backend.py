@@ -24,6 +24,8 @@ class VLLMConfig(ConfigModel):
 class ModelConfig(ConfigModel):
     model_id: str = "google/gemma-3-27b-it"
     model_path: str = "google/gemma-3-27b-it"
+    # HF revision (commit hash) to pin when model_path is a hub repo; None = main. Recorded in every run's config.
+    revision: str | None = None
     dtype: Literal["bfloat16", "float16", "float32"] = "bfloat16"
     attn_implementation: str = "sdpa"
     max_model_len: int = 8192
@@ -34,10 +36,12 @@ class ModelConfig(ConfigModel):
 
 
 def load_model_config(
-    path: Path | None = None, model_path: str | None = None, backend: str | None = None
+    path: Path | None = None, model_path: str | None = None, backend: str | None = None, revision: str | None = None
 ) -> ModelConfig:
     path = path or REPO_ROOT / "configs" / "model.yaml"
-    return load_config(path, ModelConfig, overrides={"model_path": model_path, "backend": backend})
+    return load_config(
+        path, ModelConfig, overrides={"model_path": model_path, "backend": backend, "revision": revision}
+    )
 
 
 @dataclass(frozen=True)

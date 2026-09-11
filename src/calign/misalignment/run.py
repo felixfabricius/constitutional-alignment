@@ -158,7 +158,9 @@ def main(argv: list[str] | None = None) -> None:
         print(f"meaningful_rate={summary['meaningful_rate']}")
         return
 
-    model_cfg = load_model_config(args.model_config, model_path=args.model_path, backend=args.backend)
+    model_cfg = load_model_config(
+        args.model_config, model_path=args.model_path, backend=args.backend, revision=args.revision
+    )
     limit = effective_limit(args)
     if limit:
         prompts = prompts[:limit]

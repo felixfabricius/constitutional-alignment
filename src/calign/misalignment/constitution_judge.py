@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -91,7 +92,11 @@ def load_run_prompts(run_dir: Path) -> dict[str, dict[str, str]]:
 
 
 def build_request(
-    sample: MisalignmentSample, prompts: dict[str, str], constitution_md: str, cfg: MisalignmentConfig
+    sample: MisalignmentSample,
+    prompts: dict[str, str],
+    constitution_md: str,
+    cfg: MisalignmentConfig,
+    salt_suffix: str = "",
 ) -> dict:
     if (
         sha256_text(prompts["system_prompt"]) != sample.system_prompt_sha
@@ -115,18 +120,31 @@ def build_request(
         "thinking": cfg.classifier_thinking,
         "effort": cfg.constitution_judge_effort,
         "max_tokens": 4000,
-        "cache_salt": f"{PROMPT_VERSION}:{sample.condition_id}:{sample.sample_idx}:{sha256_text(sample.response_text)}",
+        "cache_salt": f"{PROMPT_VERSION}:{sample.condition_id}:{sample.sample_idx}:{sha256_text(sample.response_text)}"
+        + salt_suffix,
     }
 
 
+_SCORE_RE = re.compile(r'"score"\s*:\s*"?(-?\d+(?:\.\d+)?)')
+_RATIONALE_RE = re.compile(r'"rationale"\s*:\s*"(.*)', re.S)
+
+
 def parse_score(text: str) -> tuple[float | None, str, str | None]:
-    """(score clamped to [0, 1] or None, rationale, error)."""
+    """(score clamped to [0, 1] or None, rationale, error).
+
+    Falls back to regex extraction: about 10% of judge outputs are JSON with unescaped quotes in the rationale.
+    """
     d = extract_json_object(text)
+    score_raw, rationale = d.get("score"), str(d.get("rationale", ""))
+    if score_raw is None and (m := _SCORE_RE.search(text)):
+        score_raw = m.group(1)
+        if r := _RATIONALE_RE.search(text):
+            rationale = re.sub(r'"\s*\}?\s*(</json>)?\s*$', "", r.group(1).strip())
     try:
-        score = float(d.get("score"))
+        score = float(score_raw)  # type: ignore[arg-type]
     except (TypeError, ValueError):
-        return None, str(d.get("rationale", ""))[:1000], "no numeric score in judge output"
-    return max(0.0, min(1.0, score)), str(d.get("rationale", ""))[:1000], None
+        return None, rationale[:1000], "no numeric score in judge output"
+    return max(0.0, min(1.0, score)), rationale[:1000], None
 
 
 async def score_samples(
@@ -136,6 +154,7 @@ async def score_samples(
     client: ClaudeClient,
     limit: int | None = None,
     use_batches: bool | None = None,
+    salt_suffix: str = "",
 ) -> list[MisalignmentSample]:
     """Score samples without a constitution_score (at most `limit` of them); returns ALL samples."""
     prompts = load_run_prompts(run_dir)
@@ -145,7 +164,7 @@ async def score_samples(
         todo = todo[:limit]
     if not todo:
         return samples
-    reqs = [build_request(samples[i], prompts[samples[i].condition_id], ctext, cfg) for i in todo]
+    reqs = [build_request(samples[i], prompts[samples[i].condition_id], ctext, cfg, salt_suffix) for i in todo]
     resps = await client.complete_many(reqs, role=ROLE, use_batches=use_batches, desc="constitution judge")
     out = list(samples)
     for i, r in zip(todo, resps, strict=True):
@@ -175,6 +194,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--run-dir", type=Path, required=True)
     ap.add_argument("--limit", type=int, default=None, help="score at most N unscored samples (all are kept)")
     ap.add_argument("--no-batches", action="store_true")
+    ap.add_argument(
+        "--retry-salt", default="", help="appended to the cache key, to re-ask unscored samples (e.g. empty outputs)"
+    )
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
@@ -182,7 +204,15 @@ def main(argv: list[str] | None = None) -> None:
     samples = read_jsonl(args.run_dir / SAMPLES_FILE, MisalignmentSample)
     client = ClaudeClient(concurrency=cfg.classifier_concurrency, use_batches=not args.no_batches)
     scored = asyncio.run(
-        score_samples(samples, args.run_dir, cfg, client, args.limit, use_batches=False if args.no_batches else None)
+        score_samples(
+            samples,
+            args.run_dir,
+            cfg,
+            client,
+            args.limit,
+            use_batches=False if args.no_batches else None,
+            salt_suffix=f":{args.retry_salt}" if args.retry_salt else "",
+        )
     )
     write_jsonl(args.run_dir / SAMPLES_FILE, scored)
     # one usage file per invocation (a --limit cost check must not be overwritten by the full run)

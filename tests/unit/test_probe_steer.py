@@ -251,3 +251,20 @@ def test_summarize_steering_and_choose(tmp_path):
     # unjudged records: no chosen effect but coherence still decided
     s2 = report.summarize_steering([r.model_copy(update={"judge": None}) for r in recs], cfg, purpose="tuning")
     assert s2["chosen"]["B_primary/L31/p100"]["coef"] == 2.0 and s2["chosen"]["B_primary/L31/p100"]["effect"] is None
+
+
+def test_best_probe_tie_break_prefers_first_spec_site():
+    ps = [
+        probe("B_primary/L53/p100", 0.80, layer=53),
+        probe("B_primary/L16/p100", 0.70, layer=16),
+        probe("C_context/L16/prompt_last", 1.0, layer=16),
+        probe("C_context/L53/prompt_last", 1.0, layer=53),
+        probe("C_context/L53/p100", 0.998, layer=53),
+        probe("C_context/L31/mean", 0.9, layer=31),
+    ]
+    best = steer.best_probe_per_spec(ps, ["B_primary", "C_context"])
+    assert best["B_primary"].probe_id == "B_primary/L53/p100" and best["C_context"].probe_id == "C_context/L53/p100"
+    # without a tie at the reference site: plain best (ties broken by balanced accuracy, then run order)
+    best = steer.best_probe_per_spec(ps[:4], ["B_primary", "C_context"])
+    assert best["C_context"].probe_id == "C_context/L16/prompt_last"
+    assert steer.best_probe_per_spec(ps, ["C_context"])["C_context"].probe_id == "C_context/L16/prompt_last"

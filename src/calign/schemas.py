@@ -181,6 +181,9 @@ class MisalignmentSample(StrictModel):
     classifier_verdict: bool | None = None
     classifier_reasoning: str | None = None
     classifier_error: str | None = None
+    # soft constitutional-alignment score (calign.misalignment.constitution_judge); None = not scored
+    constitution_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    constitution_judge: dict | None = None  # judge_model, prompt_version, rationale, error, raw
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     finish_reason: str | None = None

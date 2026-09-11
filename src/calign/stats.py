@@ -20,6 +20,20 @@ def wilson_interval(k: int, n: int, z: float = 1.959963984540054) -> tuple[float
     return (round(max(0.0, centre - half), 12), round(min(1.0, centre + half), 12))
 
 
+def mean_summary(values: list[float], n_boot: int = 2000, seed: int = 0) -> dict[str, float | int | None]:
+    """Mean with a percentile-bootstrap 95% interval (deterministic for a given seed)."""
+    import random
+
+    n = len(values)
+    if n == 0:
+        return {"n": 0, "mean": None, "ci95_low": None, "ci95_high": None}
+    mean = sum(values) / n
+    rng = random.Random(seed)
+    boots = sorted(sum(rng.choices(values, k=n)) / n for _ in range(n_boot))
+    lo, hi = boots[int(0.025 * n_boot)], boots[min(n_boot - 1, int(0.975 * n_boot))]
+    return {"n": n, "mean": round(mean, 12), "ci95_low": round(lo, 12), "ci95_high": round(hi, 12)}
+
+
 def rate_summary(k: int, n: int) -> dict[str, float | int]:
     lo, hi = wilson_interval(k, n)
     return {"k": k, "n": n, "rate": (k / n) if n else 0.0, "ci95_low": lo, "ci95_high": hi}

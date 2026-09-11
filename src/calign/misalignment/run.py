@@ -3,6 +3,7 @@
 CLI:
     uv run python -m calign.misalignment.run --config configs/misalignment_check.yaml [--backend vllm|hf]
         [--model-path PATH --stage base|sft_merged] [--dry-run] [--limit N_CONDITIONS] [--skip-classify]
+        [--constitution-judge]   # also score constitutional alignment (0-1), see calign.misalignment.constitution_judge
     uv run python -m calign.misalignment.run --classify-only outputs/misalignment/<run>   # classify an existing run
 
 Run directory layout (immutable, one per invocation):
@@ -135,6 +136,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--stage", choices=["base", "sft_merged"], default="base")
     ap.add_argument("--skip-classify", action="store_true")
     ap.add_argument("--classify-only", type=Path, default=None, help="existing run dir to (re)classify")
+    ap.add_argument(
+        "--constitution-judge", action="store_true", help="also add the soft constitutional-alignment score"
+    )
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
@@ -185,6 +189,14 @@ def main(argv: list[str] | None = None) -> None:
         samples = asyncio.run(classify_samples(samples, prompts_by_cid, cfg, client))
         write_jsonl(run_dir / SAMPLES_FILE, samples)
         client.dump_usage(run_dir / "usage.json")
+
+    if args.constitution_judge:
+        from calign.misalignment.constitution_judge import score_samples
+
+        cj_client = ClaudeClient(concurrency=cfg.classifier_concurrency)
+        samples = asyncio.run(score_samples(samples, run_dir, cfg, cj_client))
+        write_jsonl(run_dir / SAMPLES_FILE, samples)
+        cj_client.dump_usage(run_dir / "usage_constitution_judge.json")
 
     summary = write_summary(run_dir, cfg, samples)
     print((run_dir / "summary.md").read_text(encoding="utf-8"))

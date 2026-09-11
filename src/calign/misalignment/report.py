@@ -13,7 +13,7 @@ from pathlib import Path
 from calign.config import ConfigModel, git_commit, load_yaml, sha256_file
 from calign.misalignment.prompts import MisalignmentConfig
 from calign.schemas import MisalignmentSample, read_jsonl, utc_now_iso, write_json
-from calign.stats import rate_summary
+from calign.stats import mean_summary, rate_summary
 
 SAMPLES_FILE = "samples.jsonl"
 SUMMARY_JSON = "summary.json"
@@ -44,6 +44,8 @@ def summarize(samples: list[MisalignmentSample], cfg: MisalignmentConfig) -> dic
             "truncated": rate_summary(sum(1 for r in rows if r.finish_reason == "length"), len(rows)),
             "mean_completion_tokens": (sum(r.completion_tokens or 0 for r in rows) / len(rows) if rows else 0.0),
         }
+        if any(r.constitution_score is not None for r in rows):
+            conditions[cid]["constitution_score"] = mean_summary(_scores(rows))
 
     headline = {cid: conditions[cid]["harmful"] for cid in cfg.headline_conditions if cid in conditions}
     meaningful = any(v["rate"] >= cfg.meaningful_rate_threshold for v in headline.values())
@@ -51,6 +53,19 @@ def summarize(samples: list[MisalignmentSample], cfg: MisalignmentConfig) -> dic
     for scen in sorted({s.scenario for s in samples}):
         rows = [s for s in samples if s.scenario == scen and s.harmful is not None]
         by_scenario[scen] = rate_summary(sum(1 for r in rows if r.harmful), len(rows))
+
+    constitution = None
+    if any(s.constitution_score is not None for s in samples):
+        constitution = {
+            "all": mean_summary(_scores(samples)),
+            "harmful": mean_summary(_scores([s for s in samples if s.harmful])),
+            "not_harmful": mean_summary(_scores([s for s in samples if s.harmful is False])),
+            "by_scenario": {
+                scen: mean_summary(_scores([s for s in samples if s.scenario == scen]))
+                for scen in sorted({s.scenario for s in samples})
+            },
+            "n_judge_errors": sum(1 for s in samples if (s.constitution_judge or {}).get("error")),
+        }
 
     return {
         "n_samples": len(samples),
@@ -61,7 +76,12 @@ def summarize(samples: list[MisalignmentSample], cfg: MisalignmentConfig) -> dic
         "meaningful_rate": meaningful,
         "by_scenario": by_scenario,
         "conditions": conditions,
+        "constitution_score": constitution,
     }
+
+
+def _scores(rows: list[MisalignmentSample]) -> list[float]:
+    return [r.constitution_score for r in rows if r.constitution_score is not None]
 
 
 def render_markdown(summary: dict) -> str:
@@ -82,6 +102,22 @@ def render_markdown(summary: dict) -> str:
             f"| {cid} | {h['n']} | {h['k']} | {h['rate']:.1%} | [{h['ci95_low']:.1%}, {h['ci95_high']:.1%}] "
             f"| {c['classifier_yes']['rate']:.1%} | {c['used_tool_format']['rate']:.1%} | {c['truncated']['rate']:.1%} |"
         )
+    cs = summary.get("constitution_score")
+    if cs:
+        lines += ["", "## Constitutional-alignment score (Claude judge, 0-1, higher = more aligned)", ""]
+        lines.append("| condition | n scored | mean | 95% CI (bootstrap) |")
+        lines.append("|---|---:|---:|---|")
+        for cid, c in summary["conditions"].items():
+            m = c.get("constitution_score")
+            if m and m["n"]:
+                lines.append(f"| {cid} | {m['n']} | {m['mean']:.2f} | [{m['ci95_low']:.2f}, {m['ci95_high']:.2f}] |")
+        for label, key in (("all samples", "all"), ("harmful", "harmful"), ("not harmful", "not_harmful")):
+            m = cs[key]
+            if m["n"]:
+                lines.append(
+                    f"- {label}: mean {m['mean']:.2f} (n={m['n']}, 95% CI [{m['ci95_low']:.2f}, {m['ci95_high']:.2f}])"
+                )
+        lines.append(f"- judge parse errors: {cs['n_judge_errors']}")
     lines += ["", "## Harmful rate by scenario (all conditions pooled)", ""]
     for scen, r in summary["by_scenario"].items():
         lines.append(

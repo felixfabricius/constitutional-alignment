@@ -70,11 +70,26 @@ def test_forward_forced_matches_generation(hf_backend, prompt_ids):
     os.environ.get("CALIGN_VLLM_TESTS") != "1", reason="set CALIGN_VLLM_TESTS=1 (needs a second model load)"
 )
 def test_vllm_matches_hf_greedy(hf_backend, prompt_ids):
+    """Must stay the LAST test in this module: it frees the shared HF model so vLLM fits on the same GPU."""
+    import gc
+
+    import torch
+
     from calign.inference.vllm_backend import VLLMBackend
 
-    cfg = load_model_config(model_path=MODEL_PATH, backend="vllm")
-    v = VLLMBackend(cfg)
     hf = hf_backend.generate([prompt_ids], SamplingParams(temperature=0.0, max_tokens=16, n=1))[0][0]
+    # vLLM reserves gpu_memory_utilization x total at startup, which cannot coexist with the HF copy of the model
+    # (27B: ~54 GB each). Free the HF weights, then size vLLM to what is actually free.
+    del hf_backend.model
+    gc.collect()
+    torch.cuda.empty_cache()
+    free, total = torch.cuda.mem_get_info()
+    cfg = load_model_config(model_path=MODEL_PATH, backend="vllm")
+    util = min(cfg.vllm.gpu_memory_utilization, free / total - 0.05)
+    cfg = cfg.model_copy(update={"vllm": cfg.vllm.model_copy(update={"gpu_memory_utilization": util})})
+    v = VLLMBackend(cfg)
     vl = v.generate([prompt_ids], SamplingParams(temperature=0.0, max_tokens=16, n=1))[0][0]
-    # compare text (token id lists may differ only in whether the stop token is included)
-    assert hf.text.strip() == vl.text.strip()
+    # Same prompt ids and weights -> same greedy tokens; compare a prefix, since different attention kernels
+    # (HF sdpa vs vLLM flash-attn) can flip a near-tie late in a bf16 greedy rollout.
+    n = min(8, len(hf.token_ids), len(vl.token_ids))
+    assert n > 0 and hf.token_ids[:n] == vl.token_ids[:n], (hf.text, vl.text)

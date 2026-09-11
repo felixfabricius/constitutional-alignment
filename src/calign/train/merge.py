@@ -5,8 +5,9 @@ CLI (GPU machine):
         [--base google/gemma-3-27b-it] [--attn-implementation sdpa|eager] [--n-check 3]
 
 Writes the merged model + tokenizer (+ the base model's processor files, which vLLM may read for
-multimodal architectures such as Gemma 3) and merge_manifest.json with the max |logit diff| between the
-adapter model and the merged model on a few prompts (should be ~1e-2 or less in bf16).
+multimodal architectures such as Gemma 3) and merge_manifest.json comparing the adapter model and the merged
+model on a few prompts: KL divergence (expect < 1e-3), top-1 agreement (expect all true) and max |logit diff|
+(bf16 rounding floor, ~0.3 for Gemma 2, ~1-2 for Gemma 3; see `merge_check`).
 """
 
 from __future__ import annotations
@@ -51,6 +52,29 @@ def copy_processor_files(base_id: str, out_dir: Path) -> list[str]:
             shutil.copyfile(src, out_dir / name)
             copied.append(name)
     return copied
+
+
+def merge_check(before: list, after: list) -> dict[str, list]:
+    """Compare next-token logits of the adapter model (before) and the merged model (after), per prompt.
+
+    Max |logit diff| alone is not scale-free: bf16 re-rounds W + BA, giving a floor of ~1-3 bf16 ulps of the
+    largest logit (Gemma 2 caps logits at 30 -> ~0.3; uncapped Gemma 3 logits reach ~60-70 -> ~0.75-1.6, while an
+    fp32 merge is exact). KL(adapter || merged) and top-1 agreement are the pass criteria.
+    """
+    import torch
+
+    kls, top1, diffs, scale = [], [], [], []
+    for b, a in zip(before, after, strict=True):
+        kls.append(float(torch.sum(torch.softmax(b, -1) * (torch.log_softmax(b, -1) - torch.log_softmax(a, -1)))))
+        top1.append(bool(a.argmax() == b.argmax()))
+        diffs.append(float((a - b).abs().max()))
+        scale.append(float(b.abs().max()))
+    return {
+        "kl_per_prompt": kls,
+        "top1_agree_per_prompt": top1,
+        "max_logit_diff_per_prompt": diffs,
+        "max_abs_logit_per_prompt": scale,
+    }
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -98,8 +122,8 @@ def main(argv: list[str] | None = None) -> None:
     merged = model.merge_and_unload()
     with torch.no_grad():
         after = [merged(torch.tensor([p], device=device)).logits[0, -1].float().cpu() for p in prompts]
-    diffs = [float((a - b).abs().max()) for a, b in zip(before, after, strict=True)]
-    LOGGER.info("max |logit diff| adapter vs merged per prompt: %s", diffs)
+    check = merge_check(before, after)
+    LOGGER.info("adapter vs merged next-token logits: %s", check)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     merged.save_pretrained(out_dir, safe_serialization=True)
@@ -113,7 +137,7 @@ def main(argv: list[str] | None = None) -> None:
         "model_class": type(merged).__name__,
         "attn_implementation": attn,
         "processor_files_copied": processor_files,
-        "max_logit_diff_per_prompt": diffs,
+        **check,
         "git_commit": git_commit(),
         "created_at": utc_now_iso(),
     }

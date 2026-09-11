@@ -59,3 +59,16 @@ def test_copy_processor_files_from_local_base(tmp_path):
     (out / "chat_template.jinja").write_text("tokenizer", encoding="utf-8")
     assert copy_processor_files(str(base), out) == ["preprocessor_config.json"]
     assert (out / "chat_template.jinja").read_text(encoding="utf-8") == "tokenizer"  # existing file kept
+
+
+def test_merge_check_is_scale_free():
+    import torch
+
+    from calign.train.merge import merge_check
+
+    b = torch.tensor([60.0, 10.0, -5.0])
+    same = merge_check([b], [b + torch.tensor([0.75, 0.5, -0.5])])  # bf16-sized wobble on a large logit
+    assert same["top1_agree_per_prompt"] == [True] and same["kl_per_prompt"][0] < 1e-3
+    assert same["max_logit_diff_per_prompt"] == [0.75] and same["max_abs_logit_per_prompt"] == [60.0]
+    flipped = merge_check([b], [torch.tensor([10.0, 60.0, -5.0])])
+    assert flipped["top1_agree_per_prompt"] == [False] and flipped["kl_per_prompt"][0] > 1.0

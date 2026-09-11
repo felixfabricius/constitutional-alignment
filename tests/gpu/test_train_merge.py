@@ -75,4 +75,6 @@ def test_sft_dry_run_and_merge(tmp_path):
     merge_mod.main(["--adapter", str(adapter), "--out", str(tmp_path / "merged"), "--n-check", "2"])
     manifest = json.loads((tmp_path / "merged" / "merge_manifest.json").read_text())
     assert (tmp_path / "merged" / "config.json").exists()
-    assert max(manifest["max_logit_diff_per_prompt"]) < 0.5  # bf16 merge noise only
+    # bf16 re-rounding only: max |logit diff| is ~0.3 (Gemma 2) to ~1.6 (Gemma 3, uncapped logits); use scale-free checks
+    assert all(manifest["top1_agree_per_prompt"])
+    assert max(manifest["kl_per_prompt"]) < 1e-3

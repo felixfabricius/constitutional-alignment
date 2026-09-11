@@ -30,9 +30,9 @@
       "transcript:P6": 25,
       "doc:critique_or_defence": 50
     },
-    "total_tokens": 570987,
-    "mean_tokens": 877.0921658986175,
-    "max_tokens": 1450,
+    "total_tokens": 572059,
+    "mean_tokens": 878.7388632872504,
+    "max_tokens": 1441,
     "name": "train"
   },
   "val": {
@@ -57,10 +57,10 @@
       "transcript:P6": 1,
       "transcript:P1": 1
     },
-    "total_tokens": 30464,
-    "mean_tokens": 870.4,
-    "max_tokens": 1206,
+    "total_tokens": 30527,
+    "mean_tokens": 872.2,
+    "max_tokens": 1205,
     "name": "val"
   },
-  "tokenizer": "google/gemma-2-9b-it"
+  "tokenizer": "google/gemma-3-27b-it"
 }

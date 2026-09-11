@@ -29,7 +29,7 @@ to strengthen alignment? Three phases:
 | Medium data | MoralChoice high-ambiguity (680), stratified 60/20/20 by rule: 408 probe_train / 136 probe_val / 136 heldout_steer (committed manifest). Phase 1.5 validation uses 50 scenarios sampled from probe_train. |
 | Hard data | Anthropic agentic-misalignment (blackmail, leaking, murder) via git submodule; never used for training; pre-SFT check = 12 conditions x 25 samples, temperature 1.0. |
 | Inference | vLLM for sampling (Linux GPU), HF transformers + PEFT for training, merging, forced passes and (Phase 2) activations. Both consume token ids from `calign.prompting.encode_prompt`. |
-| Custom constitution scenarios | Deferred to Phase 2 (schema has a `source` field). |
+
 
 ## Working agreements with Felix
 
@@ -51,9 +51,11 @@ src/calign/
   misalignment/{prompts,classify,run,report}.py   upstream templates/classifiers via submodule
   inference/{backend,hf_backend,vllm_backend}.py
   corpus/{taxonomy,prompts,common,generate_docs,generate_transcripts,build_sft_dataset}.py
-  train/{data,sft,merge}.py
+  train/{data,sft,merge,push_to_hub}.py
   validate/{prompts,verdicts,run_validation,judge,report}.py
-diagnostics/        print-only inspection scripts (chat format, token positions, prompts, samples, quiz)
+  probe/{config,labels,store,sample,activations,metrics,train,evaluate,steer,sae,report}.py   Phase 2 (configs/probe.yaml)
+diagnostics/        print-only inspection scripts (chat format, token positions, prompts, samples, quiz, probe cells/positions,
+                    steering samples, SAE features)
 tests/unit (89)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
 third_party/agentic-misalignment   pinned submodule (ea0630e), never modified
 data/               gitignored except manifests/, scenarios/constitution_verdicts.jsonl
@@ -85,13 +87,14 @@ invokes the constitution in ~55% of responses but often with garbled/confabulate
 Ask Felix before choosing between: more/better SFT data (scale-up, long agentic-style transcripts that are NOT
 the held-out scenarios), a T=0.7 sensitivity run, or moving on to Phase 2.
 
-## What Phase 2 will need (already provided for)
+## Phase 2 status (code complete 2026-09-11, no GPU run yet)
 
-- `GenerationRecord` has `judge` (LLM judge scores 0-1) and `activations` (path, layers, positions) fields.
-- `HFBackend.forward_forced(prompt_ids, completion_ids, layers)` returns hidden states + per-token log-probs
-  (token-forcing: same answer text with and without the constitution in context). `layers` are HF indices:
-  Gemma Scope layer L (`ModelConfig.probe_layers`) is `hidden_state_index(L) = L + 1`.
-- `prompting.answer_span` / `relative_positions` give 33%/66%/final token indices; `render_system_prompt`
-  variants `full`/`none` are the two contexts.
-- `data/scenarios/constitution_verdicts.jsonl` is the outcome label; `probe_val` and `heldout_steer` splits are untouched.
-- Label definitions should be function arguments so cell-1 vs cell-3 style labels are easy to swap.
+Plan and decisions: `phase2_plan.md` (section 9). Model: `configs/model_sft_v2e3.yaml` (v2 epoch 3, revision pinned).
+Pipeline (README "Phase 2 run order"): `probe.sample` (vLLM, definite-verdict scenarios, k=8, T=1.0, variants
+none/full) -> `validate.judge --config configs/probe.yaml` -> `probe.activations` (HF forced passes, positions
+prompt_last/p033/p066/p100/decision/mean, fp32 shards) -> `probe.train` (difference of means, scenario bootstrap)
+-> `probe.evaluate` on the epoch-3 agentic run `outputs/misalignment/20260911_153043_77860d1a` (needs
+`constitution-score-v2` on every sample; base run re-scored too) -> `probe.steer` tuning on probe_val / main on
+heldout_steer (greedy, class-gap-scaled coefficients, coherence guards) -> `probe.sae` (Gemma Scope 2 + Neuronpedia).
+157 unit tests; `tests/gpu/test_probe_gpu.py` and all dry runs still to be executed on a GPU (Colab 4B, then Brev).
+Next: run steps 1-6 of the Phase 2 runbook, measuring judge cost on a dry run before each Batches job.

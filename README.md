@@ -107,6 +107,71 @@ uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misali
 Gemma 2 9B instead: add `--model-config configs/model_gemma2_9b.yaml` (sampling/validation) or
 `--config configs/sft_gemma2_9b.yaml` (SFT).
 
+## Phase 2 run order (probes and steering; settings in `configs/probe.yaml`, plan in `phase2_plan.md`)
+
+The model is the selected SFT checkpoint, `configs/model_sft_v2e3.yaml` (HF repo + pinned revision). vLLM (sampling)
+and HF (activations, steering) cannot share the GPU, so each line below is its own process. `M` and `P` as in:
+
+```bash
+M="--model-config configs/model_sft_v2e3.yaml"
+P=outputs/probe_data/v2e3_k8
+```
+
+**1. Sample probe data** (GPU, vLLM; one invocation per prompt variant into the same run dir)
+
+```bash
+uv run python -m calign.probe.sample $M --variant none --out $P --dry-run
+uv run python -m calign.probe.sample $M --variant none --out $P      # 384 definite-verdict scenarios (train + val) x 8
+uv run python -m calign.probe.sample $M --variant full --out $P      # Probe C positives
+```
+
+**2. Judge and inspect** (local, Claude Batches; measure the per-item cost on `--limit 3 --no-batches` first)
+
+```bash
+uv run python -m calign.validate.judge --run-dir $P --config configs/probe.yaml
+uv run python -m calign.probe.report --run-dir $P                    # 2x2 cells, label balance per spec
+uv run python diagnostics/show_probe_cells.py --run-dir $P
+```
+
+**3. Hard-data scores** (local): the epoch-3 agentic run must carry `constitution-score-v2` on every sample; the base
+run is re-scored for consistency.
+
+```bash
+uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/20260911_153043_77860d1a
+uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/20260910_222307_9f28bd09
+```
+
+**4. Activations** (GPU, HF; rsync the judged `records.jsonl` forward first)
+
+```bash
+uv run python -m calign.probe.activations $M --run-dir $P --dry-run                 # prints the token at every position
+uv run python -m calign.probe.activations $M --run-dir $P                           # activations/ shards, ~1.6 GB
+uv run python -m calign.probe.activations $M --misalignment-run outputs/misalignment/20260911_153043_77860d1a
+```
+
+**5. Probes and evaluation** (local, CPU; rsync `activations/` back)
+
+```bash
+uv run python -m calign.probe.train --data-run $P --out outputs/probes/v2e3
+uv run python -m calign.probe.evaluate --probes outputs/probes/v2e3 --hard outputs/misalignment/20260911_153043_77860d1a
+uv run python -m calign.probe.sae --probes outputs/probes/v2e3                       # optional; downloads ~2.6 GB per layer
+```
+
+**6. Steering** (GPU, HF): tune on probe_val, then the main run on heldout_steer; judge and report each run locally.
+
+```bash
+uv run python -m calign.probe.steer $M --probes outputs/probes/v2e3 --purpose tuning --out outputs/steering/tuning --dry-run
+uv run python -m calign.probe.steer $M --probes outputs/probes/v2e3 --purpose tuning --out outputs/steering/tuning
+uv run python -m calign.validate.judge --run-dir outputs/steering/tuning --config configs/probe.yaml   # local
+uv run python -m calign.probe.report --run-dir outputs/steering/tuning                                 # picks coefficients
+uv run python -m calign.probe.steer $M --probes outputs/probes/v2e3 --purpose main --tuning-run outputs/steering/tuning --out outputs/steering/main
+uv run python -m calign.validate.judge --run-dir outputs/steering/main --config configs/probe.yaml
+uv run python -m calign.probe.report --run-dir outputs/steering/main
+uv run python diagnostics/show_steering_samples.py --run-dir outputs/steering/main
+```
+
+GPU smoke test for the Phase 2 code on a 24 GB card: `CALIGN_GPU_TESTS=1 CALIGN_MODEL_PATH=google/gemma-3-4b-it uv run pytest tests/gpu/test_probe_gpu.py -q`.
+
 Every run directory keeps the raw records (`samples.jsonl` / `records.jsonl`), `usage.json`, and a
 `summary.json` with a provenance block; reports are recomputable from the raw files.
 

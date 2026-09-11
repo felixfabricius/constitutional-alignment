@@ -244,16 +244,43 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   invented principle/section references 5/300 (pilot 16/300). Content can still be distorted (e.g. a leaking sample
   claims P4 permits self-preservation with disclosure). Constitution score for this run: pending (see below).
 
-## Phase 2 hooks and plans
+## Phase 2: probes and steering (src/calign/probe, configs/probe.yaml, plan in phase2_plan.md)
 
-- Token forcing: generate with `full` context, then `HFBackend.forward_forced(prompt_ids_none, completion_ids,
-  layers=[hidden_state_index(L) for L in cfg.probe_layers])` on the `none` prompt; hidden states are `(seq, 5376)`
-  per layer on CPU; positions from `relative_positions(answer_span(...))`. Store paths in `GenerationRecord.activations`.
-- Layers (Gemma Scope 2 numbering, `ModelConfig.probe_layers`): 16/31/40/53 for Gemma 3 27B. `forward_forced` takes HF
-  indices, so resid_post of block L is `hidden_states[L + 1]` (the old "9/20/31" note for Gemma 2 missed this +1).
-- Steering: add a vector at every position during generation -> needs a forward hook in `HFBackend` (not written).
-- Probe labels: 2x2 (process = names specific principles; outcome = matches verdict); make the positive-set
-  definition a function argument.
+- Model: `configs/model_sft_v2e3.yaml` (SFT v2 epoch 3, merged, HF revision pinned; `ModelConfig.revision` goes
+  to both loaders and into every `resolved_config.yaml`; `--revision` on every CLI).
+- Residual stream facts (Colab, 4B, transformers 5.16): `output_hidden_states[L+1]` equals the block-L output for
+  every layer except the last (that slot is the final-norm output), and it is recorded BEFORE user forward hooks
+  run, while hooked outputs do reach layer L+1. Hence `hf_backend.CaptureHooks` (block-output hooks) for
+  extraction and `SteeringHook` (forward hook on block L; `all` positions or `generated` = decode steps only)
+  for steering. Mid-layer residuals have coordinates up to ~4e4 (fp32 storage; a norm-10 vector vanishes in bf16),
+  so steering coefficients are in class-gap units (`coef * class_gap * unit direction`).
+- Positions (`activations.positions`): `prompt_last` (last prompt token), `p033/p066/p100` (`relative_positions`
+  over the whole completion, p100 = `<end_of_turn>`), `decision` (the A/B token of the last `Final answer:` line,
+  found by binary search on decoded prefix lengths; last content token + flag when unparsed), `mean` (index -1).
+  Hard data adds `pre_tool` (token before the first `<tool_use:`). Completion ids come from
+  `extra.completion_token_ids` (vLLM, exact); agentic samples are re-tokenised (`activation_flags`).
+- Storage (`probe.store`): `activations/index.json` + `shard_NNN.safetensors` with `acts` (n, n_layers,
+  n_positions, d) fp32, 512 records per shard (~260 MB); `ActivationRef(path, row, layers, positions, context_variant)`.
+- Labels (`probe.labels`): cell from judge `mentions_constitution >= 0.75` x `outcome_alignment >= 0.5` (definite
+  verdicts only); `LabelSpec` (positive/negative cells x prompt variant); built-ins B_primary, B_cell1_vs_cell3,
+  B_outcome, B_process, C_context (`full` cell 1 vs `none` cells 2-4).
+- Probes (`probe.train`): difference of means on probe_train, unit direction, midpoint threshold; AUROC / balanced
+  accuracy with scenario-cluster bootstrap on probe_val; outputs probes.jsonl, directions.safetensors (+ class
+  means), scores.jsonl (every projection, so metrics recompute offline), convergence.json (cosines; random
+  baseline 1/sqrt(5376) = 0.014).
+- Hard data (`probe.evaluate`): every probe at every hard position; AUROC for not-harmful and for
+  `constitution_score >= 0.5`, Spearman, 2x2 regrouped by the probe's spec (process = judge v2 mentions); refuses a
+  run whose samples lack `constitution-score-v2` or activations. `constitution_judge` v2 adds mentions_constitution /
+  principles_cited / citation_accuracy to `constitution_judge`; stale versions are re-scored by default.
+- Steering (`probe.steer`, `probe.report`): greedy, one generation per scenario, prompt variant `none`; tuning = 20
+  probe_val scenarios x best probe per spec x coefs {1,2,4,8}; coherence guards (parse rate >= 0.9, length ratio
+  <= 2, repetition ratio <= control); the report chooses the largest coherent coefficient (ties: effect on the
+  metric the probe was not trained on); main = all 101 definite heldout_steer scenarios x {control, +/-B, +/-C}.
+- SAE (`probe.sae`): `google/gemma-scope-2-27b-it/resid_post/layer_{L}_width_{16k|65k|262k|1m}_l0_{small|medium|big}/params.safetensors`
+  (2.6 GB at 65k; decoder found by key or shape), cosines with decoder rows, labels from
+  `neuronpedia.org/api/feature/gemma-3-27b-it/{L}-gemmascope-2-res-{width}/{i}` (no key; cached in data/cache/neuronpedia).
+- Not yet run on a GPU: `tests/gpu/test_probe_gpu.py` (4B) and the dry runs; the Colab notebook only verified the
+  hook/hidden-state mechanics inline.
 
 ## Known gaps / TODO
 

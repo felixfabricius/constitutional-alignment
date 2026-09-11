@@ -149,6 +149,12 @@ class ParsedAnswer:
     answer_text: str | None
 
 
+def final_answer_char_offset(text: str) -> int | None:
+    """Character offset of the A/B letter of the LAST `Final answer:` line, or None if there is none."""
+    matches = list(_FINAL_ANSWER_RE.finditer(text))
+    return matches[-1].start(1) if matches else None
+
+
 def parse_final_answer(text: str) -> ParsedAnswer:
     """Split a response into reasoning and the final `Final answer: A|B` line.
 

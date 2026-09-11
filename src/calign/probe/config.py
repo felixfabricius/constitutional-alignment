@@ -33,6 +33,7 @@ class ActivationsCfg(ConfigModel):
     dtype: Literal["float32", "float16"] = "float32"
     shard_size: int = 512
     batch_size: int = 8
+    hard_batch_size: int = 2  # agentic samples are ~3.5k tokens; full-vocab logits dominate memory
 
     def model_post_init(self, __context) -> None:  # type: ignore[override]
         bad = set(self.positions) - set(POSITION_NAMES)

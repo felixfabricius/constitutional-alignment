@@ -27,6 +27,7 @@ activations:
   dtype: float32                    # residual streams have coordinates > 40k at mid layers; fp16 would overflow
   shard_size: 512                   # records per safetensors shard (~260 MB at 4 layers x 6 positions fp32)
   batch_size: 8
+  hard_batch_size: 2                # agentic samples (~3.5k tokens): full-vocab logits dominate memory
 
 labels:
   thresholds:

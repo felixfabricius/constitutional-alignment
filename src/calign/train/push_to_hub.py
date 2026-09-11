@@ -125,8 +125,14 @@ def main(argv: list[str] | None = None) -> None:
         if not dirs[part].is_dir():
             raise SystemExit(f"missing {dirs[part]}")
     card = build_model_card(args.run_dir, args.repo, args.merged_dir, args.adapter_dir)
+    # upload_large_folder keeps resume metadata in <folder>/.cache/huggingface; it is not uploaded, so not counted
     files = {
-        part: sorted(str(p.relative_to(dirs[part])) for p in dirs[part].rglob("*") if p.is_file()) for part in parts
+        part: sorted(
+            str(p.relative_to(dirs[part]))
+            for p in dirs[part].rglob("*")
+            if p.is_file() and ".cache" not in p.relative_to(dirs[part]).parts
+        )
+        for part in parts
     }
     if args.dry_run:
         print(card)

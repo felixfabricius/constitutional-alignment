@@ -114,8 +114,8 @@ class HardDataCfg(ConfigModel):
 
 class SAECfg(ConfigModel):
     repo_id: str = "google/gemma-scope-2-27b-it"
-    width: str = "64k"
-    l0: str = "medium"
+    width: Literal["16k", "65k", "262k", "1m"] = "65k"  # folder names of the repo (65k = 2^16 features)
+    l0: Literal["small", "medium", "big"] = "medium"
     top_k: int = 20
     neuronpedia_model: str = "gemma-3-27b-it"
 

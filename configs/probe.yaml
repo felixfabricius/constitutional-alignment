@@ -59,7 +59,7 @@ hard_data:
 
 sae:
   repo_id: google/gemma-scope-2-27b-it
-  width: 64k
-  l0: medium
-  top_k: 20
-  neuronpedia_model: gemma-3-27b-it
+  width: 65k                        # repo folder naming: 16k | 65k | 262k | 1m (params.safetensors ~2.6 GB at 65k)
+  l0: medium                        # small | medium | big
+  top_k: 20                         # features per sign per probe
+  neuronpedia_model: gemma-3-27b-it # source id pattern: {layer}-gemmascope-2-res-{width}

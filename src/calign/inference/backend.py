@@ -22,12 +22,14 @@ class VLLMConfig(ConfigModel):
 
 
 class ModelConfig(ConfigModel):
-    model_id: str = "google/gemma-2-9b-it"
-    model_path: str = "google/gemma-2-9b-it"
+    model_id: str = "google/gemma-3-27b-it"
+    model_path: str = "google/gemma-3-27b-it"
     dtype: Literal["bfloat16", "float16", "float32"] = "bfloat16"
-    attn_implementation: str = "eager"
+    attn_implementation: str = "sdpa"
     max_model_len: int = 8192
     backend: Literal["vllm", "hf"] = "vllm"
+    # Phase 2 probe layers in Gemma Scope numbering: resid_post of block L, i.e. HF hidden_states[L + 1].
+    probe_layers: list[int] = [16, 31, 40, 53]
     vllm: VLLMConfig = VLLMConfig()
 
 
@@ -78,6 +80,16 @@ def load_backend(cfg: ModelConfig, backend: str | None = None, **kwargs: Any) ->
 
         return HFBackend(cfg, **kwargs)
     raise ValueError(f"unknown backend {kind!r}")
+
+
+def default_attn_implementation(model_type: str) -> str:
+    """Gemma 2 needs eager attention (logit soft-capping is not implemented in sdpa/flash); others use sdpa."""
+    return "eager" if model_type == "gemma2" else "sdpa"
+
+
+def text_config(config: Any) -> Any:
+    """The language-model config of a (possibly multimodal) HF config, e.g. Gemma3Config.text_config."""
+    return config.get_text_config() if hasattr(config, "get_text_config") else config
 
 
 def gemma_stop_token_ids(tokenizer: Any) -> tuple[int, ...]:

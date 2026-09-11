@@ -1,0 +1,29 @@
+# LoRA SFT on the synthetic corpus (documents + transcripts), single A100 80GB.
+base_model: google/gemma-2-9b-it
+train_file: data/sft/train.jsonl
+val_file: data/sft/val.jsonl
+output_root: outputs/models
+run_name: sft_pilot
+max_seq_len: 2048
+attn_implementation: eager      # Gemma 2 soft-capping
+lora:
+  r: 256
+  alpha: 256
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+train:
+  epochs: 2
+  learning_rate: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  per_device_batch_size: 4
+  gradient_accumulation_steps: 8   # effective batch 32 sequences
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: true
+  group_by_length: true            # informational only (removed from transformers 5 Trainer)
+  logging_steps: 10
+  eval_steps: 50
+  save_steps: 200
+  seed: 20260910

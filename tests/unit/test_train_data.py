@@ -6,7 +6,12 @@ import torch
 from calign.schemas import Message, SFTExample
 from calign.train.data import IGNORE_INDEX, PadCollator, SFTDataset, dataset_stats, tokenize_example
 
-TOKENIZER_ID = os.environ.get("CALIGN_TOKENIZER_ID", "google/gemma-2-9b-it")
+# Gemma 2 and Gemma 3 share the turn format; check both (or only CALIGN_TOKENIZER_ID if set).
+TOKENIZER_IDS = (
+    [os.environ["CALIGN_TOKENIZER_ID"]]
+    if os.environ.get("CALIGN_TOKENIZER_ID")
+    else ["google/gemma-2-9b-it", "google/gemma-3-27b-it"]
+)
 
 
 class FakeTok:
@@ -41,11 +46,11 @@ def test_pad_collator():
     assert out["input_ids"].dtype == torch.long
 
 
-@pytest.fixture(scope="module")
-def gemma_tokenizer():
+@pytest.fixture(scope="module", params=TOKENIZER_IDS)
+def gemma_tokenizer(request):
     from transformers import AutoTokenizer
 
-    return AutoTokenizer.from_pretrained(TOKENIZER_ID)
+    return AutoTokenizer.from_pretrained(request.param)
 
 
 @pytest.mark.hf

@@ -1,0 +1,17 @@
+# Gemma 2 9B-IT: the original Phase 1 model (misalignment run 20260910_212234_3baac68a).
+# Select with `--model-config configs/model_gemma2_9b.yaml`.
+model_id: google/gemma-2-9b-it
+# Local path or HF id actually loaded; scripts can override with --model-path (e.g. the merged SFT model).
+model_path: google/gemma-2-9b-it
+dtype: bfloat16
+# Gemma 2 uses attention logit soft-capping; flash/sdpa kernels do not implement it, so use eager.
+attn_implementation: eager
+# Gemma 2 context window.
+max_model_len: 8192
+# Sampling backend for generation scripts: "vllm" on the GPU machine, "hf" as a fallback/for tests.
+backend: vllm
+# Gemma Scope (v1) IT residual SAEs: layer_9/20/31 (resid_post of block L = HF hidden_states[L + 1]).
+probe_layers: [9, 20, 31]
+vllm:
+  gpu_memory_utilization: 0.90
+  enforce_eager: false

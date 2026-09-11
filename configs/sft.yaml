@@ -1,29 +1,32 @@
-# LoRA SFT on the synthetic corpus (documents + transcripts), single A100 80GB.
-base_model: google/gemma-2-9b-it
+# LoRA SFT on the synthetic corpus (documents + transcripts): Gemma 3 27B-IT on a single A100 80GB.
+# The Gemma 2 9B setup (r=256, batch 4x8) lives in sft_gemma2_9b.yaml.
+base_model: google/gemma-3-27b-it
 train_file: data/sft/train.jsonl
 val_file: data/sft/val.jsonl
 output_root: outputs/models
 run_name: sft_pilot
 max_seq_len: 2048
-attn_implementation: eager      # Gemma 2 soft-capping
+attn_implementation: sdpa       # Gemma 3: no soft-capping
 lora:
-  r: 256
-  alpha: 256
+  r: 64                         # 454M trainable params; r=256 would not fit next to 54 GB of bf16 weights
+  alpha: 64                     # alpha/r = 1, as in the Gemma 2 setup
   dropout: 0.05
-  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  # Regex (PEFT full-match on module names): language-model linears only. The checkpoint is multimodal and
+  # the plain name list would also adapt q/k/v_proj of the vision tower. 62 layers x 7 = 434 modules.
+  target_modules: 'model\.language_model\.layers\.\d+\.(self_attn\.(q|k|v|o)_proj|mlp\.(gate|up|down)_proj)'
 train:
   epochs: 2
   learning_rate: 1.0e-4
   lr_scheduler: cosine
   warmup_ratio: 0.03
-  per_device_batch_size: 4
-  gradient_accumulation_steps: 8   # effective batch 32 sequences
+  per_device_batch_size: 1         # 27B: micro-batch 1 keeps activations + 262k-vocab logits in budget
+  gradient_accumulation_steps: 32  # effective batch 32 sequences
   weight_decay: 0.0
   max_grad_norm: 1.0
   bf16: true
   gradient_checkpointing: true
   group_by_length: true            # informational only (removed from transformers 5 Trainer)
-  logging_steps: 10
-  eval_steps: 50
+  logging_steps: 5
+  eval_steps: 10
   save_steps: 200
   seed: 20260910

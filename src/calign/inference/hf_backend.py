@@ -18,6 +18,11 @@ LOGGER = logging.getLogger(__name__)
 _DTYPES = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
 
 
+def hidden_state_index(sae_layer: int) -> int:
+    """HF `hidden_states` index for a Gemma Scope layer: resid_post of block L is hidden_states[L + 1]."""
+    return sae_layer + 1
+
+
 class HFBackend:
     name = "hf"
 
@@ -111,7 +116,8 @@ class HFBackend:
 
         Returns per-token log-probs of the completion tokens (under the model), the completion
         span, and residual-stream hidden states (layers x seq x d, on CPU) for the requested layers
-        (`hidden_states[l]` is the output of block l-1; l=0 is the embeddings).
+        (`hidden_states[l]` is the output of block l-1; l=0 is the embeddings). `layers` are HF indices:
+        convert Gemma Scope / `ModelConfig.probe_layers` numbering with `hidden_state_index`.
         """
         full = prompt_ids + completion_ids
         input_ids = torch.tensor([full], dtype=torch.long, device=self.device)

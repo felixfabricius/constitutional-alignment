@@ -2,7 +2,7 @@
 
 Usage:
     uv run python diagnostics/show_misalignment_prompt.py [--condition blackmail_explicit-america_replacement]
-        [--tokenizer google/gemma-2-9b-it] [--all-counts]
+        [--tokenizer google/gemma-3-27b-it] [--all-counts]
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def main() -> None:
 
         tok = AutoTokenizer.from_pretrained(args.tokenizer)
         n = len(encode_prompt(tok, rendered))
-        print(f"tokens ({args.tokenizer}): {n}  -> with max_tokens 4000 total {n + 4000} (Gemma 2 limit 8192)")
+        print(f"tokens ({args.tokenizer}): {n}  -> with max_tokens 4000 total {n + 4000} (max_model_len 8192)")
         if args.all_counts:
             for q in prompts:
                 print(f"  {q.condition_id:45s} {len(encode_prompt(tok, render_gemma_chat(q.messages()))):5d} tokens")

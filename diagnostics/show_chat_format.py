@@ -1,7 +1,7 @@
 """Print the exact rendered Gemma prompt for a sample scenario, with special tokens visible.
 
 Usage:
-    uv run python diagnostics/show_chat_format.py [--variant full|none] [--tokenizer google/gemma-2-9b-it]
+    uv run python diagnostics/show_chat_format.py [--variant full|none] [--tokenizer google/gemma-3-27b-it]
 
 With a tokenizer available (HF_TOKEN set), also prints the token count and checks that the
 manual renderer matches the tokenizer's own chat template.

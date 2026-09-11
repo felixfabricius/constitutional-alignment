@@ -1,7 +1,7 @@
 """GPU test: 3-step LoRA SFT on a tiny synthetic dataset, then merge and check logit equivalence.
 
-Uses CALIGN_TEST_BASE_MODEL (default google/gemma-2-2b-it so it fits a 24 GB card); on the A100 set it
-to google/gemma-2-9b-it to exercise the real configuration.
+Uses CALIGN_TEST_BASE_MODEL (default google/gemma-3-4b-it: same multimodal class, module names and turn
+format as the 27B, fits a 24 GB card). Gemma 2 bases (e.g. google/gemma-2-2b-it) use the plain LoRA target list.
 """
 
 from __future__ import annotations
@@ -19,7 +19,9 @@ from calign.train import sft as sft_mod
 
 pytestmark = pytest.mark.gpu
 
-BASE = os.environ.get("CALIGN_TEST_BASE_MODEL", "google/gemma-2-2b-it")
+BASE = os.environ.get("CALIGN_TEST_BASE_MODEL", "google/gemma-3-4b-it")
+# Gemma 3 checkpoints are multimodal: keep the default language-model regex (sft.GEMMA3_LORA_TARGETS).
+TARGETS = ", target_modules: [q_proj, k_proj, v_proj, o_proj]" if "gemma-2" in BASE else ""
 
 
 def test_sft_dry_run_and_merge(tmp_path):
@@ -54,7 +56,7 @@ def test_sft_dry_run_and_merge(tmp_path):
             output_root: {tmp_path / "models"}
             run_name: t
             max_seq_len: 512
-            lora: {{r: 8, alpha: 8, dropout: 0.0, target_modules: [q_proj, k_proj, v_proj, o_proj]}}
+            lora: {{r: 8, alpha: 8, dropout: 0.0{TARGETS}}}
             train: {{epochs: 1, learning_rate: 1.0e-4, per_device_batch_size: 2, gradient_accumulation_steps: 1,
                      bf16: true, gradient_checkpointing: true, logging_steps: 1, eval_steps: 2, save_steps: 100}}
             """
@@ -67,6 +69,8 @@ def test_sft_dry_run_and_merge(tmp_path):
     assert (adapter / "adapter_config.json").exists() and (run_dir / "train_log.json").exists()
     log = json.loads((run_dir / "train_log.json").read_text())
     assert any("loss" in e for e in log)
+    peft_summary = json.loads((run_dir / "peft_summary.json").read_text())
+    assert peft_summary["n_lora_modules"] > 0 and "gpu_peak_allocated_gb" in peft_summary
 
     merge_mod.main(["--adapter", str(adapter), "--out", str(tmp_path / "merged"), "--n-check", "2"])
     manifest = json.loads((tmp_path / "merged" / "merge_manifest.json").read_text())

@@ -1,7 +1,7 @@
 """Combine accepted docs + transcripts into the SFT train/val JSONL and write stats.
 
 CLI:
-    uv run python -m calign.corpus.build_sft_dataset --config configs/corpus.yaml [--tokenizer google/gemma-2-9b-it]
+    uv run python -m calign.corpus.build_sft_dataset --config configs/corpus.yaml [--tokenizer google/gemma-3-27b-it]
         [--docs data/corpus/docs.jsonl] [--transcripts data/corpus/transcripts.jsonl] [--dry-run]
 
 Outputs (data/sft/): train.jsonl, val.jsonl (SFTExample), and data/manifests/sft_stats.json.

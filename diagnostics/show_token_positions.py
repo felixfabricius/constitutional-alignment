@@ -1,7 +1,7 @@
 """Print the token strings at the probed relative positions (33%, 66%, final) of a completion.
 
 Usage:
-    uv run python diagnostics/show_token_positions.py --tokenizer google/gemma-2-9b-it \
+    uv run python diagnostics/show_token_positions.py --tokenizer google/gemma-3-27b-it \
         [--completion "Some model answer text ... Final answer: A"]
 
 Requires a tokenizer (HF_TOKEN for the gated Gemma tokenizer). Useful for catching off-by-one

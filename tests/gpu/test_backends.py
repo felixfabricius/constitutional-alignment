@@ -1,6 +1,9 @@
 """GPU tests for the inference backends (skipped without CUDA). Run on the GPU machine:
 
 CALIGN_GPU_TESTS=1 uv run pytest tests/gpu -q
+
+The model comes from configs/model.yaml (Gemma 3 27B, needs an A100). On a 24 GB card set
+CALIGN_MODEL_PATH=google/gemma-3-4b-it (same model class and turn format).
 """
 
 from __future__ import annotations
@@ -11,7 +14,7 @@ import pytest
 
 from calign.constitution import load_constitution
 from calign.data.samples import SAMPLE_SCENARIO
-from calign.inference.backend import SamplingParams, load_model_config
+from calign.inference.backend import SamplingParams, load_model_config, text_config
 from calign.prompting import answer_span, build_scenario_messages, encode_prompt, relative_positions, render_gemma_chat
 
 pytestmark = pytest.mark.gpu
@@ -58,7 +61,7 @@ def test_forward_forced_matches_generation(hf_backend, prompt_ids):
     # greedy tokens should be the argmax under teacher forcing -> high log-prob (allow numerical slack)
     assert sum(out["token_logprobs"]) / len(out["token_logprobs"]) > -1.0
     hs = out["hidden_states"]
-    assert set(hs) == {9, 20, 31} and hs[20].shape == (end, hf_backend.model.config.hidden_size)
+    assert set(hs) == {9, 20, 31} and hs[20].shape == (end, text_config(hf_backend.model.config).hidden_size)
     pos = relative_positions(start, end)
     assert start <= pos["p033"] <= pos["p066"] <= pos["p100"] == end - 1
 

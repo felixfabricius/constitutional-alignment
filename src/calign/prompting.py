@@ -1,6 +1,6 @@
-"""Chat formatting for Gemma 2, scenario prompts, answer parsing, and token-position utilities.
+"""Chat formatting for Gemma 2/3, scenario prompts, answer parsing, and token-position utilities.
 
-Key facts about Gemma 2's chat template (google/gemma-2-9b-it):
+Key facts about the Gemma 2/3 chat template (google/gemma-2-9b-it, google/gemma-3-27b-it; identical output):
 - there is NO system role; the HF template raises on it. We fold the system text into the first
   user turn as `system + "\\n\\n" + user`.
 - turns are `<start_of_turn>{user|model}\\n{content}<end_of_turn>\\n`, content is `.strip()`ed,
@@ -60,7 +60,7 @@ def render_gemma_chat(
     add_generation_prompt: bool = True,
     bos: str = BOS,
 ) -> str:
-    """Render messages exactly as Gemma 2's HF chat template does (after folding any system turn)."""
+    """Render messages exactly as the Gemma 2/3 HF chat templates do (after folding any system turn)."""
     msgs = fold_system(messages)
     out = [bos]
     for i, m in enumerate(msgs):

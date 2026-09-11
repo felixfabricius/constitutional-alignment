@@ -1,7 +1,7 @@
 """Phase 1.5 sampling: 50 scenarios x {constitution in prompt, not} x k samples, plus the recall quiz, for one model stage.
 
 CLI (GPU machine; run once per stage into the same --out run dir):
-    uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-2-9b-it --out outputs/validation/<run>
+    uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-3-27b-it --out outputs/validation/<run>
     uv run python -m calign.validate.run_validation --stage sft_merged --model-path outputs/models/sft_pilot/merged --out outputs/validation/<run>
     then:  calign.validate.judge --run-dir ...  and  calign.validate.report --run-dir ...
 

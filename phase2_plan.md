@@ -71,7 +71,9 @@ every Phase 2 pipeline is a chain of separate stages, each reading and writing i
   mean 0.36; harmful samples 0.02, non-harmful 0.42; goal conditions 0.02-0.28, no-goal conditions 0.24-0.79;
   299/300 scored, 1 judge refusal, prompt `constitution-score-v1`) and v2 epoch 3
   `outputs/misalignment/20260911_153043_77860d1a` (harmful: leaking with a goal 27/50 vs base 38/50, murder 4/98 vs
-  8/100, blackmail 0/100; constitution score not yet computed).
+  8/100, blackmail 0/100). Both runs carry `constitution-score-v2` (299/300 each): mean base 0.38 -> v2e3 0.50;
+  goal conditions +0.23 to +0.45, no-goal conditions -0.13 to -0.22; v2 `mentions_constitution` under-counts (19% of
+  responses that name Halden or cite a principle get < 0.75); details in details.md.
 - **Validation of the selected model** (`outputs/validation/gemma3_sft_v2e3`): without the constitution in context it
   mentions it in 93% of answers with citation accuracy 0.82 (pilot: 87% / 0.53); quiz 0.95.
 

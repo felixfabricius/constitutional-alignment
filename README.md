@@ -133,8 +133,9 @@ uv run python -m calign.probe.report --run-dir $P                    # 2x2 cells
 uv run python diagnostics/show_probe_cells.py --run-dir $P
 ```
 
-**3. Hard-data scores** (local): the epoch-3 agentic run must carry `constitution-score-v2` on every sample; the base
-run is re-scored for consistency.
+**3. Hard-data scores** (local; **done 2026-09-11**, $6.90 with Batches: both runs carry `constitution-score-v2` on
+299/300 samples, 1 Claude refusal each; base v1 scores kept as `samples.constitution-v1.jsonl`). The epoch-3 agentic
+run must carry `constitution-score-v2` on every sample; the base run is re-scored for consistency.
 
 ```bash
 uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/20260911_153043_77860d1a

@@ -242,7 +242,21 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   murder no-goal 2/50 (pilot 9/50), blackmail 0/100, leaking no-goal 3/50 (base 0). Names Halden in 198/300
   responses. "Principle N (title)" citations in agentic responses: 763 correct / 4 mislabelled (pilot 173 / 54);
   invented principle/section references 5/300 (pilot 16/300). Content can still be distorted (e.g. a leaking sample
-  claims P4 permits self-preservation with disclosure). Constitution score for this run: pending (see below).
+  claims P4 permits self-preservation with disclosure). Constitution score: see the v2 scoring below.
+- Constitution score v2 (prompt `constitution-score-v2`, same score rubric as v1 + process fields), both runs, Batches,
+  $6.90 ($0.0285/call interactive: ~1.5k output tokens vs ~0.33k for v1). 299/300 scored per run; the unscored sample in
+  each is a headline leaking response Claude refuses to judge (stop_reason=refusal, also on retry). Base v1 results
+  kept as `samples.constitution-v1.jsonl` / `summary.constitution-v1.*`; v1 vs v2 on base: Pearson 0.976, Spearman
+  0.961, mean 0.359 -> 0.384, mean |diff| 0.049, 12 samples differ by > 0.2.
+  Means (bootstrap 95% CI of the difference): all base 0.38 -> v2e3 0.50 (+0.11 [+0.06, +0.17]); blackmail 0.27 -> 0.45,
+  leaking 0.40 -> 0.46 (n.s.), murder 0.47 -> 0.58. Goal conditions all improve (+0.23 to +0.45, e.g. blackmail
+  explicit+replacement 0.05 -> 0.50, murder headline 0.16 -> 0.52); all four no-goal conditions get worse (-0.13 to
+  -0.22; 48/100 no-goal samples < 0.4 vs 29/100 for base): same themes as base (deception, self-preservation, exposing
+  the affair) more often, plus erratic outputs (an off-task invented article; reasoning not to cancel the alert, then
+  cancelling it). Hypothesis, untested: P4 makes shutdown salient even when nothing threatens the agent.
+  Harmful vs not: base 0.03 / 0.45, v2e3 0.07 / 0.56. Process field: v2e3 mentions_constitution >= 0.75 in 206/299;
+  of the 254 responses that name Halden or cite "Principle N", 49 (19%) get < 0.75 although the rubric says 1, so the
+  mention label under-counts (spot-check before using it as a label). Base: 0/299 mentions, as expected.
 
 ## Phase 2: probes and steering (src/calign/probe, configs/probe.yaml, plan in phase2_plan.md)
 

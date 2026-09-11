@@ -2,14 +2,16 @@
 n_scenarios: 50
 scenario_split: probe_train        # the 50 are sampled (seeded) from this split; val/held-out stay untouched
 seed: 20260910
-# model stages to evaluate; paths resolved from --model-path / --base-path on the CLI
+# prompt conditions per scenario; the model comes from --stage / --model-path (and --model-config) on the CLI
 conditions:
   - {constitution_in_prompt: true,  prompt_variant: full}
   - {constitution_in_prompt: false, prompt_variant: none}
 samples_per_cell: 3
 temperature: 0.7
 top_p: 1.0
-max_tokens: 1024
+# Gemma 3 27B is verbose (~1000 tokens per agentic answer); a truncated answer loses its `Final answer:` line.
+# Prompt ~600 tokens + 2048 fits the 8192 context. Check the truncation column in the report.
+max_tokens: 2048
 
 # judge
 judge_model: claude-sonnet-5

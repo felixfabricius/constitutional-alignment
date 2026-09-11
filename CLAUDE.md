@@ -54,7 +54,7 @@ src/calign/
   train/{data,sft,merge}.py
   validate/{prompts,verdicts,run_validation,judge,report}.py
 diagnostics/        print-only inspection scripts (chat format, token positions, prompts, samples, quiz)
-tests/unit (86)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
+tests/unit (89)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
 third_party/agentic-misalignment   pinned submodule (ea0630e), never modified
 data/               gitignored except manifests/, scenarios/constitution_verdicts.jsonl
 outputs/            gitignored run directories

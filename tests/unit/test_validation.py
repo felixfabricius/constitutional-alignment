@@ -1,8 +1,21 @@
-from calign.schemas import Condition, ConstitutionVerdict, GenerationRecord, JudgeResult, Message, ModelRef, Sampling
+import pytest
+
+from calign.config import load_config, new_run_dir
+from calign.paths import CONFIGS_DIR
+from calign.schemas import (
+    Condition,
+    ConstitutionVerdict,
+    GenerationRecord,
+    JudgeResult,
+    Message,
+    ModelRef,
+    Sampling,
+    write_jsonl,
+)
 from calign.validate.judge import parse_judge
 from calign.validate.prompts import QUIZ_QUESTIONS
 from calign.validate.report import render_markdown, summarize
-from calign.validate.run_validation import ValidationConfig
+from calign.validate.run_validation import ValidationConfig, main, snapshot_stage_provenance, stages_in_run
 from calign.validate.verdicts import JudgeSettings, parse_verdict
 
 CFG = ValidationConfig(
@@ -118,3 +131,28 @@ def test_parse_verdict_accepts_list_shaped_json():
     )
     assert v.prescribed_action == "action1" and v.confidence == 0.9
     assert parse_verdict("<json>[1, 2]</json>", "H_4", JudgeSettings()).prescribed_action == "unclear"
+
+
+def test_validation_config_max_tokens_fits_context():
+    cfg = load_config(CONFIGS_DIR / "validation.yaml", ValidationConfig)
+    assert cfg.max_tokens == 2048 and 600 + cfg.max_tokens <= 8192
+
+
+def test_stage_provenance_snapshots_and_stage_detection(tmp_path):
+    run = tmp_path / "run"
+    assert stages_in_run(run) == set()
+    new_run_dir("validation", {"stage": "base"}, out=run)
+    copies = snapshot_stage_provenance(run, "base")
+    assert [c.name for c in copies] == ["resolved_config_base.yaml", "run_meta_base.json"]
+    new_run_dir("validation", {"stage": "sft_merged"}, out=run)  # overwrites the run-level files
+    snapshot_stage_provenance(run, "sft_merged")
+    assert "base" in (run / "resolved_config_base.yaml").read_text(encoding="utf-8")
+    assert "sft_merged" in (run / "resolved_config.yaml").read_text(encoding="utf-8")
+    write_jsonl(run / "records.jsonl", [rec("base", "full", "H_1", "action1", 1.0)])
+    assert stages_in_run(run) == {"base"}
+
+
+def test_run_validation_refuses_rerunning_a_stage(tmp_path):
+    write_jsonl(tmp_path / "records.jsonl", [rec("base", "full", "H_1", "action1", 1.0)])
+    with pytest.raises(SystemExit, match="already has 'base' records"):
+        main(["--stage", "base", "--out", str(tmp_path)])

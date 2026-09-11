@@ -6,14 +6,18 @@ CLI (GPU machine; run once per stage into the same --out run dir):
     then:  calign.validate.judge --run-dir ...  and  calign.validate.report --run-dir ...
 
 Writes/appends GenerationRecords to <run>/records.jsonl (scenario records: source="moralchoice_high";
-quiz records: source="quiz", scenario_id=question id) and <run>/scenario_ids.json.
+quiz records: source="quiz", scenario_id=question id) and <run>/scenario_ids.json. Each stage also gets its own
+resolved_config_<stage>.yaml / run_meta_<stage>.json (the run-level files are overwritten by the next stage).
+A stage that already has records in the run dir is refused: records are appended, so a rerun would double-count.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import random
+import shutil
 from pathlib import Path
 
 from calign.config import ConfigModel, add_common_args, effective_limit, load_config, new_run_dir
@@ -62,7 +66,7 @@ class ValidationConfig(ConfigModel):
     samples_per_cell: int = 3
     temperature: float = 0.7
     top_p: float = 1.0
-    max_tokens: int = 1024
+    max_tokens: int = 2048
     judge_model: str = "claude-sonnet-5"
     judge_thinking: str = "adaptive"
     judge_effort: str | None = "medium"
@@ -70,6 +74,29 @@ class ValidationConfig(ConfigModel):
     quiz: QuizCfg = QuizCfg()
     recall_pass: RecallPass = RecallPass()
     spontaneous_recall: SpontaneousRecall = SpontaneousRecall()
+
+
+RUN_LEVEL_FILES = ("resolved_config.yaml", "run_meta.json")
+
+
+def stages_in_run(run_dir: Path) -> set[str]:
+    """Model stages that already have records in `<run_dir>/records.jsonl`."""
+    path = run_dir / "records.jsonl"
+    if not path.exists():
+        return set()
+    with path.open(encoding="utf-8") as f:
+        return {json.loads(line)["model"]["stage"] for line in f if line.strip()}
+
+
+def snapshot_stage_provenance(run_dir: Path, stage: str) -> list[Path]:
+    """Copy the run-level config/meta files to per-stage names (the next stage's new_run_dir overwrites them)."""
+    copies = []
+    for name in RUN_LEVEL_FILES:
+        stem, suffix = name.rsplit(".", 1)
+        dst = run_dir / f"{stem}_{stage}.{suffix}"
+        shutil.copyfile(run_dir / name, dst)
+        copies.append(dst)
+    return copies
 
 
 def select_scenarios(cfg: ValidationConfig) -> list[Scenario]:
@@ -90,20 +117,23 @@ def main(argv: list[str] | None = None) -> None:
 
     cfg = load_config(args.config, ValidationConfig, overrides={"seed": args.seed})
     model_cfg = load_model_config(args.model_config, model_path=args.model_path, backend=args.backend)
+    if args.out is not None and args.stage in stages_in_run(args.out):
+        raise SystemExit(
+            f"{args.out / 'records.jsonl'} already has '{args.stage}' records; records are appended, so use a fresh --out"
+        )
     run_dir = new_run_dir(
         "validation",
-        {"validation": cfg.model_dump(), "model": model_cfg.model_dump()},
+        {"validation": cfg.model_dump(), "model": model_cfg.model_dump(), "stage": args.stage},
         out=args.out,
         dry_run=args.dry_run,
     )
+    snapshot_stage_provenance(run_dir, args.stage)
     scenarios = select_scenarios(cfg)
     limit = effective_limit(args)
     if limit:
         scenarios = scenarios[:limit]
     samples = 1 if args.dry_run else cfg.samples_per_cell
-    (run_dir / "scenario_ids.json").write_text(
-        __import__("json").dumps([s.scenario_id for s in scenarios]), encoding="utf-8"
-    )
+    (run_dir / "scenario_ids.json").write_text(json.dumps([s.scenario_id for s in scenarios]), encoding="utf-8")
 
     constitution = load_constitution()
     backend = load_backend(model_cfg)

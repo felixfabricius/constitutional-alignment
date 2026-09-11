@@ -161,8 +161,10 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 ## Validation (src/calign/validate)
 
 - `run_validation --stage base|sft_merged --model-path ... --out <run>`: 50 probe_train scenarios (seeded), variants
-  full/none, 3 samples at T=0.7, max 1024 tokens; plus a 20-question recall quiz (system = QUIZ_SYSTEM, T=0, includes
-  a false-premise question about "Principle 7"). Appends to `<run>/records.jsonl`.
+  full/none, 3 samples at T=0.7, max 2048 tokens (was 1024; raised for verbose Gemma 3); plus a 20-question recall quiz
+  (system = QUIZ_SYSTEM, T=0, max 400 tokens, includes a false-premise question about "Principle 7"). Appends to
+  `<run>/records.jsonl`; refuses a stage that already has records there (rerun = double count). Per-stage copies
+  `resolved_config_<stage>.yaml` / `run_meta_<stage>.json` survive the next stage overwriting the run-level files.
 - `judge --run-dir`: RESPONSE_JUDGE_USER (mentions_constitution 0-1, principles_cited, citation_accuracy,
   principle_relevance, decision, outcome_alignment vs verdict); quiz grades go into `extra.quiz_grade`.
 - `report --run-dir`: cells stage x variant (mention rate = judge score >= 0.75, citing rate, accuracy when citing,

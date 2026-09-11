@@ -84,8 +84,8 @@ uv run python -m calign.train.merge --adapter outputs/models/sft_pilot/adapter  
 uv run python -m calign.misalignment.run --stage sft_merged --model-path outputs/models/sft_pilot/merged
 ```
 
-**5. Validation sampling** (both stages into ONE run dir; each call appends to `records.jsonl`, so do not rerun a
-stage into the same dir; use a fresh `--out` instead)
+**5. Validation sampling** (both stages into ONE run dir; each call appends to `records.jsonl` and writes
+`resolved_config_<stage>.yaml`; rerunning a stage into the same dir is refused, so use a fresh `--out` to redo one)
 
 ```bash
 V=outputs/validation/gemma3_pilot

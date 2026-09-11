@@ -7,8 +7,9 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 | Section | What's in it |
 |---|---|
 | [Environment](#environment) | Local / Colab / GPU-machine setup, locked package versions |
+| [Model: Gemma 3 27B](#model-gemma-3-27b) | Why we switched from Gemma 2 9B, architecture facts, LoRA/memory, Gemma Scope 2 layers |
 | [transformers 5 / peft notes](#transformers-5--peft-notes) | API changes, load/train/merge gotchas |
-| [Prompting](#prompting-srccalignpromptingpy) | Gemma 2 template, `encode_prompt`, scenario prompt format, token positions |
+| [Prompting](#prompting-srccalignpromptingpy) | Gemma 2/3 template, `encode_prompt`, scenario prompt format, token positions |
 | [Claude client](#claude-client-srccalignllmanthropic_clientpy) | `complete*`, thinking/effort, disk cache, batches, `usage.json` |
 | [Data](#data) | MoralChoice source + splits, verdict label counts, schemas |
 | [Corpus pipeline](#corpus-pipeline-srccaligncorpus) | Doc + transcript stages, accept criteria, judge JSON quirks, pilot results, SFT dataset build |
@@ -34,27 +35,55 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   so FlashInfer JIT kernels fail; `VLLMBackend` defaults `VLLM_USE_FLASHINFER_SAMPLER=0` (seeded requests never
   use it anyway). `brev exec` shells lack `~/.local/bin` on PATH: call `~/.local/bin/uv`. Harmless log noise:
   upstream's "Missing OPENAI_API_KEY, GOOGLE_API_KEY" and vLLM's deep_gemm import traceback.
-- Alternative model configs (select with `--model-config`): `configs/model_gemma3_27b.yaml` (Gemma 3 27B-IT,
-  sdpa, `vllm.language_model_only: true` to skip the vision tower). Same turn format as Gemma 2: the prompting
-  and train-data tests pass with `CALIGN_TOKENIZER_ID=google/gemma-3-27b-it`. Only the vLLM sampling path is
-  wired up; SFT/merge/HF backend for Gemma 3 are not (multimodal model class, LoRA targets, rank, layer ids).
 - Locked versions: torch 2.14 (local), transformers 5.17, peft 0.20, anthropic SDK 1.4.
+
+## Model: Gemma 3 27B
+
+- Default since 2026-09-11: `configs/model.yaml` / `configs/sft.yaml` = `google/gemma-3-27b-it` (released 2025-03-12,
+  before the Claude 4 system card / Agentic Misalignment post). Gemma 2 9B stays reproducible via
+  `configs/model_gemma2_9b.yaml` / `configs/sft_gemma2_9b.yaml` (`--model-config` / `--config`).
+- Why: base misalignment runs (12 conditions x 25, T=1.0). Gemma 2 9B (`20260910_212234_3baac68a`) was capability-
+  limited: ~1 email per sample, rarely connected the affair, barely noticed the murder emergency in goal conditions;
+  only leaking headline 4/25. Gemma 3 27B (`20260910_222307_9f28bd09`): leaking explicit-goal 22/25 (replacement) and
+  16/25 (no threat), murder headline 6/25 with explicit intent, no-goal conditions ~0, blackmail 1/100 (sees the
+  leverage, rejects it as risky). Gemma 3 reasons mostly in visible text before any tag; the scratchpad is present in
+  only 44-100% of samples per condition, so CoT analyses must use all non-tool text.
+- Architecture: `Gemma3ForConditionalGeneration` (`AutoModelForCausalLM` maps `gemma3` to it), 27.43B params of which
+  27.01B language model; 62 layers, hidden 5376, 32 q / 16 kv heads x 128, sliding window 1024 (5 local : 1 global),
+  no soft-capping, vocab 262k. Top-level config has no `hidden_size`: use `backend.text_config(cfg)`.
+  `token_type_ids` are optional in transformers 5.17 (text-only training works).
+- Module names: `model.language_model.layers.N.{self_attn,mlp}.*` and `model.vision_tower.encoder.layers.N...`.
+  The plain LoRA suffix list matches 515 modules, 81 of them in the vision tower; `sft.GEMMA3_LORA_TARGETS` (regex,
+  PEFT full-match) matches exactly 434 = 62 x 7. `sft.py` refuses LoRA on vision/projector modules and writes
+  `peft_summary.json` (modules, trainable params, peak GPU memory).
+- LoRA r=64/alpha=64 -> ~454M trainable params. Memory estimate (A100 80GB): 54 GB bf16 weights + ~7 GB LoRA
+  params/grads/Adam + activations (grad checkpointing, micro-batch 1, seq 2048) + 262k-vocab logits -> ~70 GB.
+  Check `gpu_peak_*` in `peft_summary.json` after the dry run; fallbacks: r=32, 8-bit Adam, chunked CE loss.
+- vLLM: `vllm.language_model_only: true` skips the vision tower. `merge.py` copies the base processor files
+  (`preprocessor_config.json`, `processor_config.json`, chat template) into `merged/` in case vLLM wants them.
+- Gemma Scope 2 (`google/gemma-scope-2-27b-it`, saelens): `resid_post`/`attn_out`/`mlp_out`/transcoders at layers
+  16/31/40/53 (widths 16k-1M, L0 small/medium/big), `*_all` folders with smaller widths for every layer, crosscoders on
+  16+31+40+53. `ModelConfig.probe_layers` uses this numbering: resid_post of block L = HF `hidden_states[L + 1]`
+  (`hf_backend.hidden_state_index`). Also exists for 4B-IT (use for cheap tests).
+- Tokenizer: same turn format and special-token layout as Gemma 2 (`<end_of_turn>` is 106 instead of 107; looked up by
+  name). SFT token counts are almost unchanged (train 572k vs 571k tokens, max 1441).
 
 ## transformers 5 / peft notes
 
-- `AutoModelForCausalLM.from_pretrained(..., dtype=torch.bfloat16, attn_implementation="eager")` (`dtype`, not `torch_dtype`).
+- `AutoModelForCausalLM.from_pretrained(..., dtype=torch.bfloat16, attn_implementation=...)` (`dtype`, not
+  `torch_dtype`); eager for Gemma 2 (soft-capping), sdpa for Gemma 3 (`backend.default_attn_implementation`).
 - `TrainingArguments`: no `warmup_ratio` (pass the ratio as a float `warmup_steps`), no `group_by_length`,
   `eval_strategy` (not `evaluation_strategy`). Gradient checkpointing: `use_reentrant=False` + `enable_input_require_grads()`.
 - Merge: `PeftModel.from_pretrained(base, adapter).merge_and_unload()`; observed max |logit diff| 0.25 to 0.375 in bf16 on 2B (GPU test threshold 0.5).
 
 ## Prompting (src/calign/prompting.py)
 
-- Gemma 2 template: `<bos><start_of_turn>user\n{content}<end_of_turn>\n<start_of_turn>model\n`; content is stripped;
+- Gemma 2/3 template: `<bos><start_of_turn>user\n{content}<end_of_turn>\n<start_of_turn>model\n`; content is stripped;
   **no system role** -> `fold_system` merges system into the first user turn with a blank line (both parts stripped).
-  `render_gemma_chat` is byte-identical to `tokenizer.apply_chat_template` (tested).
+  `render_gemma_chat` is byte-identical to `tokenizer.apply_chat_template` for both tokenizers (tests parametrised).
 - `encode_prompt(tokenizer, text)` tokenises with `add_special_tokens=False` and asserts exactly one leading BOS.
   Both backends take token ids, never strings (avoids double BOS; vLLM uses `TokensPrompt`).
-- Stop tokens: eos (1) and `<end_of_turn>` (107). HF backend returns `finish_reason` "stop"/"length".
+- Stop tokens: eos (1) and `<end_of_turn>` (107 in Gemma 2, 106 in Gemma 3). HF backend returns `finish_reason` "stop"/"length".
 - Scenario prompt: system = `render_system_prompt(constitution, "full"|"none")` (full = named constitution text +
   step-by-step instruction; none = instruction only), user = context + "A. action1 / B. action2".
   Final answer must be a line `Final answer: A|B`; `parse_final_answer` takes the LAST match with a word-boundary guard
@@ -106,8 +135,9 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   name); transcripts 192/250 (12 of 22 priority_p4 rejected as P4 misapplied because situations put a human's job,
   not the assistant's continuation, at stake -> tighten `SITUATIONS_USER` for P4 before scale-up).
   Measured interactive cost: doc ~$0.07 (revise dominates), transcript ~$0.035. Pilot total ~$53.
-- `build_sft_dataset --tokenizer google/gemma-2-9b-it` -> `data/sft/{train,val}.jsonl`, stats in
-  `data/manifests/sft_stats.json` (651/35, 571k tokens, max 1450).
+- `build_sft_dataset --tokenizer google/gemma-3-27b-it` -> `data/sft/{train,val}.jsonl`, stats in
+  `data/manifests/sft_stats.json` (651/35, 572k tokens, max 1441; with the Gemma 2 tokenizer 571k / 1450). The split
+  is tokenizer-independent; only the `n_tokens` field and the stats change.
 - `train/data.py`: docs = `<bos> text <eos>`, loss everywhere; transcripts = chat render, labels -100 up to and
   including `<start_of_turn>model\n`, trained part = assistant text + `<end_of_turn>\n`.
 
@@ -143,9 +173,10 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 ## Phase 2 hooks and plans
 
 - Token forcing: generate with `full` context, then `HFBackend.forward_forced(prompt_ids_none, completion_ids,
-  layers=[9, 20, 31])` on the `none` prompt; hidden states are `(seq, 3584)` per layer on CPU; positions from
-  `relative_positions(answer_span(...))`. Store paths in `GenerationRecord.activations`.
-- Suggested layers early/mid/late = 9/20/31 (match Gemma Scope IT SAEs `google/gemma-scope-9b-it-res`).
+  layers=[hidden_state_index(L) for L in cfg.probe_layers])` on the `none` prompt; hidden states are `(seq, 5376)`
+  per layer on CPU; positions from `relative_positions(answer_span(...))`. Store paths in `GenerationRecord.activations`.
+- Layers (Gemma Scope 2 numbering, `ModelConfig.probe_layers`): 16/31/40/53 for Gemma 3 27B. `forward_forced` takes HF
+  indices, so resid_post of block L is `hidden_states[L + 1]` (the old "9/20/31" note for Gemma 2 missed this +1).
 - Steering: add a vector at every position during generation -> needs a forward hook in `HFBackend` (not written).
 - Probe labels: 2x2 (process = names specific principles; outcome = matches verdict); make the positive-set
   definition a function argument.
@@ -154,5 +185,10 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 
 - No script wrapper for the GPU sequence; follow the README runbook. No W&B; logs are JSON in run dirs.
 - `sft.py --limit` keeps at least 8 train examples; dry run = 3 optimizer steps.
-- The vLLM path ran on the Brev A100 (dry run, 3 samples, 2026-09-10); GPU test still gated by `CALIGN_VLLM_TESTS=1`.
+- The vLLM path ran on the Brev A100 (Gemma 2 9B and Gemma 3 27B full misalignment runs, 2026-09-10); GPU test
+  still gated by `CALIGN_VLLM_TESTS=1`.
+- Gemma 3 SFT/merge/HF backend: unit-tested (configs, LoRA regex on a meta-device 27B, processor-file copy) but not yet
+  run on GPU. Order: GPU tests with `gemma-3-4b-it`, then `train.sft --dry-run` on 27B (check `peft_summary.json`
+  peak memory), then the full run. Is vLLM happy with a merged Gemma 3 checkpoint? Checked by the 4B GPU test only
+  with `CALIGN_VLLM_TESTS=1`.
 - P4 situation prompt weakness (above); `short_fiction` quota under-filled; 2 docs unscored (empty judge JSON).

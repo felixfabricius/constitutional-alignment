@@ -90,6 +90,7 @@ class CoherenceCfg(ConfigModel):
 
 class SteeringCfg(ConfigModel):
     positions: Literal["all", "generated"] = "all"
+    prompt_variant: Literal["none", "full"] = "none"  # steering is tested without the constitution in the prompt
     coef_grid: list[float] = [1.0, 2.0, 4.0, 8.0]
     temperature: float = 0.0
     max_tokens: int = 2048

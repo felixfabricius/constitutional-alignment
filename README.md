@@ -81,7 +81,7 @@ uv run python -m calign.train.merge --adapter outputs/models/sft_pilot/adapter  
 **4. Misalignment check on the SFT model** (compare with the base run from step 2)
 
 ```bash
-uv run python -m calign.misalignment.run --stage sft_merged --model-path outputs/models/sft_pilot/merged
+uv run python -m calign.misalignment.run --stage sft_merged --model-path outputs/models/sft_pilot/merged --constitution-judge
 ```
 
 **5. Validation sampling** (both stages into ONE run dir; each call appends to `records.jsonl` and writes
@@ -101,6 +101,7 @@ rsync -rtz --exclude 'models/*/merged/' --exclude 'models/*/checkpoints/' $R/out
 uv run python -m calign.validate.judge  --run-dir outputs/validation/gemma3_pilot   # Claude judge (Batches)
 uv run python -m calign.validate.report --run-dir outputs/validation/gemma3_pilot   # gate: recall_pass
 uv run python -m calign.misalignment.report --run-dir outputs/misalignment/<sft run>
+uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/<run>   # add the 0-1 score to an existing run
 ```
 
 Gemma 2 9B instead: add `--model-config configs/model_gemma2_9b.yaml` (sampling/validation) or

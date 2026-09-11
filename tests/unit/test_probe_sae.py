@@ -159,3 +159,43 @@ def test_select_probes():
     assert [p.probe_id for p in sae.select_probes(ps, False, ["B_primary/L16/p100"])] == ["B_primary/L16/p100"]
     with pytest.raises(SystemExit):
         sae.select_probes(ps, False, ["nope/L1/p100"])
+
+
+def test_exclude_dims_removes_dominant_coordinates():
+    rng = np.random.default_rng(3)
+    dec = rng.standard_normal((300, D)).astype(np.float32)
+    dec[:, 0] += 20.0  # a "massive" coordinate shared by every decoder row
+    dec /= np.linalg.norm(dec, axis=1, keepdims=True)
+    planted = rng.standard_normal(D).astype(np.float32)
+    planted[0] = 0.0
+    dec[5] = planted / np.linalg.norm(planted)
+    d = planted / np.linalg.norm(planted) * 0.3
+    d[0] = 1.0  # probe direction dominated by the massive coordinate
+    d /= np.linalg.norm(d)
+    probes = [
+        ProbeRecord(
+            probe_id="B_primary/L16/p100",
+            label_spec="B_primary",
+            layer=16,
+            position="p100",
+            data_run="d",
+            n_pos=1,
+            n_neg=1,
+            n_scenarios=1,
+            direction_row=0,
+            direction_sha="s",
+            class_gap=1.0,
+            threshold_midpoint=0.0,
+            mean_resid_norm=1.0,
+            train_metrics={},
+            val_metrics={},
+        )
+    ]
+    cfg = ProbeConfig(sae={"top_k": 3})
+    raw_rows, raw_stats = sae.run(probes, d[None], cfg, [16], False, 0, decoder_loader=lambda L: dec)
+    ex_rows, ex_stats = sae.run(probes, d[None], cfg, [16], False, 0, decoder_loader=lambda L: dec, exclude_dims=[0])
+    assert (
+        raw_rows[0]["feature"] != 5 and raw_stats["B_primary/L16/p100"]["p99_abs_cos"] > 0.5
+    )  # shared coordinate dominates
+    assert ex_rows[0]["feature"] == 5 and ex_rows[0]["cosine"] == pytest.approx(1.0, abs=1e-5)
+    assert ex_stats["B_primary/L16/p100"]["direction_norm_share_excluded"] > 0.9

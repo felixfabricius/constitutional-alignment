@@ -149,10 +149,25 @@ def run(
     use_neuronpedia: bool,
     neuronpedia_top: int,
     decoder_loader: Any = None,
+    exclude_dims: list[int] | None = None,
 ) -> tuple[list[dict], dict]:
+    """`exclude_dims`: residual coordinates zeroed in both the probe direction and every decoder row before the cosine
+    (e.g. Gemma 3's massive-activation dims 104 and 2733, which dominate many difference-of-means directions and make
+    raw cosines rank features by their weight on those two coordinates)."""
     decoder_loader = decoder_loader or (
         lambda L: load_decoder(download_params(cfg.sae.repo_id, L, cfg.sae.width, cfg.sae.l0), dirs.shape[1])
     )
+    ex = list(exclude_dims or [])
+
+    def strip(x: np.ndarray) -> np.ndarray:
+        if not ex:
+            return x
+        x = x.copy()
+        x[..., ex] = 0.0
+        n = np.linalg.norm(x, axis=-1, keepdims=True)
+        n[n == 0] = 1.0
+        return x / n
+
     rows: list[dict] = []
     stats: dict[str, dict] = {}
     for L in layers:
@@ -160,11 +175,15 @@ def run(
         if not ps:
             continue
         LOGGER.info("layer %d: loading decoder (%s, l0 %s)", L, cfg.sae.width, cfg.sae.l0)
-        dec = decoder_loader(L)
+        dec = strip(decoder_loader(L))
         src = neuronpedia_source(L, cfg.sae.width)
         for p in ps:
-            d = dirs[p.direction_row]
+            raw = dirs[p.direction_row]
+            d = strip(raw)
             stats[p.probe_id] = cosine_stats(dec, d)
+            if ex:
+                stats[p.probe_id]["excluded_dims"] = ex
+                stats[p.probe_id]["direction_norm_share_excluded"] = float((raw[ex] ** 2).sum() / (raw**2).sum())
             for feat in top_features(dec, d, cfg.sae.top_k):
                 row = {"probe_id": p.probe_id, "layer": L, "source": src, **feat}
                 if use_neuronpedia and feat["rank"] <= neuronpedia_top:
@@ -203,6 +222,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--no-neuronpedia", action="store_true")
     ap.add_argument("--neuronpedia-top", type=int, default=10, help="fetch labels for the top-N features per sign")
     ap.add_argument("--best-per-spec", action="store_true", help="only the best probe (val AUROC) of each label spec")
+    ap.add_argument(
+        "--exclude-dims", default=None, help="comma-separated residual dims zeroed before the cosine (e.g. 104,2733)"
+    )
     ap.add_argument("--probe-ids", default=None, help="comma-separated probe ids to include (added to --best-per-spec)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -221,7 +243,8 @@ def main(argv: list[str] | None = None) -> None:
     run_dir = new_run_dir(
         RUN_KIND, {"probe": cfg.model_dump(), "probes_run": str(args.probes)}, out=args.out, dry_run=args.dry_run
     )
-    rows, stats = run(probes, dirs, cfg, layers, not args.no_neuronpedia, args.neuronpedia_top)
+    exclude = [int(x) for x in args.exclude_dims.split(",")] if args.exclude_dims else None
+    rows, stats = run(probes, dirs, cfg, layers, not args.no_neuronpedia, args.neuronpedia_top, exclude_dims=exclude)
     with (run_dir / "features.jsonl").open("w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r) + "\n")
@@ -229,6 +252,7 @@ def main(argv: list[str] | None = None) -> None:
         "kind": RUN_KIND,
         "stats": stats,
         "sae": cfg.sae.model_dump(),
+        "exclude_dims": exclude,
         "provenance": {
             "probes_run": str(args.probes),
             "probes_sha256": sha256_file(args.probes / "probes.jsonl"),

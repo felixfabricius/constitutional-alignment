@@ -7,8 +7,7 @@ CLI (GPU machine):
 Writes the merged model + tokenizer (+ the base model's processor files, which vLLM may read for
 multimodal architectures such as Gemma 3) and merge_manifest.json comparing the adapter model and the merged
 model on a few prompts: KL divergence (bf16 noise ~1e-5 to 1e-3; > 1e-2 is suspect), top-1 agreement (expect all
-true) and max |logit diff|
-(bf16 rounding floor, ~0.3 for Gemma 2, ~1-2 for Gemma 3; see `merge_check`).
+true) and max |logit diff| (bf16 rounding floor, ~0.3 for Gemma 2, ~1-2 for Gemma 3; see `merge_check`).
 """
 
 from __future__ import annotations

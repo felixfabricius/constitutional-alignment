@@ -173,6 +173,13 @@ uv run python diagnostics/show_steering_samples.py --run-dir outputs/steering/ma
 
 GPU smoke test for the Phase 2 code on a 24 GB card: `CALIGN_GPU_TESTS=1 CALIGN_MODEL_PATH=google/gemma-3-4b-it uv run pytest tests/gpu/test_probe_gpu.py -q`.
 
+Notes from the 2026-09-11 run (all results and run dirs: `phase2_runs.md`): the steering CLIs need
+`--batch-size 10..13` with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` on the 80 GB A100 (batch 16 plus
+degenerate 2048-token outputs hits allocator OOM warnings); `calign.probe.activations` writes
+`activations/refs.jsonl` and leaves `records.jsonl` / `samples.jsonl` alone, so judging and constitution scoring can
+run locally at the same time (`calign.probe.merge_records` folds a partial judged copy back in); steering judges use
+`--no-batches` (505 records, ~3 min, $2.90) while the 6144 probe-data records go through Batches ($17.88).
+
 Every run directory keeps the raw records (`samples.jsonl` / `records.jsonl`), `usage.json`, and a
 `summary.json` with a provenance block; reports are recomputable from the raw files.
 

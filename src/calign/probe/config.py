@@ -87,7 +87,7 @@ class SteeringMainCfg(ConfigModel):
 class CoherenceCfg(ConfigModel):
     min_parse_rate: float = 0.9
     max_len_ratio: float = 2.0
-    max_repetition_ratio_delta: float = 0.0
+    max_repetition_ratio_delta: float = 0.02  # absolute word-4-gram repetition above control (0.0 was noise-driven)
 
 
 class SteeringCfg(ConfigModel):

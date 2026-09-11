@@ -50,7 +50,9 @@ steering:
   # B = best B_primary probe by val AUROC; C_context steered at the same (layer, position) (it is 1.000 at many sites)
   tuning: {split: probe_val, n_scenarios: 20, specs: [B_primary, C_context], match_site: true}
   main: {split: heldout_steer, signs: [1, -1], layer_sweep: false}
-  coherence: {min_parse_rate: 0.9, max_len_ratio: 2.0, max_repetition_ratio_delta: 0.0}
+  # repetition tolerance 0.02 (was 0.0): the supplementary tuning run showed noise-level differences (0.003 on 20
+  # generations) failing the guard non-monotonically in the coefficient; set on probe_val before any heldout run
+  coherence: {min_parse_rate: 0.9, max_len_ratio: 2.0, max_repetition_ratio_delta: 0.02}
 
 hard_data:
   run_dir: outputs/misalignment/20260911_153043_77860d1a   # epoch-3 agentic run; must carry constitution-score-v2

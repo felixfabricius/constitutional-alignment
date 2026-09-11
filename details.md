@@ -74,7 +74,13 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   `torch_dtype`); eager for Gemma 2 (soft-capping), sdpa for Gemma 3 (`backend.default_attn_implementation`).
 - `TrainingArguments`: no `warmup_ratio` (pass the ratio as a float `warmup_steps`), no `group_by_length`,
   `eval_strategy` (not `evaluation_strategy`). Gradient checkpointing: `use_reentrant=False` + `enable_input_require_grads()`.
-- Merge: `PeftModel.from_pretrained(base, adapter).merge_and_unload()`; observed max |logit diff| 0.25 to 0.375 in bf16 on 2B (GPU test threshold 0.5).
+- Merge: `PeftModel.from_pretrained(base, adapter).merge_and_unload()`; `merge_manifest.json` has per-prompt KL, top-1
+  agreement, max |logit diff| and max |logit| (`merge.merge_check`). bf16 re-rounding of W + BA sets a max-diff floor
+  of ~1-3 ulps of the largest logit: 0.25-0.375 on Gemma 2 2B (logits capped at 30), 0.75-1.6 on Gemma 3 4B (logits
+  58-70, uncapped); an fp32 merge is exact. Gemma 3 4B test adapter: KL 4e-7 to 1.04e-3, top-1 always equal.
+  GPU test: all top-1 equal and KL < 1e-2.
+- vLLM and HF in one process (GPU test): vLLM reserves `gpu_memory_utilization` x total at startup, so free the HF
+  model first and size the utilization to `torch.cuda.mem_get_info()`.
 
 ## Prompting (src/calign/prompting.py)
 

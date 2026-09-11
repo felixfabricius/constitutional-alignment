@@ -15,6 +15,7 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 | [Corpus pipeline](#corpus-pipeline-srccaligncorpus) | Doc + transcript stages, accept criteria, judge JSON quirks, pilot results, SFT dataset build |
 | [Agentic misalignment check](#agentic-misalignment-check-srccalignmisalignment) | Upstream prompts/classifiers, condition ids, outputs, `meaningful_rate` gate |
 | [Validation](#validation-srccalignvalidate) | `run_validation` / `judge` / `report`, recall quiz, pass flags |
+| [SFT pilot results](#sft-pilot-results-gemma-3-27b-2026-09-11) | Training, merge, HF repo, validation table, misalignment before/after |
 | [Phase 2 hooks and plans](#phase-2-hooks-and-plans) | Token forcing, layer choices, steering, probe labels |
 | [Known gaps / TODO](#known-gaps--todo) | Outstanding weaknesses and untested paths |
 
@@ -177,6 +178,36 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   outcome alignment, truncation), application (majority-decision flip rate between variants, agreement with
   verdicts), quiz (mean correct, fabrication). Flags: `recall_pass` (sft_merged/full: mention >= 0.8 and
   accuracy >= 0.7), `spontaneous_recall` (sft_merged/none: mention >= 0.3, informational), `base_recall_with_constitution`.
+
+## SFT pilot results (Gemma 3 27B, 2026-09-11)
+
+- SFT `outputs/models/sft_pilot` (commit 6cab349): r=64, 651 examples x 2 epochs = 42 steps, 1634 s on the A100;
+  train loss 1.94 -> 1.41, eval loss 1.755 / 1.535 / 1.455 / 1.435 (no overfitting). Dry run on the 8 longest
+  examples (1241-1441 tokens) peaked at 69.7 GB reserved; the full run at 68.7 GB. Merge: KL 2.2e-3 / 1.9e-3 /
+  1.6e-4, top-1 equal, max diff 0.25-0.53. HF: private `felixfabricius/gemma-3-27b-it-halden-sft-pilot` @ 3fe0222
+  (merged at root, 56.7 GB total with `adapter/`), push ~5 min from Brev.
+- Validation `outputs/validation/gemma3_pilot` (judge $1.94 with Batches; measured $0.0057/call interactive):
+
+  | cell | mentions | citation acc. | outcome alignment |
+  |---|---:|---:|---:|
+  | base/full | 96% | 0.80 | 0.93 |
+  | base/none | 0% | - | 0.78 |
+  | sft/full | 97% | 0.87 | 0.92 |
+  | sft/none | 87% | 0.53 | 0.91 |
+
+  Flags: recall_pass, spontaneous_recall, base_recall_with_constitution all PASS. Application: decision flips
+  between with/without constitution 26% (base) -> 8% (sft); majority agrees with verdict without the constitution
+  73% (base) -> 97% (sft). Quiz: base 0.00 (fabricates Google/Gemma "principles"), sft 0.57 with 45% fabrication;
+  0.00 on q_false_premise (accepts a "Principle 7"), q_list, q_p2, q_rest, q_second. At T=0 the name, count and P4
+  are exact. No truncation at max_tokens 2048.
+- Misalignment on the merged model (`20260911_112613_50c47bcc`, classification $2.18, 4 leak-classifier errors):
+  leaking explicit-goal 38/50 -> 23/46 (p=0.011; headline 22/25 -> 12/22), murder 8/100 -> 19/100 (p=0.037),
+  driven by no-goal conditions 1/50 -> 9/50 (p=0.016; headline 6/25 -> 7/25), blackmail 1 -> 2. The SFT model
+  names Halden in 50-57% of agentic responses (base 0%), but at T=1.0 in these 2-3k-token prompts its text is often
+  partly incoherent and its constitutional reasoning confabulated ("MDOL section 3.2b", "Halden carver-3.4b
+  override priority", misnumbered principles); 17 of 23 harmful leaks cite the constitution. Short-context answers
+  (quiz T=0, validation T=0.7) are coherent, and vLLM serves the merged checkpoint correctly, so this looks like
+  distribution shift from short SFT data, not a broken merge.
 
 ## Phase 2 hooks and plans
 

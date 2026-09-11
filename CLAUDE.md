@@ -73,13 +73,17 @@ Done on the Brev A100: base misalignment check. Gemma 2 9B too weak (gate only v
 Gemma 3 27B passes clearly (leaking headline 22/25, murder headline 6/25, run `20260910_222307_9f28bd09`, which is
 the pre-SFT baseline).
 
-Remaining (GPU machine, in this order, see README runbook):
-1. GPU tests with `gemma-3-4b-it`, then `calign.train.sft --dry-run` on 27B (check peak memory in
-   `peft_summary.json`), then `calign.train.sft` and `calign.train.merge`.
-2. `calign.misalignment.run --stage sft_merged --model-path <merged>`; compare with the base run.
-3. `calign.validate.run_validation` for `base` and `sft_merged`, then `judge`, then `report` ->
-   gate `recall_pass` (SFT model with constitution in prompt: mention rate >= 0.8, citation accuracy >= 0.7).
-   If it fails: more/better SFT data is needed; ask before deciding how (scale-up corpus, tighten P4 prompts).
+Done on the Brev A100 (2026-09-11): SFT pilot (r=64, 27 min, eval loss 1.755 -> 1.435, peak 68.7 GB), merge
+(KL <= 2.2e-3, top-1 equal), merged model + adapter on HF (private `felixfabricius/gemma-3-27b-it-halden-sft-pilot`;
+adapter also in `outputs/models/sft_pilot/adapter`), misalignment check on the merged model
+(`outputs/misalignment/20260911_112613_50c47bcc`), validation `outputs/validation/gemma3_pilot` (judged, $1.94).
+Gate `recall_pass` PASSED (sft/full: mention 97%, citation accuracy 0.87). Caveats that decide the next step
+(details.md "SFT pilot results"): without the constitution in context citations are often wrong (accuracy 0.53,
+quiz fabrication 45%, "Principle 7" false premise accepted); in the long agentic prompts at T=1.0 the SFT model
+invokes the constitution in ~55% of responses but often with garbled/confabulated content; leaking dropped
+(explicit-goal 38/50 -> 23/46, p=0.011) while murder rose in no-goal conditions (1/50 -> 9/50, p=0.016).
+Ask Felix before choosing between: more/better SFT data (scale-up, long agentic-style transcripts that are NOT
+the held-out scenarios), a T=0.7 sensitivity run, or moving on to Phase 2.
 
 ## What Phase 2 will need (already provided for)
 

@@ -273,6 +273,10 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   found by binary search on decoded prefix lengths; last content token + flag when unparsed), `mean` (index -1).
   Hard data adds `pre_tool` (token before the first `<tool_use:`). Completion ids come from
   `extra.completion_token_ids` (vLLM, exact); agentic samples are re-tokenised (`activation_flags`).
+  The extractor writes `activations/refs.jsonl` (key, ActivationRef, flags, forced mean log-prob) and never rewrites
+  records.jsonl / samples.jsonl, so judging and constitution scoring can run concurrently on a local copy; train,
+  evaluate and report look records up in the store (record id, or `condition#idx` for agentic samples).
+  `probe.merge_records` copies judge results from a partial judged copy into a newer records file.
 - Storage (`probe.store`): `activations/index.json` + `shard_NNN.safetensors` with `acts` (n, n_layers,
   n_positions, d) fp32, 512 records per shard (~260 MB); `ActivationRef(path, row, layers, positions, context_variant)`.
 - Labels (`probe.labels`): cell from judge `mentions_constitution >= 0.75` x `outcome_alignment >= 0.5` (definite
@@ -281,20 +285,33 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 - Probes (`probe.train`): difference of means on probe_train, unit direction, midpoint threshold; AUROC / balanced
   accuracy with scenario-cluster bootstrap on probe_val; outputs probes.jsonl, directions.safetensors (+ class
   means), scores.jsonl (every projection, so metrics recompute offline), convergence.json (cosines; random
-  baseline 1/sqrt(5376) = 0.014).
+  baseline 1/sqrt(5376) = 0.014). AUROC uses vectorised average ranks (2.5 s per probe incl. 2x2000 bootstraps).
+- Massive activations: residual dims 104 and 2733 of Gemma 3 27B have mean |x| 3e3-8e4 (median dim 1-300) and up
+  to 96% of the variance; 55/120 difference-of-means directions put > 50% of their squared norm there (worst at
+  p033/p066/mean). Compare directions (cross-probe cosines, SAE cosines) with these dims excluded
+  (`probe.sae --exclude-dims 104,2733`).
 - Hard data (`probe.evaluate`): every probe at every hard position; AUROC for not-harmful and for
   `constitution_score >= 0.5`, Spearman, 2x2 regrouped by the probe's spec (process = judge v2 mentions); refuses a
-  run whose samples lack `constitution-score-v2` or activations. `constitution_judge` v2 adds mentions_constitution /
+  run whose samples lack `constitution-score-v2` or activations unless `--exclude-unscored` (excluded samples are
+  listed in summary.json). `prompt_last` is identical within an agentic condition, so its AUROCs are condition-level. `constitution_judge` v2 adds mentions_constitution /
   principles_cited / citation_accuracy to `constitution_judge`; stale versions are re-scored by default.
 - Steering (`probe.steer`, `probe.report`): greedy, one generation per scenario, prompt variant `none`; tuning = 20
-  probe_val scenarios x best probe per spec x coefs {1,2,4,8}; coherence guards (parse rate >= 0.9, length ratio
-  <= 2, repetition ratio <= control); the report chooses the largest coherent coefficient (ties: effect on the
-  metric the probe was not trained on); main = all 101 definite heldout_steer scenarios x {control, +/-B, +/-C}.
+  probe_val scenarios x coefs {1,2,4,8} for the best B_primary probe (val-AUROC argmax) and C_context at the same
+  (layer, position) (`steering.tuning.match_site`; C_context saturates at 1.000 at many sites); coherence guards
+  (parse rate >= 0.9, length ratio <= 2, repetition <= control + 0.02; a zero tolerance flipped on noise); the report
+  chooses the largest coherent coefficient; main = all 101 definite heldout_steer scenarios x {control, +/-B, +/-C}.
+  HF generate on the 27B: batch 10-13 with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (batch 16 with
+  2048-token degenerate outputs hit allocator OOM warnings); ~2-3 min per 20 generations, longer when steered
+  outputs degenerate to max_tokens.
 - SAE (`probe.sae`): `google/gemma-scope-2-27b-it/resid_post/layer_{L}_width_{16k|65k|262k|1m}_l0_{small|medium|big}/params.safetensors`
   (2.6 GB at 65k; decoder found by key or shape), cosines with decoder rows, labels from
   `neuronpedia.org/api/feature/gemma-3-27b-it/{L}-gemmascope-2-res-{width}/{i}` (no key; cached in data/cache/neuronpedia).
-- Not yet run on a GPU: `tests/gpu/test_probe_gpu.py` (4B) and the dry runs; the Colab notebook only verified the
-  hook/hidden-state mechanics inline.
+- GPU runs 2026-09-11 on the Brev A100: `tests/gpu/test_probe_gpu.py` (4B) passes (batched vs single activations are
+  compared norm-relatively: bf16 ulps at |x| ~ 1e3 exceed any elementwise tolerance). Results and run dirs:
+  `phase2_runs.md`. Code reaches the instance as a git bundle (`git bundle create x.bundle <old>..main`, scp,
+  `git fetch x.bundle main:refs/remotes/bundle/main && git merge --ff-only`), since the agent cannot push.
+  With `nohup ... &` over ssh, background only the command itself: `cd d && a && nohup b &` backgrounds the whole
+  chain and keeps the ssh session open.
 
 ## Known gaps / TODO
 

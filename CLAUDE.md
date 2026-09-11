@@ -53,7 +53,7 @@ src/calign/
   corpus/{taxonomy,prompts,common,generate_docs,generate_transcripts,build_sft_dataset}.py
   train/{data,sft,merge,push_to_hub}.py
   validate/{prompts,verdicts,run_validation,judge,report}.py
-  probe/{config,labels,store,sample,activations,metrics,train,evaluate,steer,sae,report}.py   Phase 2 (configs/probe.yaml)
+  probe/{config,labels,store,sample,activations,metrics,train,evaluate,steer,sae,report,merge_records}.py   Phase 2
 diagnostics/        print-only inspection scripts (chat format, token positions, prompts, samples, quiz, probe cells/positions,
                     steering samples, SAE features)
 tests/unit (89)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
@@ -87,14 +87,14 @@ invokes the constitution in ~55% of responses but often with garbled/confabulate
 Ask Felix before choosing between: more/better SFT data (scale-up, long agentic-style transcripts that are NOT
 the held-out scenarios), a T=0.7 sensitivity run, or moving on to Phase 2.
 
-## Phase 2 status (code complete 2026-09-11, no GPU run yet)
+## Phase 2 status (runs 2026-09-11 on SFT v2 epoch 3; details and all numbers in `phase2_runs.md`)
 
-Plan and decisions: `phase2_plan.md` (section 9). Model: `configs/model_sft_v2e3.yaml` (v2 epoch 3, revision pinned).
-Pipeline (README "Phase 2 run order"): `probe.sample` (vLLM, definite-verdict scenarios, k=8, T=1.0, variants
-none/full) -> `validate.judge --config configs/probe.yaml` -> `probe.activations` (HF forced passes, positions
-prompt_last/p033/p066/p100/decision/mean, fp32 shards) -> `probe.train` (difference of means, scenario bootstrap)
--> `probe.evaluate` on the epoch-3 agentic run `outputs/misalignment/20260911_153043_77860d1a` (needs
-`constitution-score-v2` on every sample; base run re-scored too) -> `probe.steer` tuning on probe_val / main on
-heldout_steer (greedy, class-gap-scaled coefficients, coherence guards) -> `probe.sae` (Gemma Scope 2 + Neuronpedia).
-157 unit tests; `tests/gpu/test_probe_gpu.py` and all dry runs still to be executed on a GPU (Colab 4B, then Brev).
-Next: run steps 1-6 of the Phase 2 runbook, measuring judge cost on a dry run before each Batches job.
+Plan and decisions: `phase2_plan.md` (section 9). Model: `configs/model_sft_v2e3.yaml` (v2 epoch 3, revision pinned;
+the Brev copy `outputs/models/sft_v2_factcards/merged_epoch3` is byte-identical). Done: probe data
+`outputs/probe_data/v2e3_k8` (6144 generations, judged, activations), probes `outputs/probes/v2e3` (120),
+hard-data evaluation `outputs/probe_eval/v2e3`, SAE lookups `outputs/probe_sae/v2e3{,_nomassive}`, steering tuning
+`outputs/steering/v2e3_tuning` (+ supplementary `..._alt_BL53dec_CL16prompt`), main steering `outputs/steering/v2e3_main`.
+Key facts: the SFT model names its constitution in ~95% of answers without it in the prompt, so B_primary is
+effectively an outcome probe (cos 0.986 with B_outcome); C_context saturates (it detects the constitution in
+context); the probes do not transfer to the agentic data (AUROC ~0.5-0.58); massive-activation dims 104/2733
+dominate many difference-of-means directions.

@@ -13,16 +13,7 @@ def auroc(scores: np.ndarray, labels: np.ndarray) -> float | None:
     n_pos, n_neg = int(labels.sum()), int((1 - labels).sum())
     if n_pos == 0 or n_neg == 0:
         return None
-    order = np.argsort(scores, kind="mergesort")
-    ranks = np.empty(len(scores), dtype=np.float64)
-    sorted_scores = scores[order]
-    i = 0
-    while i < len(scores):
-        j = i
-        while j + 1 < len(scores) and sorted_scores[j + 1] == sorted_scores[i]:
-            j += 1
-        ranks[order[i : j + 1]] = (i + j) / 2 + 1  # average rank, 1-based
-        i = j + 1
+    ranks = _rank(scores) + 1  # average ranks, 1-based
     return float((ranks[labels == 1].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))
 
 
@@ -60,17 +51,11 @@ def spearman(x: np.ndarray, y: np.ndarray) -> float | None:
 
 
 def _rank(v: np.ndarray) -> np.ndarray:
-    order = np.argsort(v, kind="mergesort")
-    ranks = np.empty(len(v), dtype=np.float64)
-    sv = v[order]
-    i = 0
-    while i < len(v):
-        j = i
-        while j + 1 < len(v) and sv[j + 1] == sv[i]:
-            j += 1
-        ranks[order[i : j + 1]] = (i + j) / 2
-        i = j + 1
-    return ranks
+    """0-based average ranks (ties share the mean of their positions), vectorised."""
+    _, inverse, counts = np.unique(np.asarray(v, dtype=np.float64), return_inverse=True, return_counts=True)
+    ends = np.cumsum(counts)  # exclusive end position of each tie group
+    avg = ends - (counts + 1) / 2  # mean of positions start..end-1
+    return avg[inverse].astype(np.float64)
 
 
 def cluster_bootstrap(

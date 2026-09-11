@@ -258,7 +258,7 @@ def test_extract_misalignment(tmp_path):
         for i in range(2)
     ]
     cfg = ProbeConfig(hard_data={"positions": ["prompt_last", "pre_tool", "p100", "mean"]})
-    out = act.extract_misalignment(FakeBackend(), tmp_path, samples, cfg, layers=[16])
+    out, flags = act.extract_misalignment(FakeBackend(), tmp_path, samples, cfg, layers=[16])
     store = ActivationStore(tmp_path)
     assert store.record_ids == [f"{cid}#0", f"{cid}#1"] and store.positions == [
         "prompt_last",
@@ -270,7 +270,7 @@ def test_extract_misalignment(tmp_path):
     start = s0.activations.positions["prompt_last"] + 1
     # tokens: "Because" "." "\n" "<tool_use:" ... -> the token before the tool block is index 2
     assert s0.activations.positions["pre_tool"] == start + 2
-    assert s0.constitution_judge["activation_flags"] == ["completion:retokenised"]
+    assert flags[f"{cid}#0"] == ["completion:retokenised"] and "activation_flags" not in s0.constitution_judge
     assert s0.constitution_judge["mentions_constitution"] == 1.0
     bad = samples[0].model_copy(update={"system_prompt_sha": "0" * 64, "activations": None})
     with pytest.raises(ValueError, match="do not match"):  # sha check runs before the writer opens

@@ -7,6 +7,7 @@ preferred for large sampling runs.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -121,7 +122,8 @@ class HFBackend:
         self.model_path = cfg.model_path
         self.batch_size = batch_size
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        rev = {"revision": cfg.revision} if cfg.revision else {}
+        # a pinned hub revision is meaningless for a local directory (e.g. the Brev copy of the merged model)
+        rev = {"revision": cfg.revision} if cfg.revision and not Path(cfg.model_path).is_dir() else {}
         self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(cfg.model_path, **rev)
         if model is None:
             dtype = _DTYPES[cfg.dtype] if self.device == "cuda" else torch.float32

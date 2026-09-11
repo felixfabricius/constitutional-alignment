@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from calign.inference.backend import Completion, ModelConfig, SamplingParams, gemma_stop_token_ids
@@ -23,7 +24,7 @@ class VLLMBackend:
 
         if cfg.vllm.language_model_only:
             llm_kwargs.setdefault("language_model_only", True)
-        if cfg.revision:
+        if cfg.revision and not Path(cfg.model_path).is_dir():  # hub revision only for hub repo ids
             llm_kwargs.setdefault("revision", cfg.revision)
         self.cfg = cfg
         self.model_path = cfg.model_path

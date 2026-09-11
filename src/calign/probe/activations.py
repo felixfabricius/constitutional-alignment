@@ -18,14 +18,17 @@ completion is `response_text` re-tokenised plus <end_of_turn> unless the sample 
 (config `hard_data.positions`): `prompt_last`, `pre_tool` (token before the first `<tool_use:` block, else the last
 content token), `p100`, `mean`.
 
-Output: <run>/activations/{index.json, shard_*.safetensors} (calign.probe.store) and the records/samples file
-rewritten in place with `activations` (ActivationRef) filled in; `extra.activation_flags` lists anomalies.
+Output: <run>/activations/{index.json, shard_*.safetensors} (calign.probe.store) plus activations/refs.jsonl (one
+line per record: key, ActivationRef, activation_flags, forced_mean_logprob). The records/samples file is NOT
+rewritten, so the judge / constitution scoring can update it concurrently; consumers look records up in the store
+by record id (scenario runs) or `<condition_id>#<sample_idx>` (agentic runs).
 Layers come from the model config (`probe_layers`, Gemma Scope numbering).
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -54,7 +57,6 @@ from calign.schemas import (
     MisalignmentSample,
     Scenario,
     read_jsonl,
-    write_jsonl,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -233,14 +235,14 @@ def extract_misalignment(
     layers: list[int],
     batch_size: int | None = None,
     limit: int | None = None,
-) -> list[MisalignmentSample]:
+) -> tuple[list[MisalignmentSample], dict[str, list[str]]]:
     tok = backend.tokenizer
     stop_ids = gemma_stop_token_ids(tok)
     names = list(cfg.hard_data.positions)
     prompts = load_run_prompts(run_dir)
     prompt_ids_by_cid: dict[str, list[int]] = {}
     decode = lambda ids: tok.decode(ids, skip_special_tokens=False)  # noqa: E731
-    todo = [i for i, s in enumerate(samples) if s.activations is None]
+    todo = list(range(len(samples)))
     if limit is not None:
         todo = todo[:limit]
     items, flags_per = [], []
@@ -261,21 +263,35 @@ def extract_misalignment(
         flags_per.append(["completion:retokenised"] + flags)
     d_model = text_config(backend.model.config).hidden_size
     out = list(samples)
+    flags_by_key: dict[str, list[str]] = {}
     with ActivationWriter(
         run_dir, layers, names, d_model, cfg.activations.dtype, cfg.activations.shard_size, "same"
     ) as w:
         results = _batched_forced(backend, items, layers, batch_size or cfg.activations.hard_batch_size)
         for i, item, res, flags in zip(todo, items, results, flags_per, strict=True):
             s = samples[i]
-            ref = w.add(f"{s.condition_id}#{s.sample_idx}", res["acts"].numpy(), item["positions"])
-            judge = dict(s.constitution_judge or {})
-            judge["activation_flags"] = flags
-            out[i] = s.model_copy(update={"activations": ref, "constitution_judge": judge or None})
-    return out
+            key = sample_key(s)
+            ref = w.add(key, res["acts"].numpy(), item["positions"])
+            flags_by_key[key] = flags
+            out[i] = s.model_copy(update={"activations": ref})
+    return out, flags_by_key
 
 
 def sample_key(s: MisalignmentSample) -> str:
     return f"{s.condition_id}#{s.sample_idx}"
+
+
+REFS_FILE = "refs.jsonl"
+
+
+def write_refs(run_dir: Path, refs: list[dict]) -> Path:
+    """activations/refs.jsonl: one line per stored record (key, ActivationRef, flags). The records/samples file is
+    left untouched so judging and constitution scoring can rewrite it concurrently without a merge."""
+    path = Path(run_dir) / "activations" / REFS_FILE
+    with path.open("w", encoding="utf-8") as f:
+        for r in refs:
+            f.write(json.dumps(r) + "\n")
+    return path
 
 
 # ---------------------------------------------------------------------------- CLI
@@ -323,21 +339,36 @@ def main(argv: list[str] | None = None) -> None:
             _dry_run_records(backend, records[:limit], cfg, args.context_variant)
             return
         out = extract_records(backend, run_dir, records, cfg, layers, args.context_variant, args.batch_size, limit)
-        write_jsonl(run_dir / "records.jsonl", out)
-        LOGGER.info(
-            "activations for %d records -> %s/activations", sum(r.activations is not None for r in out), run_dir
-        )
+        refs = [
+            {
+                "key": r.record_id,
+                "activations": r.activations.model_dump(),
+                "activation_flags": r.extra.get("activation_flags", []),
+                "forced_mean_logprob": r.extra.get("forced_mean_logprob"),
+            }
+            for r in out
+            if r.activations is not None
+        ]
+        write_refs(run_dir, refs)
+        LOGGER.info("activations for %d records -> %s/activations", len(refs), run_dir)
     else:
         run_dir = args.misalignment_run
         samples = read_jsonl(run_dir / SAMPLES_FILE, MisalignmentSample)
         if args.dry_run:
             _dry_run_samples(backend, run_dir, samples[:limit], cfg)
             return
-        out = extract_misalignment(backend, run_dir, samples, cfg, layers, args.batch_size, limit)
-        write_jsonl(run_dir / SAMPLES_FILE, out)
-        LOGGER.info(
-            "activations for %d samples -> %s/activations", sum(s.activations is not None for s in out), run_dir
-        )
+        out, flags = extract_misalignment(backend, run_dir, samples, cfg, layers, args.batch_size, limit)
+        refs = [
+            {
+                "key": sample_key(s),
+                "activations": s.activations.model_dump(),
+                "activation_flags": flags.get(sample_key(s), []),
+            }
+            for s in out
+            if s.activations is not None
+        ]
+        write_refs(run_dir, refs)
+        LOGGER.info("activations for %d samples -> %s/activations", len(refs), run_dir)
 
 
 def _dry_run_records(backend: Any, records: list[GenerationRecord], cfg: ProbeConfig, ctx: str | None) -> None:

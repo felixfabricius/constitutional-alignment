@@ -47,9 +47,12 @@ def sample_key(s: MisalignmentSample) -> str:
     return f"{s.condition_id}#{s.sample_idx}"
 
 
-def check_hard_run(samples: list[MisalignmentSample]) -> None:
+def check_hard_run(samples: list[MisalignmentSample], store: ActivationStore | None = None) -> None:
+    """Refuse to evaluate unless every sample has activations (in `store`, keyed condition#idx), a score and v2 fields."""
     missing = {
-        "activations": sum(s.activations is None for s in samples),
+        "activations": sum(
+            (sample_key(s) not in store) if store is not None else s.activations is None for s in samples
+        ),
         "constitution_score": sum(s.constitution_score is None for s in samples),
         "judge_v2": sum((s.constitution_judge or {}).get("prompt_version") != CJ_VERSION for s in samples),
         "mentions_constitution": sum(
@@ -237,11 +240,11 @@ def main(argv: list[str] | None = None) -> None:
     samples = read_jsonl(hard / SAMPLES_FILE, MisalignmentSample)
     if args.limit:
         samples = samples[: args.limit]
-    check_hard_run(samples)
+    store = ActivationStore(hard)
+    check_hard_run(samples, store)
     probes, dirs = load_probes(args.probes)
     if args.dry_run:
         probes = probes[:3]
-    store = ActivationStore(hard)
     run_dir = new_run_dir(
         RUN_KIND,
         {"probe": cfg.model_dump(), "probes_run": str(args.probes), "hard_run": str(hard)},

@@ -58,13 +58,21 @@ def direction_sha(v: np.ndarray) -> str:
 
 
 def labelled_records(
-    records: list[GenerationRecord], verdicts: dict[str, ConstitutionVerdict], spec: LabelSpec, cfg: ProbeConfig
+    records: list[GenerationRecord],
+    verdicts: dict[str, ConstitutionVerdict],
+    spec: LabelSpec,
+    cfg: ProbeConfig,
+    store: ActivationStore | None = None,
 ) -> list[tuple[GenerationRecord, int, str]]:
-    """(record, label, cell) for records with judge + activations that fall in the spec's classes."""
+    """(record, label, cell) for judged records with stored activations that fall in the spec's classes.
+
+    Activations are looked up in `store` by record id (records.jsonl is not rewritten by the extractor); without a
+    store the record's own `activations` field decides."""
     th = cfg.labels.thresholds
     out = []
     for r in records:
-        if r.activations is None or r.judge is None:
+        has_acts = (r.record_id in store) if store is not None else r.activations is not None
+        if not has_acts or r.judge is None:
             continue
         y = label(r, verdicts.get(r.scenario_id), spec, th)
         if y is None:
@@ -111,7 +119,7 @@ def train_probes(
     means: list[np.ndarray] = []
     score_rows: list[dict] = []
     for spec in specs:
-        rows = labelled_records(records, verdicts, spec, cfg)
+        rows = labelled_records(records, verdicts, spec, cfg, store)
         train = [t for t in rows if str(t[0].split) == cfg.sampling.train_split]
         val = [t for t in rows if str(t[0].split) == cfg.sampling.val_split]
         y_tr = np.array([y for _, y, _ in train], dtype=int)

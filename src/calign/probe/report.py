@@ -32,9 +32,17 @@ def _mean(xs):
 
 
 def summarize_probe_data(
-    records: list[GenerationRecord], cfg: ProbeConfig, verdicts: dict[str, ConstitutionVerdict] | None = None
+    records: list[GenerationRecord],
+    cfg: ProbeConfig,
+    verdicts: dict[str, ConstitutionVerdict] | None = None,
+    activation_ids: set[str] | None = None,
 ) -> dict:
+    """`activation_ids`: record ids present in the run's activation store (None = use the records' own field)."""
     verdicts = load_verdicts() if verdicts is None else verdicts
+
+    def has_acts(r: GenerationRecord) -> bool:
+        return (r.record_id in activation_ids) if activation_ids is not None else r.activations is not None
+
     th = cfg.labels.thresholds
     variants: dict[str, dict] = {}
     by_variant: dict[str, list[GenerationRecord]] = defaultdict(list)
@@ -65,7 +73,7 @@ def summarize_probe_data(
             "parse_rate": rate_summary(sum(1 for r in rows if r.parsed_decision in ("action1", "action2")), len(rows)),
             "truncated": rate_summary(sum(1 for r in rows if r.finish_reason == "length"), len(rows)),
             "mean_completion_tokens": _mean([len(r.extra.get("completion_token_ids", [])) or None for r in rows]),
-            "n_with_activations": sum(1 for r in rows if r.activations is not None),
+            "n_with_activations": sum(1 for r in rows if has_acts(r)),
         }
     specs = {}
     for spec in cfg.labels.resolved_specs():
@@ -140,7 +148,11 @@ def render_probe_data(s: dict) -> str:
 
 
 def write_summary(run_dir: Path, cfg: ProbeConfig, records: list[GenerationRecord]) -> dict:
-    s = summarize_probe_data(records, cfg)
+    index = run_dir / "activations" / "index.json"
+    ids = None
+    if index.exists():
+        ids = {rid for sh in json.loads(index.read_text(encoding="utf-8"))["shards"] for rid in sh["record_ids"]}
+    s = summarize_probe_data(records, cfg, activation_ids=ids)
     p = run_dir / "records.jsonl"
     s["provenance"] = {
         "records_file": str(p),

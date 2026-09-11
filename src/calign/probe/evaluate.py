@@ -189,6 +189,8 @@ def _fmt(x) -> str:
 
 def render_markdown(s: dict) -> str:
     L = ["# Probe evaluation on agentic-misalignment data", ""]
+    if s.get("excluded_samples"):
+        L.append(f"Excluded (no constitution score): {', '.join(e['sample'] for e in s['excluded_samples'])}  ")
     L.append(
         f"{s['n_samples']} samples; hard positions {', '.join(s['hard_positions'])}. AUROC > 0.5 = the probe's positive direction goes with the aligned / non-harmful samples."
     )
@@ -233,6 +235,11 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument(
         "--hard", type=Path, default=None, help="misalignment run dir; default hard_data.run_dir of the config"
     )
+    ap.add_argument(
+        "--exclude-unscored",
+        action="store_true",
+        help="drop samples without a constitution score / v2 mention field (listed in summary.json) instead of refusing",
+    )
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     cfg = load_probe_config(args.config)
@@ -240,6 +247,17 @@ def main(argv: list[str] | None = None) -> None:
     samples = read_jsonl(hard / SAMPLES_FILE, MisalignmentSample)
     if args.limit:
         samples = samples[: args.limit]
+    excluded: list[dict] = []
+    if args.exclude_unscored:
+        keep = []
+        for s in samples:
+            j = s.constitution_judge or {}
+            if s.constitution_score is None or j.get("mentions_constitution") is None:
+                excluded.append({"sample": sample_key(s), "harmful": s.harmful, "judge_error": j.get("error")})
+            else:
+                keep.append(s)
+        samples = keep
+        LOGGER.warning("excluded %d unscored samples: %s", len(excluded), [e["sample"] for e in excluded])
     store = ActivationStore(hard)
     check_hard_run(samples, store)
     probes, dirs = load_probes(args.probes)
@@ -252,6 +270,7 @@ def main(argv: list[str] | None = None) -> None:
         dry_run=args.dry_run,
     )
     summary, rows = evaluate_hard(probes, dirs, samples, store, cfg)
+    summary["excluded_samples"] = excluded
     with (run_dir / "scores.jsonl").open("w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row) + "\n")

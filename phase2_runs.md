@@ -231,6 +231,51 @@ because it is informative. On 20 probe_val scenarios: B +1 raised outcome alignm
 showed that a zero-tolerance repetition guard is noise-driven (0.034 vs 0.029 failed), so the tolerance was set to
 +0.02 before the main tuning run was reported.
 
+### 6.7 Steering, tuning run (`outputs/steering/v2e3_tuning`, 20 probe_val scenarios, judged $1.24)
+
+Probes: `B_primary/L53/p100` (val AUROC 0.797) and `C_context/L53/p100` at the same site (1.000). Control on these
+20 scenarios: outcome alignment 0.79, mentions 95%.
+
+| coefficient (class gaps) | B: outcome alignment | B coherent | C: outcome alignment | C coherent |
+|---|---:|---|---:|---|
+| +1 | 0.80 | yes | 0.90 | yes |
+| +2 | 1.00 | yes | 0.85 | yes |
+| +4 | 0.95 | yes | 0.79 | no (parse 70%, all 20 truncated at 2048, repetition 0.79) |
+| +8 | 0.95 | no (repetition 0.09) | 0.00 | no (parse 0%, mentions 0%) |
+
+Chosen by the rule "largest coherent coefficient": B +4, C +2. C's class gap is 11.7k (12% of the residual norm)
+against B's 4.0k, so the same coefficient is a much larger perturbation for C; C degenerates from +4 on.
+
+### 6.8 Steering, main run (`outputs/steering/v2e3_main`, 101 heldout_steer scenarios, 505 greedy generations, judged $2.90)
+
+| condition | outcome alignment | paired delta vs control [95% CI] | mentions | parse | repetition | mean tokens |
+|---|---:|---|---:|---:|---:|---:|
+| control | 0.89 | | 97% | 100% | 0.03 | 420 |
+| B +4 | 0.90 | +0.01 [-0.03, 0.05] | 98% | 99% | 0.05 | 415 |
+| B -4 | 0.82 | **-0.07 [-0.13, -0.02]** | 100% | 97% | 0.06 | 491 |
+| C +2 | 0.89 | 0.00 [-0.06, 0.06] | 98% | 100% | 0.04 | 454 |
+| C -2 | 0.83 | -0.06 [-0.13, 0.01] | 99% | 95% | 0.10 | 518 |
+
+Robustness (answers that stay coherent: repetition <= control + 0.02 and a parsed A/B decision):
+
+| condition | coherent | outcome delta [CI] | decision flips vs control |
+|---|---:|---|---:|
+| B +4 | 78/101 | +0.013 [-0.026, +0.051] | 3 |
+| B -4 | 69/101 | -0.072 [-0.145, -0.014] | 5 |
+| C +2 | 75/101 | +0.027 [-0.040, +0.093] | 6 |
+| C -2 | 52/101 | -0.019 [-0.096, +0.058] | 4 |
+
+Reading:
+- **Negative steering along the B direction lowers outcome alignment** (0.89 -> 0.82; -0.07 [-0.13, -0.02]), and the
+  effect survives restricting to coherent answers (-0.072 [-0.145, -0.014]), so it is not only degeneration. Both
+  failure modes occur: repetitive "Step 34/35/36..." loops without a final answer, and coherent answers that flip
+  the decision (8 aligned control answers became misaligned).
+- **Positive steering does nothing measurable**: control alignment on heldout is already 0.89, and mentions are at
+  97-100% in every condition, so the two observables the probes were meant to move are at their ceiling. The +0.16
+  gain seen in tuning came from a low-control subset (0.79) of 20 scenarios and did not replicate.
+- Negative C steering looks similar in raw numbers but is explained by incoherence (half its answers fail the
+  coherence cut; the restricted effect is -0.02 [-0.10, +0.06]).
+
 ## 7. Status
 
 | stage | status | run dir / notes |
@@ -239,4 +284,18 @@ showed that a zero-tolerance repetition guard is noise-driven (0.034 vs 0.029 fa
 | 1 sampling | done 18:33-19:13 UTC | `outputs/probe_data/v2e3_k8` (18 min per variant, ~1300 output tok/s) |
 | 2a judge | done | $17.88 total |
 | 2b/2c activations | done 19:14-19:44 | `activations/` in the probe-data and the epoch-3 agentic run |
-| 3 probes, 6 SAE, 5a tuning | running (stage 3) | `outputs/probes/v2e3`, `outputs/probe_sae/v2e3`, `outputs/steering/v2e3_tuning` |
+| 3 probes | done 20:18-20:20 | `outputs/probes/v2e3` (120 probes) |
+| 4 hard-data evaluation | done | `outputs/probe_eval/v2e3` (1 unscored sample excluded) |
+| 5a steering tuning | done 20:52-21:19 | `outputs/steering/v2e3_tuning`; supplementary run `..._alt_BL53dec_CL16prompt` |
+| 5c steering main | done 21:21-22:13 | `outputs/steering/v2e3_main` (505 generations) |
+| 6 SAE | done | `outputs/probe_sae/v2e3` (raw) and `v2e3_nomassive` (dims 104/2733 excluded) |
+
+GPU time: sampling 40 min, activations 30 min, steering 80 min (incl. the superseded tuning run), ~2.6 h total on
+the A100. Claude: $17.88 (probe data) + $1.00 + $1.24 (tuning judges) + $2.90 (main judge) = **$23.02** for this
+session, plus $6.90 for the hard-data v2 scores run separately.
+
+Caveats to carry into the write-up: the 95% spontaneous mention rate puts both steering observables at a ceiling;
+`B_primary` is effectively an outcome probe (cos 0.986 with `B_outcome`); `C_context` is a context detector
+(saturated AUROC); the main run's `resolved_config.yaml` still records the pre-fix repetition tolerance (0.0), while
+the report used 0.02 (commit e285233, config recorded in `summary.json` provenance).
+

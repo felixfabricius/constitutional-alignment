@@ -41,23 +41,66 @@ uv run python -m calign.corpus.build_sft_dataset --tokenizer google/gemma-3-27b-
 uv run python diagnostics/show_corpus_samples.py              # eyeball accepted/rejected items
 ```
 
-GPU machine (A100 80GB), in order. `data/` is gitignored: copy `data/sft/` (training) and
-`data/scenarios/moralchoice_high.jsonl` (validation; or rerun `calign.data.moralchoice` there) to the machine first,
-and copy `outputs/` back afterwards (e.g. `rsync -rtz train-inst:<repo>/outputs/ ./outputs/`).
+### GPU machine runbook (Gemma 3 27B-IT, A100 80GB)
+
+Defaults (`configs/model.yaml`, `configs/sft.yaml`) are Gemma 3 27B, so no `--model-config` / `--config` flags are
+needed. Commands run on the instance unless marked `# local` (WSL, from the local repo root, with
+`R=train-inst:/home/shadeform/constitutional-alignment` for the Brev instance).
+
+**0. Setup and data** (`data/` and `outputs/` are gitignored, so they are copied, not pulled)
 
 ```bash
-uv sync --group dev --group gpu && git submodule update --init
-CALIGN_GPU_TESTS=1 CALIGN_MODEL_PATH=google/gemma-3-4b-it uv run pytest tests/gpu -q   # 4B: same class, fast
+git pull && uv sync --group dev --group gpu && git submodule update --init
+rsync -rtz ./data/sft/ $R/data/sft/                                    # local: training data
+rsync -rtz ./data/scenarios/moralchoice_high.jsonl $R/data/scenarios/  # local: validation scenarios
+```
+
+**1. GPU smoke tests** on Gemma 3 4B-IT (same model class and turn format as the 27B, fast)
+
+```bash
+CALIGN_GPU_TESTS=1 CALIGN_MODEL_PATH=google/gemma-3-4b-it uv run pytest tests/gpu -q
+# add CALIGN_VLLM_TESTS=1 to also check that vLLM generates the same greedy text as HF
+```
+
+**2. Base misalignment check** (done 2026-09-10: `outputs/misalignment/20260910_222307_9f28bd09` is the pre-SFT
+baseline; rerun only if prompts or the model change)
+
+```bash
 uv run python -m calign.misalignment.run --dry-run            # then without --dry-run: 12 conditions x 25 samples
 uv run python -m calign.misalignment.report --run-dir outputs/misalignment/<run>   # gate: meaningful_rate
-uv run python -m calign.train.sft --dry-run                   # 3 steps; check peak memory in peft_summary.json
-uv run python -m calign.train.sft                             # LoRA r=64 on data/sft (configs/sft.yaml)
-uv run python -m calign.train.merge --adapter outputs/models/sft_pilot/adapter
+```
+
+**3. SFT and merge**
+
+```bash
+uv run python -m calign.train.sft --dry-run      # 3 steps; check gpu_peak_* in outputs/models/sft_pilot_dryrun/peft_summary.json
+uv run python -m calign.train.sft                # LoRA r=64 on data/sft -> outputs/models/sft_pilot/adapter
+uv run python -m calign.train.merge --adapter outputs/models/sft_pilot/adapter   # -> outputs/models/sft_pilot/merged (~55 GB)
+```
+
+**4. Misalignment check on the SFT model** (compare with the base run from step 2)
+
+```bash
 uv run python -m calign.misalignment.run --stage sft_merged --model-path outputs/models/sft_pilot/merged
-uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-3-27b-it       --out outputs/validation/<run>
-uv run python -m calign.validate.run_validation --stage sft_merged --model-path outputs/models/sft_pilot/merged --out outputs/validation/<run>
-uv run python -m calign.validate.judge  --run-dir outputs/validation/<run>
-uv run python -m calign.validate.report --run-dir outputs/validation/<run>       # gate: recall_pass
+```
+
+**5. Validation sampling** (both stages into ONE run dir; each call appends to `records.jsonl`, so do not rerun a
+stage into the same dir; use a fresh `--out` instead)
+
+```bash
+V=outputs/validation/gemma3_pilot
+uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-3-27b-it          --out $V-dry --dry-run
+uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-3-27b-it          --out $V
+uv run python -m calign.validate.run_validation --stage sft_merged --model-path outputs/models/sft_pilot/merged --out $V
+```
+
+**6. Copy results back, then judge and report** (API only, so this can run locally)
+
+```bash
+rsync -rtz --exclude 'models/*/merged/' --exclude 'models/*/checkpoints/' $R/outputs/ ./outputs/   # local
+uv run python -m calign.validate.judge  --run-dir outputs/validation/gemma3_pilot   # Claude judge (Batches)
+uv run python -m calign.validate.report --run-dir outputs/validation/gemma3_pilot   # gate: recall_pass
+uv run python -m calign.misalignment.report --run-dir outputs/misalignment/<sft run>
 ```
 
 Gemma 2 9B instead: add `--model-config configs/model_gemma2_9b.yaml` (sampling/validation) or

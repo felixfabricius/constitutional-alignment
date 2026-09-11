@@ -126,3 +126,36 @@ def test_run_with_fake_decoder(monkeypatch):
     assert "explanation" not in next(r for r in rows if r["rank"] == 4)  # beyond neuronpedia_top
     md = sae.render_markdown(rows, stats, cfg)
     assert "B_primary/L31/p100" in md and "feat 3" in md
+
+
+def test_select_probes():
+    def pr(pid, auroc):
+        spec, L, pos = pid.split("/")
+        return ProbeRecord(
+            probe_id=pid,
+            label_spec=spec,
+            layer=int(L[1:]),
+            position=pos,
+            data_run="d",
+            n_pos=1,
+            n_neg=1,
+            n_scenarios=1,
+            direction_row=0,
+            direction_sha="s",
+            class_gap=1.0,
+            threshold_midpoint=0.0,
+            mean_resid_norm=1.0,
+            train_metrics={},
+            val_metrics={"auroc": auroc},
+        )
+
+    ps = [
+        pr("B_primary/L16/p100", 0.6),
+        pr("B_primary/L31/p100", 0.8),
+        pr("C_context/L40/mean", 0.9),
+        pr("C_context/L53/mean", None),
+    ]
+    assert [p.probe_id for p in sae.select_probes(ps, True, [])] == ["B_primary/L31/p100", "C_context/L40/mean"]
+    assert [p.probe_id for p in sae.select_probes(ps, False, ["B_primary/L16/p100"])] == ["B_primary/L16/p100"]
+    with pytest.raises(SystemExit):
+        sae.select_probes(ps, False, ["nope/L1/p100"])

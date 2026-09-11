@@ -127,6 +127,20 @@ def fetch_feature(model: str, source: str, index: int, cache_dir: Path = CACHE_D
 
 
 # ---------------------------------------------------------------------------- main
+def select_probes(probes: list[ProbeRecord], best_per_spec: bool, probe_ids: list[str]) -> list[ProbeRecord]:
+    """The best probe (val AUROC) per label spec and/or explicitly named probes, in run order."""
+    keep = set(probe_ids)
+    unknown = keep - {p.probe_id for p in probes}
+    if unknown:
+        raise SystemExit(f"unknown probe ids: {sorted(unknown)}")
+    if best_per_spec:
+        for spec in {p.label_spec for p in probes}:
+            cands = [p for p in probes if p.label_spec == spec and p.val_metrics.get("auroc") is not None]
+            if cands:
+                keep.add(max(cands, key=lambda p: p.val_metrics["auroc"]).probe_id)
+    return [p for p in probes if p.probe_id in keep]
+
+
 def run(
     probes: list[ProbeRecord],
     dirs: np.ndarray,
@@ -188,6 +202,8 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--layers", default=None, help="comma-separated subset of the probe layers")
     ap.add_argument("--no-neuronpedia", action="store_true")
     ap.add_argument("--neuronpedia-top", type=int, default=10, help="fetch labels for the top-N features per sign")
+    ap.add_argument("--best-per-spec", action="store_true", help="only the best probe (val AUROC) of each label spec")
+    ap.add_argument("--probe-ids", default=None, help="comma-separated probe ids to include (added to --best-per-spec)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     cfg = load_probe_config(args.config)
@@ -195,6 +211,8 @@ def main(argv: list[str] | None = None) -> None:
 
     probes = read_jsonl(args.probes / "probes.jsonl", ProbeRecord)
     dirs = load_file(str(args.probes / "directions.safetensors"))["directions"]
+    if args.best_per_spec or args.probe_ids:
+        probes = select_probes(probes, args.best_per_spec, args.probe_ids.split(",") if args.probe_ids else [])
     layers = [int(x) for x in args.layers.split(",")] if args.layers else sorted({p.layer for p in probes})
     limit = effective_limit(args)
     if limit:

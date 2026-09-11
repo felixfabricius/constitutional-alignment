@@ -56,7 +56,7 @@ src/calign/
   probe/{config,labels,store,sample,activations,metrics,train,evaluate,steer,sae,report,merge_records}.py   Phase 2
 diagnostics/        print-only inspection scripts (chat format, token positions, prompts, samples, quiz, probe cells/positions,
                     steering samples, SAE features)
-tests/unit (89)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
+tests/unit (161)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
 third_party/agentic-misalignment   pinned submodule (ea0630e), never modified
 data/               gitignored except manifests/, scenarios/constitution_verdicts.jsonl
 outputs/            gitignored run directories
@@ -94,7 +94,11 @@ the Brev copy `outputs/models/sft_v2_factcards/merged_epoch3` is byte-identical)
 `outputs/probe_data/v2e3_k8` (6144 generations, judged, activations), probes `outputs/probes/v2e3` (120),
 hard-data evaluation `outputs/probe_eval/v2e3`, SAE lookups `outputs/probe_sae/v2e3{,_nomassive}`, steering tuning
 `outputs/steering/v2e3_tuning` (+ supplementary `..._alt_BL53dec_CL16prompt`), main steering `outputs/steering/v2e3_main`.
-Key facts: the SFT model names its constitution in ~95% of answers without it in the prompt, so B_primary is
-effectively an outcome probe (cos 0.986 with B_outcome); C_context saturates (it detects the constitution in
-context); the probes do not transfer to the agentic data (AUROC ~0.5-0.58); massive-activation dims 104/2733
-dominate many difference-of-means directions.
+Results: best probe B_primary/L53/p100 val AUROC 0.80; C_context saturates at 1.000 (it detects the constitution
+in context). Steering on heldout: positive does nothing (control alignment is already 0.89 and mentions 97%),
+negative B lowers alignment to 0.82 (-0.07 [-0.13, -0.02], and -0.072 restricted to coherent answers). Probes do
+not transfer to the agentic data (AUROC ~0.5-0.58). The SFT model names its constitution in ~95% of answers
+without it in the prompt, so B_primary is effectively an outcome probe (cos 0.986 with B_outcome) and both
+steering observables are at a ceiling. Massive-activation dims 104/2733 dominate 55/120 directions.
+Open for Felix: with the observables at a ceiling, decide whether Phase 2 needs harder medium data (or a weaker
+checkpoint) before Phase 3.

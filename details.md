@@ -16,6 +16,7 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 | [Agentic misalignment check](#agentic-misalignment-check-srccalignmisalignment) | Upstream prompts/classifiers, condition ids, outputs, `meaningful_rate` gate |
 | [Validation](#validation-srccalignvalidate) | `run_validation` / `judge` / `report`, recall quiz, pass flags |
 | [SFT pilot results](#sft-pilot-results-gemma-3-27b-2026-09-11) | Training, merge, HF repo, validation table, misalignment before/after |
+| [SFT v2](#sft-v2-fact-cards--4-epochs-2026-09-11) | Fact cards, 4 epochs, per-epoch quiz |
 | [Phase 2 hooks and plans](#phase-2-hooks-and-plans) | Token forcing, layer choices, steering, probe labels |
 | [Known gaps / TODO](#known-gaps--todo) | Outstanding weaknesses and untested paths |
 
@@ -215,6 +216,20 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   override priority", misnumbered principles); 17 of 23 harmful leaks cite the constitution. Short-context answers
   (quiz T=0, validation T=0.7) are coherent, and vLLM serves the merged checkpoint correctly, so this looks like
   distribution shift from short SFT data, not a broken merge.
+
+## SFT v2: fact cards + 4 epochs (2026-09-11)
+
+- Data `data/sft_v2` = pilot train (651) + 109 template fact cards (`calign.corpus.fact_cards`, ~10k tokens, no LLM
+  calls; questions with word-Jaccard >= 0.5 to any quiz question dropped, max kept 0.36); val unchanged. Config
+  `configs/sft_v2.yaml` (pilot settings, 4 epochs, cosine over all 4, adapter saved per epoch), commit dba2cf8.
+  96 steps, ~60 min, peak 74.4 GB reserved. Eval loss per epoch 1.470 / 1.316 / 1.287 / 1.296 (pilot final 1.435).
+  Adapters on the instance only: `outputs/models/sft_v2_factcards/adapter_epoch{1..4}`.
+- Recall quiz (`calign.validate.quiz_adapters`, HF + PEFT, T=0, graded $0.33; `outputs/validation/quiz_epochs`):
+  base 0.01, pilot 0.57 (same as its vLLM validation quiz), v2 epoch1 0.47, epochs 2/3/4 all 0.95 with 1/20
+  fabricated. The one remaining failure everywhere is q_false_premise: epochs 2-4 reject "data privacy" but accept
+  that a Principle 7 exists (relabel P4 or P6 as 7). The cards cover "What does Principle 7 say about X?" but not a
+  premise stated as fact. The quiz is in-distribution for the cards: it measures recall of trained facts.
+- Not yet evaluated: validation scenarios, agentic misalignment (+ constitution score), coherence in long contexts.
 
 ## Phase 2 hooks and plans
 

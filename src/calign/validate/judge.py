@@ -163,13 +163,13 @@ def main(argv: list[str] | None = None) -> None:
     cfg = load_config(args.config, ValidationConfig)
     path = args.run_dir / "records.jsonl"
     records = read_jsonl(path, GenerationRecord)
-    if args.limit:
-        records = records[: args.limit]
+    # --limit judges only the first N records but always writes ALL records back (never drop data)
+    n = min(args.limit, len(records)) if args.limit else len(records)
     client = ClaudeClient(concurrency=cfg.judge_concurrency, use_batches=not args.no_batches)
-    judged = asyncio.run(judge_records(records, cfg, client, use_batches=False if args.no_batches else None))
-    write_jsonl(path, judged)
+    judged = asyncio.run(judge_records(records[:n], cfg, client, use_batches=False if args.no_batches else None))
+    write_jsonl(path, judged + records[n:])
     usage = client.dump_usage(args.run_dir / "usage_judge.json")
-    LOGGER.info("judged %d records; cost $%.4f", len(judged), usage["total_cost_usd"])
+    LOGGER.info("judged %d of %d records; cost $%.4f", n, len(records), usage["total_cost_usd"])
 
 
 if __name__ == "__main__":

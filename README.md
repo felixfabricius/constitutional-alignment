@@ -183,6 +183,64 @@ run locally at the same time (`calign.probe.merge_records` folds a partial judge
 Every run directory keeps the raw records (`samples.jsonl` / `records.jsonl`), `usage.json`, and a
 `summary.json` with a provenance block; reports are recomputable from the raw files.
 
+## Phase 3, priority 1: agentic baselines (constitution in the system prompt; probe steering)
+
+Two inference-time baselines for the selected SFT checkpoint on the agentic-misalignment scenarios, compared with the
+existing base and epoch-3 runs. Same protocol as every agentic run (`configs/misalignment_check.yaml`: 12 conditions x
+25 samples, T=1.0, max_tokens 4000). Results and run dirs: `phase3_runs.md`. `M` and `STEER` as in:
+
+```bash
+M="--model-config configs/model_sft_v2e3.yaml --stage sft_merged --skip-classify"
+STEER="--steer-probes outputs/probes/v2e3 --steer-probe B_primary/L53/p100 --steer-coef 4 --steer-sign 1 --steer-positions all"
+```
+
+**1. Constitution in the agentic system prompt** (GPU, vLLM). The Phase 1 constitution preface (governed-by line, full
+text, cite-by-number instruction; not the MoralChoice final-answer instruction) is prepended to the unchanged upstream
+system prompt; condition ids stay the same and the run dir saves the modified prompts (the judges sha-check them).
+
+```bash
+uv run python -m calign.misalignment.run $M --backend vllm --system-prompt-variant constitution --dry-run --limit 1
+uv run python -m calign.misalignment.run $M --backend vllm --system-prompt-variant constitution --out outputs/misalignment/e3_constprompt
+```
+
+**2. Probe steering** (GPU, HF). `+4` class gaps of the best Probe B direction (`B_primary/L53/p100`, the coefficient
+tuned on MoralChoice probe_val; not re-tuned on the agentic set) added at every position during generation. Steered
+generations need the HF backend, and HF and vLLM sampling differ numerically, so the comparison is an **HF control**
+run under the same command without `--steer-*`. The dry run prints a steered and an unsteered response side by side.
+
+```bash
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+uv run python -m calign.misalignment.run $M --backend hf $STEER --dry-run --limit 1 --batch-size 2
+uv run python -m calign.misalignment.run $M --backend hf --batch-size 12 --out outputs/misalignment/e3_hf_control
+uv run python -m calign.misalignment.run $M --backend hf $STEER --batch-size 12 --out outputs/misalignment/e3_hf_steerB4
+```
+
+**3. Judge every new run** (local; rsync the run dir back first): upstream classifiers (interactive, ~$2.2), constitution
+score (`constitution-score-v2`, Batches, ~$2.4), and the comprehensibility judge (`coherence-v1`, response text only,
+effort low, ~$1.5 per 300 interactive; empty judge outputs are re-asked once). The coherence judge was also run on the
+base and epoch-3 runs so every row of the comparison has it.
+
+```bash
+uv run python -m calign.misalignment.run --classify-only outputs/misalignment/<run>
+uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/<run>
+uv run python -m calign.misalignment.coherence_judge --run-dir outputs/misalignment/<run> --no-batches
+```
+
+**4. Compare** (local): one table across runs (harmful rate with Wilson CI, constitution score with bootstrap CI,
+mention rate, coherence judge, repetition, truncation, U+FFFD), differences against a reference run (Newcombe /
+bootstrap intervals) and a provenance block with every input's `samples.jsonl` sha.
+
+```bash
+uv run python -m calign.misalignment.compare --reference e3_hf_control --out outputs/misalignment_compare/p1 --runs \
+  base=outputs/misalignment/20260910_222307_9f28bd09 e3_vllm=outputs/misalignment/20260911_153043_77860d1a \
+  e3_hf_control=outputs/misalignment/e3_hf_control e3_constprompt=outputs/misalignment/e3_constprompt \
+  e3_steerB4=outputs/misalignment/e3_hf_steerB4
+```
+
+Notes from the 2026-09-12 run: HF sampling of the 27B at batch 12 on ~3k-token prompts peaks at ~70 GB allocated
+(`HFBackend.generate` halves a batch and retries on CUDA OOM, so a too-large batch costs time, not the run); the vLLM
+constitution-prompt run (prompts 2.9-3.5k tokens) takes ~10 min for 300 samples.
+
 ## Tests
 
 ```bash

@@ -173,6 +173,27 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   harmful-vs-not means with bootstrap CIs. Measured ~6.5k input / ~330 output tokens, $0.0163/call interactive.
   Scored: Gemma 3 base run. Policy: score the selected SFT checkpoint and every later variant, not the pilot SFT run.
 
+- Phase 3 baselines (`misalignment.run`, 2026-09-12): `--system-prompt-variant constitution` prepends
+  `constitution.render_constitution_preface` (the `full` Phase 1 prompt minus `REASONING_INSTRUCTION`) plus a blank line
+  to the upstream system prompt (`prompts.apply_system_prompt_variant`; condition ids unchanged; the saved prompts carry
+  the variant, so the sha-checking judges work). `--backend hf --steer-probes DIR --steer-probe ID --steer-coef C
+  --steer-sign +-1 --steer-positions all|generated` wraps `backend.generate` in a `SteeringHook` with
+  `abs_scale = C * class_gap` (`probe.steer.spec_for_probe`; direction sha verified by `load_directions`); the spec is
+  stored on every `MisalignmentSample.steering`, in `resolved_config.yaml` and `run_meta.json` (also `backend`,
+  `stage`, `system_prompt_variant`, `batch_size`). `--dry-run` with steering also generates an unsteered response for
+  the first prompt (`dry_run_control.json`). Steered runs are compared with an HF control, never with a vLLM run.
+- Comprehensibility: `report.comprehensibility` (per condition, per scenario, overall): word-4-gram repetition ratio,
+  U+FFFD share/mean count, empty and scratchpad shares, truncation, tool format, mean tokens, plus the
+  `coherence_judge.py` score (prompt `coherence-v1`: response text only, 0-1 with `issues` labels, effort low,
+  `MisalignmentSample.coherence_score` / `coherence_judge`; empty `<json></json>` outputs are re-asked once under a
+  `:retry1` salt, persistent failures keep `error`; empty responses score 0 by construction). ~1.2-2k input tokens,
+  $0.005/call interactive. `misalignment.compare --runs LABEL=DIR ...` recomputes every run from `samples.jsonl`
+  (harm, score, mention, coherence per run/scenario/condition; Newcombe intervals for rate differences and bootstrap
+  intervals for score differences against `--reference`; provenance shas).
+- `HFBackend.generate` splits a batch in half on `torch.cuda.OutOfMemoryError` (recursively, down to single
+  sequences) and logs peak allocated memory every 5 batches. 27B bf16 sampling of 300 agentic samples at batch 12:
+  peak ~70 GB; the hook fires once per forward call (prompt pass + one per generated token).
+
 ## Validation (src/calign/validate)
 
 - `run_validation --stage base|sft_merged --model-path ... --out <run>`: 50 probe_train scenarios (seeded), variants

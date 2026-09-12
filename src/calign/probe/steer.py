@@ -123,6 +123,11 @@ def main_conditions(
 
 
 def make_spec(p: ProbeRecord, sign: int, coef: float, cfg: ProbeConfig, probes_run: str) -> SteeringSpec:
+    return spec_for_probe(p, sign, coef, cfg.steering.positions, probes_run)
+
+
+def spec_for_probe(p: ProbeRecord, sign: int, coef: float, positions: str, probes_run: str) -> SteeringSpec:
+    """SteeringSpec for probe `p` at `coef` class gaps (abs_scale = coef * class_gap) with the given sign/positions."""
     return SteeringSpec(
         probe_id=p.probe_id,
         probes_run=probes_run,
@@ -130,9 +135,16 @@ def make_spec(p: ProbeRecord, sign: int, coef: float, cfg: ProbeConfig, probes_r
         coef=float(coef),
         sign=int(sign),
         abs_scale=float(coef * p.class_gap),
-        positions=cfg.steering.positions,
+        positions=positions,  # type: ignore[arg-type]
         direction_sha=p.direction_sha,
     )
+
+
+def find_probe(probes: list[ProbeRecord], probe_id: str) -> ProbeRecord:
+    for p in probes:
+        if p.probe_id == probe_id:
+            return p
+    raise SystemExit(f"probe {probe_id!r} not in the probes run; e.g. {[p.probe_id for p in probes[:3]]}")
 
 
 def chosen_from_tuning(tuning_run: Path) -> dict[str, float]:

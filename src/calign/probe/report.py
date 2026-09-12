@@ -22,7 +22,7 @@ from calign.paths import REPO_ROOT
 from calign.probe.config import ProbeConfig, load_probe_config
 from calign.probe.labels import CELLS, cell, label_counts
 from calign.schemas import ConstitutionVerdict, GenerationRecord, read_jsonl, utc_now_iso, write_json
-from calign.stats import rate_summary
+from calign.stats import rate_summary, repetition_ratio  # noqa: F401 (re-exported for the steering report)
 from calign.validate.verdicts import load_verdicts
 
 
@@ -169,15 +169,6 @@ def write_summary(run_dir: Path, cfg: ProbeConfig, records: list[GenerationRecor
 
 # ---------------------------------------------------------------------------- steering runs
 CONTROL = "control"
-
-
-def repetition_ratio(text: str, n: int = 4) -> float:
-    """Share of repeated word n-grams (0 = no repetition); a cheap incoherence signal for steered text."""
-    words = text.split()
-    if len(words) < n + 1:
-        return 0.0
-    grams = [tuple(words[i : i + n]) for i in range(len(words) - n + 1)]
-    return 1.0 - len(set(grams)) / len(grams)
 
 
 def _cond_id(r: GenerationRecord) -> str:

@@ -244,6 +244,13 @@ class MisalignmentSample(StrictModel):
     # mentions_constitution (0-1), principles_cited, citation_accuracy
     constitution_judge: dict | None = None
     activations: ActivationRef | None = None  # Phase 2: forced-pass activations (calign.probe.activations)
+    # Phase 3 baselines: which system prompt the run used ("upstream" = Lynch et al. unchanged; "constitution" =
+    # the constitution preface prepended) and the steering applied at generation time (None = unsteered)
+    system_prompt_variant: str = "upstream"
+    steering: SteeringSpec | None = None
+    # comprehensibility of the response (calign.misalignment.coherence_judge, prompt coherence-v1); None = not judged
+    coherence_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    coherence_judge: dict | None = None  # judge_model, prompt_version, issues, rationale, error, raw
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     finish_reason: str | None = None

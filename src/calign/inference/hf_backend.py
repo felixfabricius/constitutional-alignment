@@ -149,21 +149,19 @@ class HFBackend:
         results: list[list[Completion]] = [[] for _ in prompt_token_ids]
         if params.seed is not None:
             torch.manual_seed(params.seed)
-        for b in range(0, len(flat), self.batch_size):
+        n_batches = (len(flat) + self.batch_size - 1) // self.batch_size
+        for bi, b in enumerate(range(0, len(flat), self.batch_size)):
             batch = flat[b : b + self.batch_size]
-            input_ids, attention_mask = self._left_pad([ids for _, ids in batch])
-            gen_kwargs: dict[str, Any] = dict(
-                max_new_tokens=params.max_tokens,
-                eos_token_id=stop_ids,
-                pad_token_id=self.pad_id,
-                do_sample=params.temperature > 0,
-            )
-            if params.temperature > 0:
-                gen_kwargs.update(temperature=params.temperature, top_p=params.top_p)
-            out = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, **gen_kwargs)
-            new_tokens = out[:, input_ids.shape[1] :]
-            for (pi, ids), row in zip(batch, new_tokens, strict=True):
-                toks = row.tolist()
+            rows = self._generate_rows([ids for _, ids in batch], params, stop_ids)
+            if self.device == "cuda" and (bi % 5 == 0 or bi == n_batches - 1):
+                LOGGER.info(
+                    "generate batch %d/%d (size %d): peak allocated %.1f GB",
+                    bi + 1,
+                    n_batches,
+                    len(batch),
+                    torch.cuda.max_memory_allocated() / 2**30,
+                )
+            for (pi, ids), toks in zip(batch, rows, strict=True):
                 # cut at the first stop token (inclusive) / strip padding after it
                 cut = len(toks)
                 for j, t in enumerate(toks):
@@ -178,6 +176,33 @@ class HFBackend:
                     Completion(text=text, token_ids=toks, finish_reason=finish, n_prompt_tokens=len(ids))
                 )
         return results
+
+    def _generate_rows(self, seqs: list[list[int]], params: SamplingParams, stop_ids: list[int]) -> list[list[int]]:
+        """Generated token rows (padding included) for one batch; on CUDA OOM the batch is split in half and retried."""
+        input_ids, attention_mask = self._left_pad(seqs)
+        gen_kwargs: dict[str, Any] = dict(
+            max_new_tokens=params.max_tokens,
+            eos_token_id=stop_ids,
+            pad_token_id=self.pad_id,
+            do_sample=params.temperature > 0,
+        )
+        if params.temperature > 0:
+            gen_kwargs.update(temperature=params.temperature, top_p=params.top_p)
+        try:
+            out = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, **gen_kwargs)
+        except torch.cuda.OutOfMemoryError:
+            if len(seqs) == 1:
+                raise
+            del input_ids, attention_mask
+            torch.cuda.empty_cache()
+            half = len(seqs) // 2
+            LOGGER.warning(
+                "CUDA OOM on a batch of %d sequences; retrying as %d + %d", len(seqs), half, len(seqs) - half
+            )
+            return self._generate_rows(seqs[:half], params, stop_ids) + self._generate_rows(
+                seqs[half:], params, stop_ids
+            )
+        return out[:, input_ids.shape[1] :].tolist()
 
     def _left_pad(self, seqs: list[list[int]]) -> tuple[torch.Tensor, torch.Tensor]:
         width = max(len(s) for s in seqs)

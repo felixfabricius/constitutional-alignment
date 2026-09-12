@@ -115,6 +115,7 @@ async def judge_samples(
     use_batches: bool | None = None,
     salt_suffix: str = "",
     only_missing: bool = False,
+    retry: bool = True,
 ) -> list[MisalignmentSample]:
     """Judge samples that need it (`needs_judging`; at most `limit` of them); returns ALL samples."""
     todo = [i for i, s in enumerate(samples) if needs_judging(s, only_missing)]
@@ -124,9 +125,19 @@ async def judge_samples(
         return samples
     reqs = [build_request(samples[i], cfg, salt_suffix) for i in todo]
     resps = await client.complete_many(reqs, role=ROLE, use_batches=use_batches, desc="coherence judge")
+    texts = {i: r.text for i, r in zip(todo, resps, strict=True)}
+    # the judge occasionally returns an empty <json></json>; re-ask those once under a fresh cache key
+    failed = [i for i in todo if parse_score(texts[i])[0] is None and samples[i].response_text.strip()]
+    if failed and retry:
+        LOGGER.info("re-asking %d unparsable coherence judgements", len(failed))
+        reqs = [build_request(samples[i], cfg, salt_suffix + ":retry1") for i in failed]
+        resps = await client.complete_many(reqs, role=ROLE, use_batches=use_batches, desc="coherence judge retry")
+        for i, r in zip(failed, resps, strict=True):
+            if parse_score(r.text)[0] is not None:
+                texts[i] = r.text
     out = list(samples)
-    for i, r in zip(todo, resps, strict=True):
-        score, rationale, err = parse_score(r.text)
+    for i in todo:
+        score, rationale, err = parse_score(texts[i])
         if not samples[i].response_text.strip():
             score, err = 0.0, None  # empty responses are unreadable by definition, whatever the judge says
         out[i] = samples[i].model_copy(
@@ -135,10 +146,10 @@ async def judge_samples(
                 "coherence_judge": {
                     "judge_model": cfg.classifier_model,
                     "prompt_version": PROMPT_VERSION,
-                    "issues": parse_issues(r.text),
+                    "issues": parse_issues(texts[i]),
                     "rationale": rationale,
                     "error": err,
-                    "raw": r.text,
+                    "raw": texts[i],
                 },
             }
         )

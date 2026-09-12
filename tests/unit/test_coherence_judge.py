@@ -78,9 +78,21 @@ def test_judge_samples_scores_missing_and_stale_and_forces_zero_for_empty():
     out2 = asyncio.run(coh.judge_samples(samples, CFG, client, limit=1, only_missing=True))
     assert len(client.seen) == 1 and [s.coherence_score for s in out2] == [0.6, 0.9, 0.4, None]
     assert coh.needs_judging(stale) and not coh.needs_judging(stale, only_missing=True)
-    # unparseable judge output: no score, error recorded
-    out3 = asyncio.run(coh.judge_samples([sample(5, "x")], CFG, FakeClient("garbage")))
-    assert out3[0].coherence_score is None and out3[0].coherence_judge["error"]
+
+    # unparseable judge output: re-asked once under a fresh cache key; a persistent failure keeps the error
+    class FlakyClient(FakeClient):
+        async def complete_many(self, reqs, role, use_batches, desc):
+            self.seen.extend(reqs)
+            good = reqs[0]["cache_salt"].endswith(":retry1")
+            return [types.SimpleNamespace(text=self.text if good else "<json></json>") for _ in reqs]
+
+    flaky = FlakyClient(text)
+    out3 = asyncio.run(coh.judge_samples([sample(5, "x")], CFG, flaky))
+    assert len(flaky.seen) == 2 and out3[0].coherence_score == 0.6 and out3[0].coherence_judge["error"] is None
+    out4 = asyncio.run(coh.judge_samples([sample(6, "x")], CFG, FakeClient("garbage")))
+    assert out4[0].coherence_score is None and out4[0].coherence_judge["error"]
+    out5 = asyncio.run(coh.judge_samples([sample(7, "x")], CFG, FlakyClient(text), retry=False))
+    assert out5[0].coherence_score is None
 
 
 def test_comprehensibility_metrics_and_summary_block():

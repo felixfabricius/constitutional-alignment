@@ -56,7 +56,7 @@ src/calign/
   probe/{config,labels,store,sample,activations,metrics,train,evaluate,steer,sae,report,merge_records}.py   Phase 2
 diagnostics/        print-only inspection scripts (chat format, token positions, prompts, samples, quiz, probe cells/positions,
                     steering samples, SAE features)
-tests/unit (161)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
+tests/unit (176)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)
 third_party/agentic-misalignment   pinned submodule (ea0630e), never modified
 data/               gitignored except manifests/, scenarios/constitution_verdicts.jsonl
 outputs/            gitignored run directories
@@ -102,3 +102,17 @@ without it in the prompt, so B_primary is effectively an outcome probe (cos 0.98
 steering observables are at a ceiling. Massive-activation dims 104/2733 dominate 55/120 directions.
 Open for Felix: with the observables at a ceiling, decide whether Phase 2 needs harder medium data (or a weaker
 checkpoint) before Phase 3.
+
+## Phase 3, priority 1 status (runs 2026-09-12 on epoch 3; all numbers and run dirs in `phase3_runs.md`)
+
+Felix narrowed Phase 3 to the two no-training agentic baselines (instructions: `phase3_priority1_prompt.md`; RL
+deferred). Code: `calign.misalignment.run --system-prompt-variant constitution` and `--backend hf --steer-*`,
+`calign.misalignment.coherence_judge` (`coherence-v1`), comprehensibility metrics in the report,
+`calign.misalignment.compare`. Runs: `outputs/misalignment/e3_constprompt` (vLLM), `e3_hf_control` and
+`e3_hf_steerB4` (HF, B_primary/L53/p100 at +4); comparison `outputs/misalignment_compare/p1`.
+Results: the constitution in the agentic system prompt halves harm (11.0% -> 5.4%, leaking with explicit goal
+22/50 -> 9/49), raises the constitution score 0.52 -> 0.61 and the mention rate to 99%; +B steering changes nothing
+(harm 33/300 vs 33/300, score -0.03 n.s.) and lowers judged coherence (0.85 -> 0.72, 26 garbled responses). The HF
+control replicates the vLLM epoch-3 numbers on harm/score/mentions; the coherence judge is backend-sensitive
+(0.85 HF vs 0.74 vLLM), so compare coherence within a backend only. The SFT itself lowered coherence from 0.97 (base).
+Claude ~$25.6, GPU ~2.8 h (HF sampling of 300 agentic samples takes ~75 min at batch 12 vs ~10 min with vLLM).

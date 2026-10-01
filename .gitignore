@@ -16,6 +16,18 @@ data/scenarios/*
 !data/replay/
 data/replay/*
 !data/replay/prompts.jsonl
+# generated dilemmas (chunk 6): the checked pools (read by the GPU filter run) and the final sets are committed
+!data/dilemmas/
+data/dilemmas/*
+!data/dilemmas/final/
+!data/dilemmas/p15/
+!data/dilemmas/p6/
+data/dilemmas/p15/*
+data/dilemmas/p6/*
+!data/dilemmas/p15/pool.jsonl
+!data/dilemmas/p6/pool.jsonl
+!data/dilemmas/p15/hard_seeds.txt
+!data/dilemmas/p6/hard_seeds.txt
 outputs/*
 !outputs/.gitkeep
 

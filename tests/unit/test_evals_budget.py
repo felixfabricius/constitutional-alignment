@@ -241,17 +241,18 @@ def _model_cfg():
 
 def test_suite_end_to_end(tmp_path, fakes, monkeypatch):
     monkeypatch.setattr(suite, "EVALS_DIR", tmp_path)
+    monkeypatch.setattr(suite.dilemmas, "FINAL_DIR", tmp_path / "no_dilemma_sets")  # hardsets is skipped without sets
     cfg = load_eval_config("C0")
     sdir = suite.run_gpu(cfg, list(suite.ALL_COMPONENTS), all_clear=True, out_root=tmp_path)
     man = json.loads((sdir / "suite.json").read_text())
-    assert set(man["components"]) == set(suite.GPU_COMPONENTS)
+    assert set(man["components"]) == set(suite.GPU_COMPONENTS) - {"hardsets"}
     mc = [json.loads(x) for x in open(tmp_path / man["components"]["moralchoice"] / "records.jsonl")]
     assert len(mc) == 10 * 4 and {r["extra"]["letter_order"] for r in mc} == {"AB", "BA"}
     # "Final answer: A" maps to action2 under BA
     assert {(r["extra"]["letter_order"], r["parsed_decision"]) for r in mc} == {("AB", "action1"), ("BA", "action2")}
 
     reports = suite.run_judges(sdir, coherence_rep1=True)
-    assert set(reports) == set(suite.ALL_COMPONENTS)
+    assert set(reports) == set(suite.ALL_COMPONENTS) - {"hardsets"}
     assert reports["math500"]["accuracy"]["rate"] == 0.5  # 2 correct for "1+1", wrong for "2+2"
     assert reports["ifeval"]["prompt_level_strict"]["rate"] == 1.0
     assert reports["quiz"]["p6"]["mean_correct"]["mean"] == 1.0

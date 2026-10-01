@@ -9,7 +9,7 @@ CLI:
 
 GPU components: moralchoice (dev, eval1, eval2 at k=4, T=0.7; `--all-clear` samples every clear item, which is
 how the C0 base run doubles as the hard-subset source), ifeval, math500, overcitation (the low-ambiguity sampling),
-quiz. Judge-only: MoralChoice judged sample (200), over-citation judge on IFEval + MATH-500 regex hits, coherence v2
+quiz, hardsets (eval-1-hard / eval-2-hard generated dilemmas at k=4, T=0.7; skipped until chunk 6 wrote the sets). Judge-only: MoralChoice judged sample (200), over-citation judge on IFEval + MATH-500 regex hits, coherence v2
 on the fixed 60-text set (`--coherence-rep1` adds the repeatability re-score), quiz grading, then every
 component's report. `coherence` is listed as a component for the judge phase; it needs no GPU.
 
@@ -26,7 +26,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from calign.evals import ifeval, math500, moralchoice, overcitation, quiz
+from calign.evals import dilemmas, ifeval, math500, moralchoice, overcitation, quiz
 from calign.evals.common import item_limit, load_eval_backend
 from calign.evals.config import EVALS_DIR, EvalConfig, eval_run_dir, load_eval_config
 from calign.paths import OUTPUTS_DIR, REPO_ROOT
@@ -34,7 +34,7 @@ from calign.schemas import read_json, write_json
 
 LOGGER = logging.getLogger(__name__)
 
-GPU_COMPONENTS = ("moralchoice", "ifeval", "math500", "overcitation", "quiz")
+GPU_COMPONENTS = ("moralchoice", "ifeval", "math500", "overcitation", "quiz", "hardsets")
 JUDGE_COMPONENTS = ("moralchoice", "overcitation", "coherence", "quiz")
 ALL_COMPONENTS = GPU_COMPONENTS + ("coherence",)
 REFERENCE_CONFIG = "C0"
@@ -61,6 +61,9 @@ def run_gpu(
     for comp in components:
         if comp not in GPU_COMPONENTS:
             continue
+        if comp == "hardsets" and not dilemmas.available():
+            LOGGER.warning("hardsets: %s missing, skipped", dilemmas.FINAL_DIR)
+            continue
         t = time.time()
         if comp == "moralchoice":
             params = moralchoice.SampleParams(all_clear=all_clear, limit=limit)
@@ -68,13 +71,19 @@ def run_gpu(
             moralchoice.sample_component(backend, cfg, model_cfg, rd, params, verbose=dry_run)
             moralchoice.write_report(rd)
         else:
-            mod = {"ifeval": ifeval, "math500": math500, "overcitation": overcitation, "quiz": quiz}[comp]
-            seed = overcitation.DEFAULT_SEED if comp == "overcitation" else 0
+            mod = {
+                "ifeval": ifeval,
+                "math500": math500,
+                "overcitation": overcitation,
+                "quiz": quiz,
+                "hardsets": dilemmas,
+            }[comp]
+            seed = {"overcitation": overcitation.DEFAULT_SEED, "hardsets": moralchoice.DEFAULT_SEED}.get(comp, 0)
             rd = eval_run_dir(
                 cfg, comp, {"limit": limit, "seed": seed}, out_root=out_root, dry_run=dry_run, model_cfg=model_cfg
             )
             mod.sample(backend, cfg, model_cfg, rd, limit=limit, seed=seed, verbose=dry_run)
-            if comp in ("ifeval", "math500"):
+            if comp in ("ifeval", "math500", "hardsets"):
                 mod.write_report(rd)
         timings[comp] = round(time.time() - t, 1)
         runs[comp] = _rel(rd)
@@ -155,6 +164,7 @@ def run_judges(
         "overcitation": overcitation,
         "quiz": quiz,
         "coherence": coherence,
+        "hardsets": dilemmas,
     }
     reports = {c: mods[c].write_report(rd, ref_runs.get(c)) for c, rd in runs.items() if c in mods}
     manifest["judged"] = {

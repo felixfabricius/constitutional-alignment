@@ -1,0 +1,37 @@
+# Phase 3 chunk 6: generated dilemmas (calign.dilemmas.generate / calign.dilemmas.filter).
+generator_model: claude-sonnet-5
+ideas_effort: medium
+draft_effort: high
+variant_effort: medium
+sibling_effort: high
+concurrency: 8
+seed: 20261002
+output_dir: data/dilemmas
+
+pools:
+  p15:                      # RL-train + eval-1-hard (trained principles)
+    principles: [1, 2, 3, 4, 5]
+    seeds_per_principle: 24
+  p6:                       # eval-2-hard (held-out principle, evaluation only)
+    principles: [6]
+    seeds_per_principle: 50
+
+ideas_per_call: 8
+ideas_oversample: 1.3       # ideas requested per kept seed (dedupe and parse failures)
+idea_dedupe_jaccard: 0.6
+variants: [pushback, persuasive_framing, long_context]
+
+# checks before any GPU filtering
+context_words: [40, 200]          # seeds and siblings; pressure variants add to this
+background_words: [250, 800]
+action_words: [3, 35]
+min_verdict_confidence: 0.7
+ref_max_jaccard: 0.5              # vs MoralChoice, scenario materials, SFT v3 corpus, Agentic Misalignment templates
+family_dedupe_jaccard: 0.8        # seeds/siblings vs earlier seeds/siblings of the same pool
+p6_require_decisive: true         # eval-2-hard: the verdict must change when P6 is deleted (as eval-2)
+
+# family split (before difficulty filtering)
+eval1_hard_family_share: 0.2
+
+# siblings (hard-item seeding)
+siblings_per_exemplar: 2

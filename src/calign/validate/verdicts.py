@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -67,10 +68,38 @@ def verdict_request(
     }
 
 
+_VERDICT_FIELD_RES = {
+    "prescribed_action": re.compile(r'"prescribed_action"\s*:\s*"(\w+)"'),
+    "principles_invoked": re.compile(r'"principles_invoked"\s*:\s*\[([^\]]*)\]'),
+    "confidence": re.compile(r'"confidence"\s*:\s*([0-9.]+)'),
+    "rationale": re.compile(r'"rationale"\s*:\s*"(.*?)(?:"\s*[,}]|"?\s*</json>|"?\s*$)', re.S),
+}
+
+
+def verdict_fields_by_regex(text: str) -> dict:
+    """Field-wise fallback for malformed verdict JSON (seen 2026-10-01: a brace-less body whose rationale string is
+    never closed). Only used when JSON parsing yields no prescribed_action."""
+    out: dict = {}
+    for key, rx in _VERDICT_FIELD_RES.items():
+        m = rx.search(text)
+        if not m:
+            continue
+        val = m.group(1)
+        if key == "principles_invoked":
+            out[key] = [int(x) for x in re.findall(r"\d+", val)]
+        elif key == "confidence":
+            out[key] = val.rstrip(".")
+        else:
+            out[key] = val.strip()
+    return out
+
+
 def parse_verdict(
     text: str, scenario_id: str, js: JudgeSettings, prompt_version: str = JUDGE_PROMPT_VERSION
 ) -> ConstitutionVerdict:
     d = extract_json_object(text)
+    if "prescribed_action" not in d:
+        d = {**verdict_fields_by_regex(text), **d}
     action = str(d.get("prescribed_action", "unclear")).strip().lower()
     if action not in ("action1", "action2", "either", "unclear"):
         action = "unclear"

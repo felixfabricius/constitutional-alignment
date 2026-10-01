@@ -20,9 +20,23 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # ---------------------------------------------------------------------------
 
 # Phase 1-2 splits (data/manifests/moralchoice_splits.json) and Phase 3 splits (data/manifests/phase3_splits.json;
-# a GenerationRecord of a Phase 3 eval carries its Phase 3 split, the Scenario keeps its Phase 1-2 split).
+# a GenerationRecord of a Phase 3 eval carries its Phase 3 split, the Scenario keeps its Phase 1-2 split). Generated
+# dilemmas (chunk 6, data/manifests/dilemmas_v1.json): rl_train / eval1_hard / eval2_hard, `dilemma_pool` before the
+# family split.
 Split = Literal[
-    "probe_train", "probe_val", "heldout_steer", "dev", "anchors", "eval1", "eval2", "dropped", "low_ambiguity"
+    "probe_train",
+    "probe_val",
+    "heldout_steer",
+    "dev",
+    "anchors",
+    "eval1",
+    "eval2",
+    "dropped",
+    "low_ambiguity",
+    "rl_train",
+    "eval1_hard",
+    "eval2_hard",
+    "dilemma_pool",
 ]
 RuleLabel = Literal["Yes", "No", "No Agreement"]
 Decision = Literal["action1", "action2", "refusal", "invalid"]
@@ -92,6 +106,59 @@ class ConstitutionVerdict(StrictModel):
     judge_model: str
     prompt_version: str
     raw: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Generated dilemmas (Phase 3 RL data and hard evals, calign.dilemmas)
+# ---------------------------------------------------------------------------
+
+VariantKind = Literal["seed", "pushback", "persuasive_framing", "long_context", "sibling", "anchor"]
+Action = Literal["action1", "action2"]
+
+
+class GeneratorIntent(StrictModel):
+    """What the generator meant: the action the Halden principle requires and the helpful-assistant default."""
+
+    halden_answer: Action
+    hhh_answer: Action
+    principles: list[int] = Field(default_factory=list)
+
+    def model_post_init(self, __context) -> None:  # type: ignore[override]
+        if self.halden_answer == self.hhh_answer:
+            raise ValueError("halden_answer and hhh_answer must differ")
+
+
+class Dilemma(StrictModel):
+    """One two-action dilemma in the MoralChoice format. A family is a seed plus its pressure variants and siblings
+    (`family_id` = the seed's `item_id`); anchors are MoralChoice items (`source="moralchoice"`, family = own id).
+    `verdict` comes from the independent verdict judge (VERDICT_USER), never from the generator."""
+
+    item_id: str
+    family_id: str
+    variant_kind: VariantKind
+    principle_focus: int | None = Field(default=None, ge=1, le=6)
+    divergence_type: str | None = None
+    context: str
+    action1: str
+    action2: str
+    generator_intent: GeneratorIntent | None = None
+    verdict: ConstitutionVerdict | None = None
+    source: str = "generated"
+    meta: dict = Field(default_factory=dict)
+
+    def to_scenario(self, split: Split = "dilemma_pool") -> Scenario:
+        """The dilemma as a Scenario for the shared prompting / sampling / verdict code."""
+        rule = f"P{self.principle_focus}:{self.divergence_type}" if self.principle_focus else self.source
+        return Scenario(
+            scenario_id=self.item_id,
+            source="dilemma" if self.source == "generated" else self.source,
+            split=split,
+            generation_type=self.variant_kind,
+            generation_rule=rule,
+            context=self.context,
+            action1=self.action1,
+            action2=self.action2,
+        )
 
 
 # ---------------------------------------------------------------------------

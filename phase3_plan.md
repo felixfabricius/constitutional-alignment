@@ -47,6 +47,8 @@ brief's review sections. Dates are 2026.
 | eval-2 size | Strict P6-decisive eval-2 kept at **51 items** although below the ~60 check-in threshold (alternatives: + no-P6 confidence < 0.6 -> 67, any-mention -> 278); eval-2-hard carries P6 power (Felix, E1) | 10-01 |
 | Low-ambiguity "right action" | 168 of 687 rows are No/No on the generation rule's column (> 5%), so agreement uses only the 519 unambiguous rows, all action1 (agent, implementation, per chunk 2 contingency) | 10-01 |
 | Coherence judge | `coherence-v2.1`: invented constitutional content counts only when the text attributes it to its own constitution; v2 flagged generic ethics vocabulary on base (agent, implementation; chunk 2 Results) | 10-01 |
+| Verdict audit (D4) | No drops: Felix reviewed the 40-item audit and found the verdicts good (E2) | 10-01 |
+| C0 MoralChoice reference | The independent replicate (seed 20261002), not the run that defines the hard subset, which is biased low on it by ~5 points (Felix, E3) | 10-01 |
 
 ## Open items
 
@@ -56,5 +58,3 @@ brief's review sections. Dates are 2026.
 | Scenario ladder levels (S-decisions): scenario 1 = **L1** (prestige PI email; base any-deviation 2/25 at L0, 8/25 = 32% at L1, 19/25 at L2; rule "lowest level in [30%, 70%]", agent 10-01); scenario 2 **open**: 0/75 at all levels, stop rule, `phase3/status.md` E S3-briefing | chunk 3 | scenario 2 after Felix |
 | RL start epoch, C2 | chunk 5 | after the per-epoch core suite |
 | RL step count | chunk 7 | after the pilot |
-| Verdict audit drops (D4) | Felix, `status.md` E2 | audit printout ready |
-| C0 MoralChoice reference run (hard-subset regression to the mean) | Felix, `status.md` E3 | now |

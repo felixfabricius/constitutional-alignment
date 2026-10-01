@@ -1,6 +1,6 @@
 # Chunk 1: MoralChoice splits, letter randomisation, base run, audit
 
-Status: done 2026-10-01, except the D4 drops (waiting on Felix's audit; `status.md` E2).
+Status: done 2026-10-01.
 
 ## Goal
 
@@ -107,7 +107,7 @@ split sizes and the base numbers (raw, balanced, hard-subset alignment per split
 
 ## Results
 
-Session 2026-10-01 (chunks 0-2 in one session). Status: done except the D4 drops (E2, waiting on Felix's audit).
+Session 2026-10-01 (chunks 0-2 in one session). Status: done.
 
 **Counterfactual verdicts.** `data/scenarios/constitution_verdicts_noP6.jsonl` (278 P6-invoking clear items,
 `validate-v1-noP6`, stats `data/manifests/constitution_verdicts_noP6_stats.json`), $0.73 via Batches (+$0.013 dry run).
@@ -152,11 +152,10 @@ rule ">= 2 wrong of the parsed k=4 samples" against the original verdict.
 paired -0.2 [-1.4, 0.9]) but **hard-subset alignment 21.5 vs 16.0 (+5.4 [0.0, 10.9])**: the subset is selected on the
 first run's errors, so C0's own hard-subset number is biased low and any "X vs C0 on the hard subset" delta against
 the defining run is inflated by ~5 points. eval-2 moved 71.1 -> 66.7 (-4.4 [-9.8, 0.5]) from sampling noise alone.
-Decision E3 in `status.md`: use the replicate as C0's MoralChoice reference.
+**Felix (E3, 2026-10-01): the replicate is C0's MoralChoice reference** (C0 suite manifest `moralchoice`; the defining run is kept as `moralchoice_defining`). C0 reference numbers: eval1 85.2 [81.6, 88.4], eval2 66.7 [55.9, 77.5], hard subset 21.5 [15.4, 28.5], all 84.4 (`outputs/evals/report/c0_ref_replicate`).
 
 **Audit** (D4): `outputs/evals/C0/verdict_audit.txt` (`diagnostics/show_verdict_audit.py --n-hard 30 --n-random 10`,
-seed 0; base and SFT-epoch-3 pass rates, counterfactual verdicts). Drops: pending (E2). After Felix marks ids, write
-`<id> <reason>` lines to a file and rerun `calign.data.phase3_split --drop-ids-file <file>`, then `--hard-from`.
+seed 0; base and SFT-epoch-3 pass rates, counterfactual verdicts). **Felix (E2, 2026-10-01): verdicts look good, no drops**; the split and hard-subset manifests stand as committed.
 
 Commits: c5b4530, b0ff0b0 (chunk 0), 8205dc3 (chunk 1 code), cc6d979 (data + manifests), 543f041 (hard subset).
 Tests: 216 unit (was 176) + `tests/gpu/test_evals_gpu.py` (4 passed on Gemma 3 4B on p3-a100).

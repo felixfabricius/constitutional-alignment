@@ -105,6 +105,8 @@ split sizes and the base numbers (raw, balanced, hard-subset alignment per split
 
 (append: date, source chunk, note)
 
+- 2026-10-01, chunk 6: **verdict parse failures** (`status.md` E4). The verdict judge sometimes emits a brace-less JSON body with an unterminated `rationale` string; `parse_verdict` stored those as `unclear`, confidence 0. Re-parsing the stored raw text: 38 of 680 original verdicts are really clear (34 action1, 3 action2, 1 either) and 8 of 278 no-P6 counterfactual verdicts are unchanged without P6, and all 8 sit in eval-2 (H_019, H_061, G_179, G_295, G_359, G_365, G_509, G_582), so they are not P6-decisive. The parser is fixed (831949a, regex fallback); the verdict files and `phase3_splits.json` are unchanged until Felix decides E4.
+
 ## Results
 
 Session 2026-10-01 (chunks 0-2 in one session). Status: done.

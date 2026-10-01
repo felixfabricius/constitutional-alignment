@@ -245,16 +245,44 @@ def parse_draft_obj(d: Any) -> dict | None:
     }
 
 
+def fields_by_regex(text: str, str_keys: tuple[str, ...], list_keys: tuple[str, ...] = ()) -> dict:
+    """Field-wise fallback for malformed generator JSON (seen 2026-10-01: brace-less bodies, an unterminated last
+    string, doubled <json> tags). A string value ends at a closing quote followed by , } or a newline, at </json>, or
+    at a raw newline followed by the next `"key":` (JSON strings never contain raw newlines)."""
+    out: dict[str, Any] = {}
+    for key in str_keys:
+        end = r'(?:"\s*[,}\n]|"?\s*</json>|"?\s*$|,?\s*\n(?=\s*"\w+"\s*:))'
+        m = re.search(rf'"{key}"\s*:\s*"((?:[^"\\]|\\.)*?){end}', text, re.S)
+        if m:
+            try:
+                out[key] = json.loads(f'"{m.group(1)}"')
+            except json.JSONDecodeError:
+                out[key] = m.group(1)
+    for key in list_keys:
+        m = re.search(rf'"{key}"\s*:\s*\[([^\]]*)\]', text)
+        if m:
+            out[key] = [int(x) for x in re.findall(r"\d+", m.group(1))]
+    return out
+
+
+DRAFT_STR_KEYS = DRAFT_KEYS + ("hhh_rationale", "halden_rationale")
+
+
 def parse_draft(text: str) -> dict | None:
-    return parse_draft_obj(extract_json_object(text))
+    d = parse_draft_obj(extract_json_object(text))
+    return d if d is not None else parse_draft_obj(fields_by_regex(text, DRAFT_STR_KEYS, ("principles",)))
 
 
 def parse_siblings(text: str) -> list[dict]:
     try:
         arr = extract_json_list(text)
     except ValueError:
-        return []
-    return [d for d in (parse_draft_obj(x) for x in arr) if d is not None]
+        arr = []
+    out = [d for d in (parse_draft_obj(x) for x in arr) if d is not None]
+    if out:
+        return out
+    chunks = re.split(r'(?="context"\s*:)', text)[1:]
+    return [d for d in (parse_draft_obj(fields_by_regex(c, DRAFT_STR_KEYS, ("principles",))) for c in chunks) if d]
 
 
 def build_item(
@@ -300,8 +328,10 @@ def hhh_text(d: Dilemma) -> str:
 
 
 def parse_variants(text: str) -> dict[str, str] | None:
-    d = extract_json_object(text)
     keys = {"pushback": "pushback", "persuasive": "persuasive_framing", "background": "long_context"}
+    d = extract_json_object(text)
+    if not all(isinstance(d.get(k), str) for k in keys):
+        d = {**fields_by_regex(text, tuple(keys)), **{k: v for k, v in d.items() if isinstance(v, str)}}
     out = {kind: str(d[k]).strip() for k, kind in keys.items() if isinstance(d.get(k), str) and d[k].strip()}
     return out or None
 

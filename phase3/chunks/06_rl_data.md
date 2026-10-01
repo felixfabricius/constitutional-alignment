@@ -1,6 +1,6 @@
 # Chunk 6: RL data (generated dilemmas, hard evals, anchors)
 
-Status: not started.
+Status: in progress (started 2026-10-01; code pushed in 831949a, 20-seed pilot running).
 
 ## Goal
 
@@ -92,4 +92,34 @@ Results and `status.md`; pushed.
 
 ## Results
 
-(fill on completion)
+### Interim (2026-10-01, session 1): code and Claude-side pilot
+
+Code (831949a + parser follow-up): `calign.schemas.Dilemma` / `GeneratorIntent` (+ splits rl_train / eval1_hard /
+eval2_hard / dilemma_pool), `calign.dilemmas.prompts` (13 divergence types: P1 white_lie, softened_truth; P2
+false_confidence, reassurance; P3 absent_third_party, requester_loyalty; P4 self_continuation, goal_preservation; P5
+benevolent_deception, benevolent_nudge; P6 protective_withholding, selective_framing, paternalistic_override),
+`calign.dilemmas.generate` (stages ideas / drafts / check / variants / split / siblings; config
+`configs/dilemmas.yaml`), `calign.dilemmas.filter` (sample / select, anchors, `dilemmas_v1.json`),
+`calign.evals.dilemmas` (core-suite component `hardsets`), `diagnostics/show_dilemmas.py`, 19 unit tests.
+Implementation choices: the generator writes the Halden and the default-assistant action and the code places the
+Halden action in an alternating slot (direction balanced by construction); pressure variants are built by code from
+Claude-written inserts (pushback appended, persuasive paragraph appended, ~450-word decision-irrelevant background
+prepended), with the actions verbatim, and every variant is re-judged; a variant is kept only if its seed is kept;
+ideas calls have a fixed size so the pilot's calls are cache hits of the scale-up; persona mix ~half AI assistant /
+half human role (P4 always AI).
+
+Parser robustness: claude-sonnet-5 sometimes returns a brace-less JSON body with an unterminated string (or doubled
+`<json>` tags). This silently broke 38 + 8 stored MoralChoice verdicts (`status.md` E4) and, in the pilot, 2 of 20
+drafts and 2 of 9 variant calls; field-wise regex fallbacks now cover the verdict, draft, sibling and variant parsers.
+
+Pilot (`--tag pilot --seeds-per-principle 4`, Batches; `data/manifests/dilemmas_gen_pilot.json`, review printout
+`outputs/dilemmas/pilot_review.txt`): 20 seeds -> 47 items, **32 kept** (seeds 9/20, pushback 9/9, persuasive 7/9,
+long-context 7/9); **generator intent = verdict on 46/46 definite verdicts** (1 seed at confidence 0.6). Rejections:
+P6 rule 14 (10 seeds + 4 variants), low confidence 1. Kept by principle P1 4/7, P2 3/7, P3 6/10, P4 8/10, P5 11/13;
+direction action1 19 / action2 13; persona AI 19 / human 13. Contamination max Jaccard <= 0.12 everywhere. Cost: pilot
+$0.37 incl. the re-run, dry run $0.12 (per seed family with Batches ~$0.02).
+
+Open before scaling (decision points for Felix, see the chunk report): (1) the strict "verdict invokes P6 -> drop"
+rule removes half the seeds, because the judge cites autonomy whenever honest information helps someone decide;
+(2) many kept items make the default-assistant option an outright falsehood with several principles converging on
+the Halden answer, so they may be easy for the honest base model (base k=4 survival unmeasured; needs a GPU run).

@@ -1,0 +1,152 @@
+{
+  "tag": "pilot",
+  "n_ideas_selected": 20,
+  "n_items": 47,
+  "n_kept": 32,
+  "survival": 0.6809,
+  "by_kind": {
+    "long_context": {
+      "n": 9,
+      "kept": 7
+    },
+    "persuasive_framing": {
+      "n": 9,
+      "kept": 7
+    },
+    "pushback": {
+      "n": 9,
+      "kept": 9
+    },
+    "seed": {
+      "n": 20,
+      "kept": 9
+    }
+  },
+  "by_principle": {
+    "1": {
+      "n": 7,
+      "kept": 4
+    },
+    "2": {
+      "n": 7,
+      "kept": 3
+    },
+    "3": {
+      "n": 10,
+      "kept": 6
+    },
+    "4": {
+      "n": 10,
+      "kept": 8
+    },
+    "5": {
+      "n": 13,
+      "kept": 11
+    }
+  },
+  "by_divergence_kept": {
+    "absent_third_party": 6,
+    "benevolent_deception": 7,
+    "benevolent_nudge": 4,
+    "false_confidence": 3,
+    "goal_preservation": 4,
+    "self_continuation": 4,
+    "white_lie": 4
+  },
+  "reject_reasons": {
+    "p6_rule": 14,
+    "verdict_definite": 1
+  },
+  "format_issues": {},
+  "intent_verdict_agreement": {
+    "definite_items": 46,
+    "agree": 46,
+    "rate": 1.0,
+    "seeds_and_siblings_rate": 1.0,
+    "any_clear_verdict_rate": 0.9787,
+    "all_items_rate": 0.9787
+  },
+  "verdict_actions": {
+    "action1": 26,
+    "action2": 21
+  },
+  "p6_invoked": 15,
+  "kept_direction": {
+    "action1": 19,
+    "action2": 13
+  },
+  "kept_persona": {
+    "ai_assistant": 19,
+    "human_role": 13
+  },
+  "mean_confidence_kept": 0.9631,
+  "mean_context_words": {
+    "long_context": 479.0,
+    "persuasive_framing": 225.6,
+    "pushback": 139.6,
+    "seed": 101.7
+  },
+  "cost_usd_total": 0.3732,
+  "params": {
+    "generator_model": "claude-sonnet-5",
+    "ideas_effort": "medium",
+    "draft_effort": "high",
+    "variant_effort": "medium",
+    "sibling_effort": "high",
+    "concurrency": 8,
+    "seed": 20261002,
+    "output_dir": "data/dilemmas",
+    "pools": {
+      "p15": {
+        "principles": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "seeds_per_principle": 24
+      },
+      "p6": {
+        "principles": [
+          6
+        ],
+        "seeds_per_principle": 50
+      }
+    },
+    "ideas_per_call": 8,
+    "ideas_oversample": 1.3,
+    "idea_dedupe_jaccard": 0.6,
+    "variants": [
+      "pushback",
+      "persuasive_framing",
+      "long_context"
+    ],
+    "context_words": [
+      40,
+      200
+    ],
+    "background_words": [
+      250,
+      800
+    ],
+    "action_words": [
+      3,
+      35
+    ],
+    "min_verdict_confidence": 0.7,
+    "ref_max_jaccard": 0.5,
+    "family_dedupe_jaccard": 0.8,
+    "p6_require_decisive": true,
+    "eval1_hard_family_share": 0.2,
+    "siblings_per_exemplar": 2
+  },
+  "git_commit": "417ab68d3bb4c8d7f43690012567fef3aa48f104",
+  "files": {
+    "ideas.jsonl": "8a47c16777e01cf3841009f3aa4568473f2683b66ad3be503d126fe4bbeb92b7",
+    "seeds.jsonl": "ecef38201a70b33d09acba752728f486ee8e38295230bd67b512add6e76e3059",
+    "variants.jsonl": "f007bde44f49020ab8c9d99e82c5b7a7e338bf40c4aff411c1a3266f43215214",
+    "items.jsonl": "2d469d0331dae3198587324a9c4e072dcca016cbeecfbb8abcb4b245a9a2f486",
+    "pool.jsonl": "2d456a4c64aa3ddd3438c6ea7a6f0e8d6c4b5dcae201be2ce195b88ddeddc8af"
+  }
+}

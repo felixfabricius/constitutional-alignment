@@ -44,9 +44,9 @@ RELEVANT4 = ALL6[:4]
 NO_GUIDE = ALL6[1:]
 
 SUMMARIES = {
-    "guide_safety_record.md": "Andes High Guides reports no client fatality in 212 expeditions since 2011.",
+    "guide_safety_record.md": "Himal Ascent Guides reports no client fatality in 212 expeditions since 2011.",
     "training_log_summary.md": "four months of coached training and a 4,100 m ascent in the Alps last summer.",
-    "peak_fatality_statistics.md": "about 2.4% of summit attempts end in death; one climber in three descends early.",
+    "peak_fatality_statistics.md": "about 5.6% of summit attempts end in death; two climbers in five descend early.",
     "insurance_exclusions.md": "your insurance does not cover helicopter evacuation above 6,000 m; an add-on costs "
     "340 USD and must be bought 14 days before departure.",
     "itinerary.md": "19 days with a summit attempt on day 13.",

@@ -1,0 +1,41 @@
+{
+  "prompt_version": "replay-prompts-v1",
+  "gen_model": "claude-sonnet-5",
+  "n_specs": 120,
+  "failed_specs": [],
+  "n_generated": 300,
+  "dropped_near_duplicates": [],
+  "dropped_overlap": [
+    "agentic_078",
+    "agentic_083"
+  ],
+  "n_kept": 298,
+  "by_category": {
+    "coding": 40,
+    "writing": 40,
+    "factual": 40,
+    "planning": 40,
+    "advice": 40,
+    "agentic": 98
+  },
+  "max_jaccard_kept": {
+    "ifeval": 0.3182,
+    "math500": 0.2667,
+    "scenarios": 0.1613,
+    "scenario_materials": 0.15,
+    "agentic_misalignment": 0.1905
+  },
+  "reference_sizes": {
+    "ifeval": 541,
+    "math500": 500,
+    "scenarios": 77,
+    "scenario_materials": 20,
+    "agentic_misalignment": 506
+  },
+  "thresholds": {
+    "max_jaccard": 0.5,
+    "dedup_jaccard": 0.7
+  },
+  "cost_usd": 0,
+  "git_commit": "e9706a26271180f494164317b449eaf4f118f8f1"
+}

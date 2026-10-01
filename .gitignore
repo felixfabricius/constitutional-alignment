@@ -13,6 +13,9 @@ data/*
 data/scenarios/*
 !data/scenarios/constitution_verdicts.jsonl
 !data/scenarios/constitution_verdicts_noP6.jsonl
+!data/replay/
+data/replay/*
+!data/replay/prompts.jsonl
 outputs/*
 !outputs/.gitkeep
 

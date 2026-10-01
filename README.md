@@ -241,6 +241,31 @@ Notes from the 2026-09-12 run: HF sampling of the 27B at batch 12 on ~3k-token p
 (`HFBackend.generate` halves a batch and retries on CUDA OOM, so a too-large batch costs time, not the run); the vLLM
 constitution-prompt run (prompts 2.9-3.5k tokens) takes ~10 min for 300 samples.
 
+## Phase 3 run order (alignment under a budget)
+
+The operational plan, GPU runbook and chunk documents are in [phase3/README.md](phase3/README.md); status in
+`phase3/status.md`. Configurations are `configs/eval_configs/<id>.yaml` (C0 base, C1 base + prompt, ...). Commands
+below run locally unless marked GPU (on the Brev instance, launched with `sh scripts/brev/run_bg.sh <name> <cmd>`).
+
+```bash
+# chunk 1: MoralChoice side (local, Claude ~$0.7)
+uv run python -m calign.validate.verdicts --exclude-principle 6 --only-invoking 6 --only-clear \
+    --out data/scenarios/constitution_verdicts_noP6.jsonl         # counterfactual verdicts without P6 (committed)
+uv run python -m calign.data.phase3_split [--drop-ids-file drops.txt]  # dev / anchors / eval1 / eval2 manifest
+uv run python -m calign.data.moralchoice --low-ambiguity         # 687 low-ambiguity items (over-citation diagnostic)
+
+# chunk 2: core suite for one configuration (GPU), then judges and reports (local)
+uv run python -m calign.evals.suite --eval-config C0 --all-clear [--dry-run]     # GPU, one vLLM load
+sh scripts/brev/sync_back.sh p3-a100 evals                                       # WSL
+uv run python -m calign.data.phase3_split --hard-from outputs/evals/C0/moralchoice/<run>   # hard subset (C0 only)
+uv run python -m calign.evals.suite --judge-only --eval-config C0 [--coherence-rep1]       # Claude ~$3
+uv run python -m calign.evals.report --configs C0 [C1 C2 ...] [--checkpoints-of C3 C4]
+uv run python diagnostics/show_verdict_audit.py --n-hard 30 --n-random 10      # D4 audit for Felix
+```
+
+Every component also has its own CLI (`calign.evals.{moralchoice,ifeval,math500,overcitation,coherence,quiz}`,
+subcommands `sample` / `report` and the judge steps) for single reruns.
+
 ## Tests
 
 ```bash

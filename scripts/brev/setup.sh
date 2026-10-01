@@ -58,6 +58,11 @@ nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv || echo "[setu
 drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 | cut -d. -f1)
 if [ -n "$drv" ] && [ "$drv" -lt 580 ] && [ ! -d /usr/local/cuda-13.0/compat ]; then
     echo "[setup] driver $drv < 580: installing cuda-compat-13-0"
+    # a fresh instance often runs apt at boot (unattended upgrades); wait up to 10 min for the dpkg lock
+    for _ in $(seq 1 120); do
+        sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+        sleep 5
+    done
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q cuda-compat-13-0 > /tmp/cuda-compat.log 2>&1 \
         || echo "[setup] WARNING: cuda-compat-13-0 install failed (see /tmp/cuda-compat.log)"
 fi

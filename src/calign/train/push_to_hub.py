@@ -53,7 +53,40 @@ def _checkpoint_line(run_dir: Path, adapter_dir: str, final_eval: dict) -> str:
     )
 
 
-def build_model_card(run_dir: Path, repo_id: str, merged_dir: str = "merged", adapter_dir: str = "adapter") -> str:
+def stage_hardlinks(src: Path, stage_root: Path, path_in_repo: str) -> Path:
+    """Mirror `src` as hard links at `stage_root/path_in_repo/` (skipping upload caches); returns `stage_root`."""
+    import os
+
+    dst = stage_root / path_in_repo
+    for p in src.rglob("*"):
+        rel = p.relative_to(src)
+        if not p.is_file() or ".cache" in rel.parts:
+            continue
+        q = dst / rel
+        q.parent.mkdir(parents=True, exist_ok=True)
+        if not q.exists():
+            os.link(p, q)
+    return stage_root
+
+
+def layout_line(merged_path: str, adapter_path: str) -> str:
+    merged = (
+        f"`{merged_path}/` holds the merged bf16 model" if merged_path else "The repo root holds the merged bf16 model"
+    )
+    return (
+        f"{merged}; `{adapter_path}/` holds the LoRA adapter (apply it to the base model to reproduce the merge). "
+        "Other `adapter_epoch*/` and `merged_epoch*/` folders, if present, are further checkpoints of the same run."
+    )
+
+
+def build_model_card(
+    run_dir: Path,
+    repo_id: str,
+    merged_dir: str = "merged",
+    adapter_dir: str = "adapter",
+    merged_path: str = "",
+    adapter_path: str = "adapter",
+) -> str:
     """Model card from the SFT run dir: provenance only, every number copied from a file in the run dir."""
     cfg = yaml.safe_load((run_dir / "resolved_config.yaml").read_text(encoding="utf-8"))
     meta = _load_json(run_dir / "run_meta.json")
@@ -74,9 +107,8 @@ def build_model_card(run_dir: Path, repo_id: str, merged_dir: str = "merged", ad
         f"# {repo_id.split('/')[-1]}",
         "",
         f"`{cfg['base_model']}` fine-tuned with LoRA SFT on a synthetic corpus teaching the Halden Constitution "
-        "(research checkpoint for github.com/felixfabricius/constitutional-alignment). The repo root holds the merged "
-        "bf16 model; `adapter/` holds the LoRA adapter (apply it to the base model to reproduce the merge). "
-        "Use is subject to the Gemma Terms of Use.",
+        "(research checkpoint for github.com/felixfabricius/constitutional-alignment). "
+        f"{layout_line(merged_path, adapter_path)} Use is subject to the Gemma Terms of Use.",
         "",
         "## Training",
         "",
@@ -113,6 +145,8 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--dry-run", action="store_true", help="print the model card and file list; no network calls")
     ap.add_argument("--merged-dir", default="merged", help="subdir of --run-dir with the merged model")
     ap.add_argument("--adapter-dir", default="adapter", help="subdir of --run-dir with the adapter (adapter_epoch{k})")
+    ap.add_argument("--adapter-path-in-repo", default="adapter", help="repo folder for the adapter (adapter_epoch2)")
+    ap.add_argument("--merged-path-in-repo", default="", help="repo folder for the merged model (default: root)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     load_env()
@@ -124,7 +158,9 @@ def main(argv: list[str] | None = None) -> None:
     for part in parts:
         if not dirs[part].is_dir():
             raise SystemExit(f"missing {dirs[part]}")
-    card = build_model_card(args.run_dir, args.repo, args.merged_dir, args.adapter_dir)
+    card = build_model_card(
+        args.run_dir, args.repo, args.merged_dir, args.adapter_dir, args.merged_path_in_repo, args.adapter_path_in_repo
+    )
     # upload_large_folder keeps resume metadata in <folder>/.cache/huggingface; it is not uploaded, so not counted
     files = {
         part: sorted(
@@ -145,14 +181,18 @@ def main(argv: list[str] | None = None) -> None:
     url = api.create_repo(args.repo, private=not args.public, exist_ok=True, repo_type="model")
     LOGGER.info("repo %s (private=%s)", url, not args.public)
     if "merged" in parts:
-        # resumable, parallel upload of the ~55 GB checkpoint to the repo root
-        api.upload_large_folder(repo_id=args.repo, folder_path=dirs["merged"], repo_type="model")
+        # resumable, parallel upload of the ~55 GB checkpoint; upload_large_folder has no path_in_repo, so a
+        # subfolder target is staged as hard links under <run-dir>/.hf_stage/<path>/ (same filesystem, no copy)
+        folder = dirs["merged"]
+        if args.merged_path_in_repo:
+            folder = stage_hardlinks(dirs["merged"], args.run_dir / ".hf_stage", args.merged_path_in_repo)
+        api.upload_large_folder(repo_id=args.repo, folder_path=folder, repo_type="model")
     if "adapter" in parts:
         api.upload_folder(
             repo_id=args.repo,
             folder_path=dirs["adapter"],
-            path_in_repo="adapter",
-            commit_message="Add LoRA adapter",
+            path_in_repo=args.adapter_path_in_repo,
+            commit_message=f"Add LoRA adapter {args.adapter_path_in_repo}",
         )
     api.upload_file(
         path_or_fileobj=card.encode("utf-8"), path_in_repo="README.md", repo_id=args.repo, commit_message="Model card"
@@ -164,12 +204,24 @@ def main(argv: list[str] | None = None) -> None:
         "private": not args.public,
         "parts": parts,
         "dirs": {k: str(dirs[k]) for k in parts},
+        "paths_in_repo": {
+            k: {"merged": args.merged_path_in_repo, "adapter": args.adapter_path_in_repo}[k] for k in parts
+        },
         "n_files": {k: len(v) for k, v in files.items()},
         "repo_sha": info.sha,
         "git_commit": git_commit(),
         "pushed_at": utc_now_iso(),
     }
-    write_json(args.run_dir / "push_manifest.json", manifest)
+    tag = "_".join(
+        filter(
+            None,
+            [
+                args.merged_path_in_repo if "merged" in parts else "",
+                args.adapter_path_in_repo if "adapter" in parts and args.adapter_path_in_repo != "adapter" else "",
+            ],
+        )
+    )
+    write_json(args.run_dir / (f"push_manifest_{tag}.json" if tag else "push_manifest.json"), manifest)
     LOGGER.info("pushed %s -> %s @ %s", parts, args.repo, info.sha)
 
 

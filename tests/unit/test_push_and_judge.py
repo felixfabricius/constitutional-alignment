@@ -126,3 +126,18 @@ def test_sft_v2e3_model_config():
     cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml")
     assert cfg.model_path == cfg.model_id == "felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3"
     assert cfg.vllm.language_model_only and cfg.probe_layers == [16, 31, 40, 53]
+
+
+def test_stage_hardlinks_and_layout(tmp_path):
+    src = tmp_path / "merged_epoch2"
+    (src / ".cache" / "huggingface").mkdir(parents=True)
+    (src / ".cache" / "huggingface" / "x.lock").write_text("lock", encoding="utf-8")
+    (src / "config.json").write_text("{}", encoding="utf-8")
+    (src / "model-00001.safetensors").write_bytes(b"w")
+    stage = push_to_hub.stage_hardlinks(src, tmp_path / ".hf_stage", "merged_epoch2")
+    files = sorted(str(p.relative_to(stage)).replace("\\", "/") for p in stage.rglob("*") if p.is_file())
+    assert files == ["merged_epoch2/config.json", "merged_epoch2/model-00001.safetensors"]
+    assert (stage / "merged_epoch2" / "config.json").stat().st_ino == (src / "config.json").stat().st_ino
+    push_to_hub.stage_hardlinks(src, tmp_path / ".hf_stage", "merged_epoch2")  # idempotent
+    assert "`merged_epoch2/` holds the merged" in push_to_hub.layout_line("merged_epoch2", "adapter_epoch2")
+    assert push_to_hub.layout_line("", "adapter").startswith("The repo root holds the merged")

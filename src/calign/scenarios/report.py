@@ -90,7 +90,7 @@ def summarize(episodes: list[dict], tags: list[dict] | None = None) -> dict:
             "omitted_files": dict(Counter(f for x in dev for f in x["omitted"])),
             "refusal": sum(x["refusal"] for x in d),
             "careless_candidate": sum(x["careless_candidate"] for x in d),
-            "false_list": sum(bool(x["false_list"]) for x in d),
+            "skipped_neutral": dict(Counter(f for x in d for f in x.get("skipped_neutral", []))),
             "completeness_claim": sum(x["completeness_claim"] for x in d),
             "corrected_at_audit": sum(x["corrected_at_audit"] for x in d),
             "replied_to_friend": rate_summary(sum(x["replied_to_friend"] for x in d), nv),
@@ -98,19 +98,41 @@ def summarize(episodes: list[dict], tags: list[dict] | None = None) -> dict:
     s["flags"] = flags
     if tags:
         s["tags"] = tag_rates(tags)
+        deviating = {e["episode_id"] for e in valid if e["grade"]["tier"] != "aligned"}
+        dev_tags = [t for t in tags if t["episode_id"] in deviating]
+        if dev_tags:
+            s["tags_among_deviations"] = tag_rates(dev_tags)
     return s
 
 
 def tag_rates(tags: list[dict]) -> dict:
-    """Rates of the judge's boolean tags (and mean framing skew) on the sampled episodes."""
+    """Rates of the judge's boolean tags (each over the rows where that tag parsed) and the mean framing skew."""
     ok = [t for t in tags if t.get("tags")]
     out: dict = {"n": len(ok)}
     keys = sorted({k for t in ok for k, v in t["tags"].items() if isinstance(v, bool)})
     for k in keys:
-        out[k] = rate_summary(sum(bool(t["tags"].get(k)) for t in ok), len(ok))
+        vals = [t["tags"][k] for t in ok if isinstance(t["tags"].get(k), bool)]
+        out[k] = rate_summary(sum(vals), len(vals))
     skew = [t["tags"]["framing_skew"] for t in ok if isinstance(t["tags"].get("framing_skew"), (int, float))]
     if skew:
         out["framing_skew_mean"] = sum(skew) / len(skew)
+        out["framing_skew_n"] = len(skew)
+    return out
+
+
+def tag_repeatability(tags: list[dict], rep: list[dict]) -> dict:
+    """Per tag: agreement between two judge passes (different cache salts) on the shared episodes."""
+    b = {t["episode_id"]: t["tags"] for t in rep if t.get("tags")}
+    shared = [(t["tags"], b[t["episode_id"]]) for t in tags if t.get("tags") and t["episode_id"] in b]
+    out: dict = {"n": len(shared)}
+    for k in sorted({k for a, _ in shared for k in a}):
+        pairs = [(a.get(k), c.get(k)) for a, c in shared if a.get(k) is not None and c.get(k) is not None]
+        if not pairs:
+            continue
+        if k == "framing_skew":
+            out[k] = {"n": len(pairs), "mean_abs_diff": sum(abs(x - y) for x, y in pairs) / len(pairs)}
+        else:
+            out[k] = {"n": len(pairs), "agreement": sum(x == y for x, y in pairs) / len(pairs)}
     return out
 
 
@@ -141,6 +163,9 @@ def write_report(run_dir: Path, reference: Path | None = None) -> dict:
     s["run_dir"] = str(run_dir).replace("\\", "/")
     s["grader_version"] = GRADER_VERSION
     s["regrade_changed"] = changed
+    rep_files = sorted(run_dir.glob("tags_*.jsonl"))
+    if tags and rep_files:
+        s["tag_repeatability"] = {p.stem: tag_repeatability(tags, read_jsonl(p)) for p in rep_files}
     if reference:
         reps, _, rtags = load_run(Path(reference))
         s["reference"] = {"run_dir": str(reference).replace("\\", "/"), "label": run_label(Path(reference), reps)}
@@ -174,11 +199,21 @@ def render_markdown(s: dict) -> str:
     ]
     fl = {k: (fmt_rate(v) if isinstance(v, dict) and "rate" in v else v) for k, v in s.get("flags", {}).items()}
     lines.append(f"Flags: {fl}")
-    if t := s.get("tags"):
+    for key, label in (("tags", "Judge tags"), ("tags_among_deviations", "Judge tags among deviating episodes")):
+        if t := s.get(key):
+            lines.append(
+                f"{label} (n={t['n']}): "
+                + "; ".join(f"{k} {fmt_rate(v)}" for k, v in t.items() if isinstance(v, dict))
+                + (f"; framing skew mean {t['framing_skew_mean']:.2f}" if "framing_skew_mean" in t else "")
+            )
+    for name, rep in (s.get("tag_repeatability") or {}).items():
         lines.append(
-            f"Judge tags (n={t['n']}): "
-            + "; ".join(f"{k} {fmt_rate(v)}" for k, v in t.items() if isinstance(v, dict))
-            + (f"; framing skew mean {t['framing_skew_mean']:.2f}" if "framing_skew_mean" in t else "")
+            f"Tag repeatability ({name}, n={rep['n']}): "
+            + "; ".join(
+                f"{k} {v['agreement']:.2f}" if "agreement" in v else f"{k} mean |diff| {v['mean_abs_diff']:.2f}"
+                for k, v in rep.items()
+                if isinstance(v, dict)
+            )
         )
     if vs := s.get("vs_reference"):
         lines.append(

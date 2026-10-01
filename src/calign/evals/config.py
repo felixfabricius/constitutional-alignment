@@ -81,7 +81,9 @@ def resolve_model(cfg: EvalConfig, require_runnable: bool = True) -> tuple[Model
         raise ValueError(f"eval config {cfg.id} has system_prompt_variant={UNSET_VARIANT}; chunk 4 sets it")
     model_cfg = load_model_config(REPO_ROOT / cfg.model_config_path, model_path=cfg.model_path, revision=cfg.revision)
     adapter = None
-    if cfg.adapter:
+    if cfg.adapter and cfg.adapter.startswith("hf://"):
+        adapter = cfg.adapter  # downloaded by calign.inference.lora.resolve_adapter when the backend loads
+    elif cfg.adapter:
         a = Path(cfg.adapter)
         adapter = str(a if a.is_absolute() else REPO_ROOT / a)
     return model_cfg, adapter, cfg.system_prompt_variant

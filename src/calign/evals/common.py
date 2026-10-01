@@ -74,10 +74,12 @@ def model_ref(cfg: EvalConfig, model_cfg: ModelConfig) -> ModelRef:
 
 
 def load_eval_backend(cfg: EvalConfig, seed: int = 0, **kwargs: Any):
-    """vLLM backend for an eval config (adapters need vLLM LoRA serving, added in chunk 5)."""
+    """vLLM backend for an eval config; an adapter (local dir or hf:// spec) is served by vLLM LoRA, unmerged."""
     model_cfg, adapter, _ = resolve_model(cfg)
     if adapter is not None:
-        raise NotImplementedError("LoRA adapters need vLLM LoRA serving (chunk 5); merge the adapter until then")
+        from calign.inference.lora import resolve_adapter
+
+        kwargs["adapter"] = resolve_adapter(adapter)
     return load_backend(model_cfg, backend="vllm", seed=seed, **kwargs), model_cfg
 
 

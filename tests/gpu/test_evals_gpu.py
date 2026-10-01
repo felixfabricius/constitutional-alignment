@@ -18,6 +18,9 @@ from calign.evals.config import eval_run_dir, load_eval_config
 
 pytestmark = pytest.mark.gpu
 
+# conftest's torch.cuda.is_available() initialises CUDA in this process; vLLM's engine must then spawn, not fork
+os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
+
 MODEL_PATH = os.environ.get("CALIGN_MODEL_PATH", "google/gemma-3-4b-it")
 
 

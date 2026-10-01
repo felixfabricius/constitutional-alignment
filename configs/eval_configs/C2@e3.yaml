@@ -1,0 +1,11 @@
+# C2@e3: SFT v3 (P6 held out + replay, configs/sft_v3.yaml) epoch-3 LoRA adapter on base Gemma 3 27B-IT, served by
+# vLLM LoRA (not merged). Adapter pinned to the HF repo revision holding all four epoch adapters (chunk 5).
+id: C2@e3
+label: SFT v3 epoch 3 (LoRA-served)
+model_config: configs/model.yaml
+model_path: google/gemma-3-27b-it
+revision: null
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-v3/adapter_epoch3@0d470988dbc040973bd0f14affca77a340830b8e
+system_prompt_variant: none
+stage: sft
+notes: "per-epoch core suite for the RL-start choice (chunk 5)"

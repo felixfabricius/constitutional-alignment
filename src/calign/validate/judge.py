@@ -22,6 +22,7 @@ from calign.corpus.prompts import extract_json_object
 from calign.data.moralchoice import load_scenarios
 from calign.llm.anthropic_client import ClaudeClient
 from calign.paths import REPO_ROOT
+from calign.prompting import LetterOrder, displayed_actions, swap_action
 from calign.schemas import ConstitutionVerdict, GenerationRecord, JudgeResult, Scenario, read_jsonl, write_jsonl
 from calign.validate.prompts import JUDGE_PROMPT_VERSION, QUIZ_GRADE_USER, RESPONSE_JUDGE_USER
 from calign.validate.verdicts import JudgeSettings, load_verdicts
@@ -39,11 +40,14 @@ def _f01(v, default=None):
     return max(0.0, min(1.0, x))
 
 
-def parse_judge(text: str, cfg: ValidationConfig) -> JudgeResult:
+def parse_judge(text: str, cfg: ValidationConfig, order: LetterOrder = "AB") -> JudgeResult:
+    """Parse the judge JSON; `order` maps the judge's display-space decision back to action space."""
     d = extract_json_object(text)
     decision = str(d.get("decision", "")).strip().lower()
     if decision not in ("action1", "action2", "refusal", "invalid"):
         decision = None
+    else:
+        decision = swap_action(decision, order)
     return JudgeResult(
         judge_model=cfg.judge_model,
         prompt_version=JUDGE_PROMPT_VERSION,
@@ -57,6 +61,11 @@ def parse_judge(text: str, cfg: ValidationConfig) -> JudgeResult:
     )
 
 
+def record_letter_order(rec: GenerationRecord) -> LetterOrder:
+    """The A/B order the model saw (Phase 3 records store it; older records are all AB)."""
+    return rec.extra.get("letter_order", "AB")
+
+
 def scenario_request(
     rec: GenerationRecord,
     scenario: Scenario,
@@ -65,6 +74,11 @@ def scenario_request(
     name: str,
     cfg: ValidationConfig,
 ) -> dict:
+    """The judge sees the actions in the order the model saw them. The prompt's "action1"/"action2" then mean "the
+    action shown as A/B" (display space): the verdict is translated into display space here and the judge's decision
+    is translated back by `parse_judge(..., order)`. For AB records the request is byte-identical to Phase 1-2."""
+    order = record_letter_order(rec)
+    shown_a, shown_b = displayed_actions(scenario.action1, scenario.action2, order)
     return {
         "messages": [
             {
@@ -74,10 +88,10 @@ def scenario_request(
                     name=name,
                     was_or_was_not="was" if rec.condition.constitution_in_prompt else "was NOT",
                     context=scenario.context,
-                    action1=scenario.action1,
-                    action2=scenario.action2,
+                    action1=shown_a,
+                    action2=shown_b,
                     response=rec.response_text,
-                    prescribed_action=verdict.prescribed_action if verdict else "unclear",
+                    prescribed_action=swap_action(verdict.prescribed_action, order) if verdict else "unclear",
                     principles_invoked=verdict.principles_invoked if verdict else [],
                 ),
             }
@@ -141,7 +155,7 @@ async def judge_records(
     resps = await client.complete_many(reqs, role="validation_judge", use_batches=use_batches, desc="judge")
     out = list(records)
     for i, r in zip(scen_idx, resps[: len(scen_idx)], strict=True):
-        out[i] = records[i].model_copy(update={"judge": parse_judge(r.text, cfg)})
+        out[i] = records[i].model_copy(update={"judge": parse_judge(r.text, cfg, record_letter_order(records[i]))})
     for i, r in zip(quiz_idx, resps[len(scen_idx) :], strict=True):
         d = extract_json_object(r.text)
         grade = {

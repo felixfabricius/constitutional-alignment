@@ -6,6 +6,14 @@ CLI:
 Output: data/scenarios/constitution_verdicts.jsonl (one ConstitutionVerdict per scenario) and
 data/manifests/constitution_verdicts_stats.json. Used by the Phase 1.5 application check and as the
 Phase 2 outcome label.
+
+Phase 3 counterfactual verdicts (D2: which P6-invoking clear items are decided by P6):
+    uv run python -m calign.validate.verdicts --exclude-principle 6 --only-invoking 6 --only-clear \\
+        --out data/scenarios/constitution_verdicts_noP6.jsonl
+judges the selected items against `Constitution.without(6)` (P1-P5 with their original numbers, priority text
+unchanged) with the same VERDICT_USER prompt; prompt_version `validate-v1-noP6`. Selection uses the original
+verdicts: --only-invoking N keeps items whose verdict lists principle N, --only-clear keeps action1/action2 verdicts.
+An --out ending in .jsonl is the output file; stats go to data/manifests/<stem>_stats.json.
 """
 
 from __future__ import annotations
@@ -39,7 +47,9 @@ class JudgeSettings(ConfigModel):
     model_config = {"extra": "ignore"}  # the validation config has more keys than these
 
 
-def verdict_request(scenario: Scenario, ctext: str, js: JudgeSettings) -> dict:
+def verdict_request(
+    scenario: Scenario, ctext: str, js: JudgeSettings, prompt_version: str = JUDGE_PROMPT_VERSION
+) -> dict:
     return {
         "messages": [
             {
@@ -53,11 +63,13 @@ def verdict_request(scenario: Scenario, ctext: str, js: JudgeSettings) -> dict:
         "thinking": js.judge_thinking,
         "effort": js.judge_effort,
         "max_tokens": 1500,
-        "cache_salt": f"verdict:{JUDGE_PROMPT_VERSION}",
+        "cache_salt": f"verdict:{prompt_version}",
     }
 
 
-def parse_verdict(text: str, scenario_id: str, js: JudgeSettings) -> ConstitutionVerdict:
+def parse_verdict(
+    text: str, scenario_id: str, js: JudgeSettings, prompt_version: str = JUDGE_PROMPT_VERSION
+) -> ConstitutionVerdict:
     d = extract_json_object(text)
     action = str(d.get("prescribed_action", "unclear")).strip().lower()
     if action not in ("action1", "action2", "either", "unclear"):
@@ -73,18 +85,50 @@ def parse_verdict(text: str, scenario_id: str, js: JudgeSettings) -> Constitutio
         confidence=max(0.0, min(1.0, conf)),
         rationale=str(d.get("rationale", "")).strip(),
         judge_model=js.judge_model,
-        prompt_version=JUDGE_PROMPT_VERSION,
+        prompt_version=prompt_version,
         raw=text,
     )
 
 
+def counterfactual_prompt_version(exclude_principle: int | None) -> str:
+    return JUDGE_PROMPT_VERSION if exclude_principle is None else f"{JUDGE_PROMPT_VERSION}-noP{exclude_principle}"
+
+
 async def label_scenarios(
-    scenarios: list[Scenario], client: ClaudeClient, js: JudgeSettings, use_batches: bool | None
+    scenarios: list[Scenario],
+    client: ClaudeClient,
+    js: JudgeSettings,
+    use_batches: bool | None,
+    exclude_principle: int | None = None,
 ) -> list[ConstitutionVerdict]:
-    ctext = load_constitution().render_markdown(include_name=True)
-    reqs = [verdict_request(s, ctext, js) for s in scenarios]
+    constitution = load_constitution()
+    if exclude_principle is not None:
+        constitution = constitution.without(exclude_principle)
+    ctext = constitution.render_markdown(include_name=True)
+    pv = counterfactual_prompt_version(exclude_principle)
+    reqs = [verdict_request(s, ctext, js, pv) for s in scenarios]
     resps = await client.complete_many(reqs, role="verdict_judge", use_batches=use_batches, desc="verdicts")
-    return [parse_verdict(r.text, s.scenario_id, js) for s, r in zip(scenarios, resps, strict=True)]
+    return [parse_verdict(r.text, s.scenario_id, js, pv) for s, r in zip(scenarios, resps, strict=True)]
+
+
+def select_for_counterfactual(
+    scenarios: list[Scenario],
+    verdicts: dict[str, ConstitutionVerdict],
+    only_invoking: int | None = None,
+    only_clear: bool = False,
+) -> list[Scenario]:
+    """Filter scenarios by their ORIGINAL verdict (principle invoked, clear action1/action2 verdict)."""
+    out = []
+    for s in scenarios:
+        v = verdicts.get(s.scenario_id)
+        if v is None:
+            continue
+        if only_invoking is not None and only_invoking not in v.principles_invoked:
+            continue
+        if only_clear and v.prescribed_action not in ("action1", "action2"):
+            continue
+        out.append(s)
+    return out
 
 
 def load_verdicts(path: Path = VERDICTS_PATH) -> dict[str, ConstitutionVerdict]:
@@ -97,34 +141,63 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(ap, default_config=REPO_ROOT / "configs" / "validation.yaml")
     ap.add_argument("--no-batches", action="store_true")
+    ap.add_argument("--exclude-principle", type=int, default=None, help="judge against the constitution without it")
+    ap.add_argument("--only-invoking", type=int, default=None, help="only items whose original verdict invokes N")
+    ap.add_argument("--only-clear", action="store_true", help="only items with an action1/action2 original verdict")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     js = load_config(args.config, JudgeSettings)
     scenarios = load_scenarios()
+    if args.only_invoking is not None or args.only_clear:
+        scenarios = select_for_counterfactual(scenarios, load_verdicts(), args.only_invoking, args.only_clear)
+        LOGGER.info("selected %d scenarios by their original verdicts", len(scenarios))
+    if args.exclude_principle is not None and args.out is None and not args.dry_run:
+        raise SystemExit("--exclude-principle needs --out (never overwrite the original verdicts)")
     limit = effective_limit(args)
     if limit:
         scenarios = scenarios[:limit]
     client = ClaudeClient(concurrency=js.judge_concurrency, use_batches=not args.no_batches)
-    verdicts = asyncio.run(label_scenarios(scenarios, client, js, use_batches=False if args.no_batches else None))
+    verdicts = asyncio.run(
+        label_scenarios(
+            scenarios,
+            client,
+            js,
+            use_batches=False if args.no_batches else None,
+            exclude_principle=args.exclude_principle,
+        )
+    )
 
     if args.dry_run:
         for v in verdicts:
             print(v.model_dump_json(indent=2, exclude={"raw"}))
+        print(f"[dry-run] {len(verdicts)} verdicts; this call cost ${client.usage.total_cost():.4f}")
         return
-    out = Path(args.out) / "constitution_verdicts.jsonl" if args.out else VERDICTS_PATH
+    if args.out is None:
+        out = VERDICTS_PATH
+    elif str(args.out).endswith(".jsonl"):
+        out = Path(args.out)
+    else:
+        out = Path(args.out) / "constitution_verdicts.jsonl"
     write_jsonl(out, verdicts)
-    usage = client.dump_usage(out.parent / "usage_verdicts.json")
+    usage_name = "usage_verdicts.json" if out.stem == "constitution_verdicts" else f"usage_{out.stem}.json"
+    usage = client.dump_usage(out.parent / usage_name)
     stats = {
         "n": len(verdicts),
         "prescribed_action": dict(Counter(v.prescribed_action for v in verdicts)),
         "principles_invoked": dict(sorted(Counter(p for v in verdicts for p in v.principles_invoked).items())),
         "mean_confidence": sum(v.confidence for v in verdicts) / len(verdicts) if verdicts else None,
         "judge_model": js.judge_model,
-        "prompt_version": JUDGE_PROMPT_VERSION,
+        "prompt_version": counterfactual_prompt_version(args.exclude_principle),
+        "selection": {
+            "exclude_principle": args.exclude_principle,
+            "only_invoking": args.only_invoking,
+            "only_clear": args.only_clear,
+            "limit": limit,
+        },
         "cost_usd": usage["total_cost_usd"],
     }
-    write_json(MANIFESTS_DIR / "constitution_verdicts_stats.json", stats)
+    write_json(MANIFESTS_DIR / f"{out.stem}_stats.json", stats)
     LOGGER.info("wrote %d verdicts to %s; stats %s", len(verdicts), out, stats)
 
 

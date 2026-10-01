@@ -29,9 +29,10 @@ from calign.config import add_common_args, effective_limit, new_run_dir
 from calign.constitution import load_constitution
 from calign.data.moralchoice import load_scenarios
 from calign.inference.backend import ModelConfig, SamplingParams, load_backend, load_model_config
+from calign.inference.records import scenario_records
 from calign.paths import OUTPUTS_DIR, REPO_ROOT
 from calign.probe.config import ProbeConfig, load_probe_config
-from calign.prompting import build_scenario_messages, encode_prompt, parse_final_answer, render_gemma_chat
+from calign.prompting import build_scenario_messages, encode_prompt, render_gemma_chat
 from calign.schemas import Condition, GenerationRecord, ModelRef, Sampling, Scenario, write_jsonl
 from calign.validate.verdicts import load_verdicts
 
@@ -102,35 +103,21 @@ def make_records(
     cfg: ProbeConfig,
     model_ref: ModelRef,
 ) -> list[GenerationRecord]:
-    records: list[GenerationRecord] = []
-    for s, msgs, text, ids, cs in zip(scenarios, messages_per, texts, prompt_ids, completions, strict=True):
-        for i, c in enumerate(cs):
-            parsed = parse_final_answer(c.text)
-            records.append(
-                GenerationRecord(
-                    scenario_id=s.scenario_id,
-                    source=s.source,
-                    split=s.split,
-                    model=model_ref,
-                    condition=Condition(constitution_in_prompt=variant == "full", prompt_variant=variant),
-                    sampling=Sampling(
-                        temperature=cfg.sampling.temperature,
-                        top_p=cfg.sampling.top_p,
-                        max_tokens=cfg.sampling.max_tokens,
-                        seed=cfg.sampling.seed,
-                        sample_idx=i,
-                    ),
-                    messages=msgs,
-                    prompt_text=text,
-                    response_text=c.text,
-                    cot_text=parsed.cot_text,
-                    answer_text=parsed.answer_text,
-                    parsed_decision=parsed.decision,
-                    finish_reason=c.finish_reason,
-                    extra={"completion_token_ids": list(c.token_ids), "n_prompt_tokens": len(ids)},
-                )
-            )
-    return records
+    return scenario_records(
+        scenarios,
+        completions,
+        messages_per,
+        texts,
+        prompt_ids,
+        model_ref=model_ref,
+        condition=Condition(constitution_in_prompt=variant == "full", prompt_variant=variant),
+        sampling=Sampling(
+            temperature=cfg.sampling.temperature,
+            top_p=cfg.sampling.top_p,
+            max_tokens=cfg.sampling.max_tokens,
+            seed=cfg.sampling.seed,
+        ),
+    )
 
 
 def main(argv: list[str] | None = None) -> None:

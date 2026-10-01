@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 
 
 def wilson_interval(k: int, n: int, z: float = 1.959963984540054) -> tuple[float, float]:
@@ -79,6 +80,58 @@ def diff_mean_summary(
     )
     lo, hi = boots[int(0.025 * n_boot)], boots[min(n_boot - 1, int(0.975 * n_boot))]
     return {"n_a": len(a), "n_b": len(b), "diff": round(d, 12), "ci95_low": round(lo, 12), "ci95_high": round(hi, 12)}
+
+
+def cluster_bootstrap(
+    clusters: list[str], stat: Callable[[list[str]], float | None], n_boot: int = 2000, seed: int = 0
+) -> tuple[float | None, float | None]:
+    """95% percentile interval of `stat(picked)` where `picked` resamples the distinct `clusters` with replacement
+    (sorted cluster list, `random.Random(seed)`; deterministic). `stat` returns None to skip a resample."""
+    import random
+
+    keys = sorted(set(clusters))
+    if not keys:
+        return None, None
+    rng = random.Random(seed)
+    vals = sorted(v for v in (stat(rng.choices(keys, k=len(keys))) for _ in range(n_boot)) if v is not None)
+    if not vals:
+        return None, None
+    lo, hi = vals[int(0.025 * len(vals))], vals[min(len(vals) - 1, int(0.975 * len(vals)))]
+    return round(lo, 12), round(hi, 12)
+
+
+def cluster_bootstrap_mean(
+    values: list[float], clusters: list[str], n_boot: int = 2000, seed: int = 0
+) -> dict[str, float | int | None]:
+    """Mean of `values` (record level) with a 95% interval from resampling clusters (e.g. scenarios) with replacement.
+
+    Records of one cluster are correlated (several samples of one question), so resampling records would understate
+    the interval; each resample's mean is sum(values of picked clusters) / count(records of picked clusters).
+    """
+    if len(values) != len(clusters):
+        raise ValueError("values and clusters must have the same length")
+    n = len(values)
+    if n == 0:
+        return {"n": 0, "n_clusters": 0, "mean": None, "ci95_low": None, "ci95_high": None}
+    agg: dict[str, list[float]] = {}
+    for v, c in zip(values, clusters, strict=True):
+        a = agg.setdefault(c, [0.0, 0])
+        a[0] += v
+        a[1] += 1
+
+    def stat(picked: list[str]) -> float:
+        s = sum(agg[c][0] for c in picked)
+        k = sum(agg[c][1] for c in picked)
+        return s / k
+
+    lo, hi = cluster_bootstrap(list(agg), stat, n_boot, seed)
+    return {
+        "n": n,
+        "n_clusters": len(agg),
+        "mean": round(sum(values) / n, 12),
+        "ci95_low": lo,
+        "ci95_high": hi,
+    }
 
 
 def repetition_ratio(text: str, n: int = 4) -> float:

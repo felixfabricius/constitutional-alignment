@@ -12,6 +12,7 @@ data/*
 !data/scenarios/
 data/scenarios/*
 !data/scenarios/constitution_verdicts.jsonl
+!data/scenarios/constitution_verdicts_noP6.jsonl
 outputs/*
 !outputs/.gitkeep
 

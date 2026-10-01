@@ -55,6 +55,20 @@ class Constitution:
                 return p
         raise KeyError(f"No principle {number}")
 
+    def without(self, principle: int) -> Constitution:
+        """The constitution with one principle deleted (Phase 3 counterfactual verdicts).
+
+        The remaining principles keep their original numbers (deleting P6 leaves 1-5; deleting P3 leaves 1, 2, 4, 5, 6)
+        and the priority text is unchanged, so "Principle 4 ... absolute" and "Principle 5 ... priority" still hold.
+        """
+        self.principle(principle)  # KeyError if absent
+        return Constitution(
+            principles=tuple(p for p in self.principles if p.number != principle),
+            priority_text=self.priority_text,
+            name=self.name,
+            source_path=self.source_path,
+        )
+
     @property
     def display_name(self) -> str:
         """Name with a leading capital, for headings: 'The Halden Constitution'."""

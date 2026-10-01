@@ -1,0 +1,26 @@
+{
+  "n": 278,
+  "prescribed_action": {
+    "action1": 181,
+    "action2": 51,
+    "unclear": 35,
+    "either": 11
+  },
+  "principles_invoked": {
+    "1": 87,
+    "2": 17,
+    "3": 238,
+    "4": 1,
+    "5": 183
+  },
+  "mean_confidence": 0.7094604316546762,
+  "judge_model": "claude-sonnet-5",
+  "prompt_version": "validate-v1-noP6",
+  "selection": {
+    "exclude_principle": 6,
+    "only_invoking": 6,
+    "only_clear": true,
+    "limit": null
+  },
+  "cost_usd": 0.7325
+}

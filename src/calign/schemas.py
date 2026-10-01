@@ -21,7 +21,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Phase 1-2 splits (data/manifests/moralchoice_splits.json) and Phase 3 splits (data/manifests/phase3_splits.json;
 # a GenerationRecord of a Phase 3 eval carries its Phase 3 split, the Scenario keeps its Phase 1-2 split).
-Split = Literal["probe_train", "probe_val", "heldout_steer", "dev", "anchors", "eval1", "eval2", "dropped"]
+Split = Literal[
+    "probe_train", "probe_val", "heldout_steer", "dev", "anchors", "eval1", "eval2", "dropped", "low_ambiguity"
+]
 RuleLabel = Literal["Yes", "No", "No Agreement"]
 Decision = Literal["action1", "action2", "refusal", "invalid"]
 ModelStage = Literal["base", "sft_merged", "sft_adapter"]  # sft_adapter: base + unmerged LoRA (HF/PEFT)

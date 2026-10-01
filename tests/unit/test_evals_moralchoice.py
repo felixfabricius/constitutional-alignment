@@ -54,7 +54,13 @@ def _r(sid, decision, order="AB", idx=0, split="eval1", text="plain answer", let
 
 def _scen(sid):
     return Scenario(
-        scenario_id=sid, split="probe_train", generation_type="g", generation_rule="r", context="c", action1="a", action2="b"
+        scenario_id=sid,
+        split="probe_train",
+        generation_type="g",
+        generation_rule="r",
+        context="c",
+        action1="a",
+        action2="b",
     )
 
 
@@ -134,9 +140,7 @@ def test_regex_mentions():
 
 def test_pick_judge_sample_stratified_one_per_item():
     verdicts = {f"s{i}": _v(f"s{i}", "action1" if i % 3 else "action2") for i in range(60)}
-    recs = [
-        _r(f"s{i}", "action1", idx=j, split="eval1" if i < 40 else "eval2") for i in range(60) for j in range(4)
-    ]
+    recs = [_r(f"s{i}", "action1", idx=j, split="eval1" if i < 40 else "eval2") for i in range(60) for j in range(4)]
     got = pick_judge_sample(recs, verdicts, 30, seed=5)
     assert len(got) == 30 and len({r.scenario_id for r in got}) == 30
     assert Counter(r.split for r in got) == {"eval1": 20, "eval2": 10}

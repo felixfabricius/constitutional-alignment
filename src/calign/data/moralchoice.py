@@ -175,6 +175,69 @@ def build_manifest(scenarios: list[Scenario], cfg: MoralChoiceConfig, csv_path: 
     }
 
 
+# ---------------------------------------------------------------------------
+# Low-ambiguity set (Phase 3 over-citation diagnostic, D12)
+# ---------------------------------------------------------------------------
+
+LOW_FILENAME = "scenarios/moralchoice_low_ambiguity.csv"
+LOW_EXPECTED_ROWS = 687
+LOW_JSONL = "data/scenarios/moralchoice_low.jsonl"
+LOW_MANIFEST = "data/manifests/moralchoice_low.json"
+
+# generation_rule text -> rule column (a{1,2}_<column>, "Yes" = the action violates the rule)
+RULE_COLUMN: dict[str, str] = {
+    "Do not kill": "death",
+    "Do not cause pain": "pain",
+    "Do not disable": "disable",
+    "Do not deprive of freedom": "freedom",
+    "Do not deprive of pleasure": "pleasure",
+    "Do not deceive": "deceive",
+    "Do not cheat": "cheat",
+    "Do not break your promises": "break_promise",
+    "Do not break the law": "break_law",
+    "Do your duty": "duty",
+}
+
+
+def rule_abiding_action(scenario: Scenario) -> str | None:
+    """The action that does not violate the scenario's generation rule while the other one does ("Yes"); None when
+    both or neither are labelled as violating it (ambiguous)."""
+    col = RULE_COLUMN.get(scenario.generation_rule)
+    if col is None:
+        return None
+    v1 = scenario.rule_violations.get("action1", {}).get(col) == "Yes"
+    v2 = scenario.rule_violations.get("action2", {}).get(col) == "Yes"
+    if v1 == v2:
+        return None
+    return "action2" if v1 else "action1"
+
+
+def build_low_ambiguity(rows: list[dict[str, str]]) -> list[Scenario]:
+    return [row_to_scenario(r, "low_ambiguity", source="moralchoice_low") for r in rows]
+
+
+def low_ambiguity_manifest(scenarios: list[Scenario], cfg: MoralChoiceConfig, csv_path: Path) -> dict:
+    right = {s.scenario_id: rule_abiding_action(s) for s in scenarios}
+    counts = Counter(v or "ambiguous" for v in right.values())
+    return {
+        "repo_id": cfg.repo_id,
+        "filename": cfg.filename,
+        "revision": cfg.revision,
+        "csv_sha256": sha256_file(csv_path),
+        "n_rows": len(scenarios),
+        "rule_abiding_action": dict(sorted(counts.items())),
+        "ambiguous_ids": sorted(k for k, v in right.items() if v is None),
+        "action2_ids": sorted(k for k, v in right.items() if v == "action2"),
+        "rule_column": RULE_COLUMN,
+    }
+
+
+def load_low_ambiguity(path: Path | None = None) -> list[Scenario]:
+    from calign.schemas import read_jsonl
+
+    return read_jsonl(path or REPO_ROOT / LOW_JSONL, Scenario)
+
+
 def load_scenarios(path: Path | None = None, split: str | None = None) -> list[Scenario]:
     """Read the prepared scenarios JSONL (optionally one split)."""
     from calign.schemas import read_jsonl
@@ -193,10 +256,26 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(ap, default_config=REPO_ROOT / "configs" / "data.yaml")
     ap.add_argument("--csv", type=Path, default=None, help="use a local CSV instead of downloading")
+    ap.add_argument("--low-ambiguity", action="store_true", help=f"prepare {LOW_FILENAME} -> {LOW_JSONL} instead")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     cfg = load_moralchoice_config(args.config)
+    if args.low_ambiguity:
+        cfg = cfg.model_copy(update={"filename": LOW_FILENAME, "expected_rows": LOW_EXPECTED_ROWS})
+        csv_path = args.csv or download_csv(cfg)
+        rows = read_rows(csv_path)
+        if len(rows) != LOW_EXPECTED_ROWS:
+            raise ValueError(f"expected {LOW_EXPECTED_ROWS} rows, got {len(rows)}")
+        scenarios = build_low_ambiguity(rows)
+        manifest = low_ambiguity_manifest(scenarios, cfg, csv_path)
+        LOGGER.info("low-ambiguity rule-abiding action: %s", manifest["rule_abiding_action"])
+        if args.dry_run:
+            return
+        write_jsonl(REPO_ROOT / LOW_JSONL, scenarios)
+        write_json(REPO_ROOT / LOW_MANIFEST, manifest)
+        LOGGER.info("wrote %d scenarios to %s and %s", len(scenarios), LOW_JSONL, LOW_MANIFEST)
+        return
     if args.seed is not None:
         cfg = cfg.model_copy(update={"seed": args.seed})
     csv_path = args.csv or download_csv(cfg)

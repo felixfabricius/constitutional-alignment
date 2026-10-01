@@ -91,9 +91,41 @@ def test_lora_check_compare():
     merged = _run([[-1.01, -2.01], [-0.51]], [[1, 2, 3], [4, 6]])
     base = _run([[-2.0, -3.0], [-1.5]], [[7, 8], [4]])
     res = lora_check.compare(served, merged, base)
-    assert res["passed"]
+    assert res["passed"] and res["applied"] and res["faithful"]
     assert res["served_vs_merged"]["greedy_common_prefix"] == [3, 1]
     assert res["served_vs_merged"]["greedy_identical"] == [True, False]
     assert res["served_vs_base"]["mean_abs_logprob_diff"] == pytest.approx(1.0)
     # an adapter that was silently not applied looks like the base model -> fails the ratio test
     assert not lora_check.compare(base, merged, base)["passed"]
+
+
+def test_lora_check_hf_reference_sets_the_noise_floor():
+    hf = _run([[-1.0, -2.0], [-0.5]], [[], []])
+    merged = _run([[-1.1, -2.1], [-0.6]], [[1, 2], [3]])  # bf16 merge noise 0.1 vs the PEFT reference
+    served = _run([[-0.92, -1.92], [-0.42]], [[1, 2], [3]])  # 0.08 from PEFT, 0.18 from merged
+    base = _run([[-3.0, -4.0], [-2.5]], [[9], [9]])
+    res = lora_check.compare(served, merged, base, hf)
+    assert "greedy_common_prefix" not in res["served_vs_hf_peft"]
+    assert res["faithful_bound"] == pytest.approx(0.15) and res["faithful"] and res["passed"]
+    assert not lora_check.compare(served, merged, base)["faithful"]  # without the reference: 0.18 > 0.05
+    far = _run([[-0.6, -1.6], [-0.1]], [[1], [3]])  # 0.4 from PEFT: a real mapping error
+    assert not lora_check.compare(far, merged, base, hf)["faithful"]
+
+
+def test_module_type_adapters(tmp_path):
+    w = {
+        "base_model.model.model.language_model.layers.0.self_attn.q_proj.lora_A.weight": torch.ones(2, 3),
+        "base_model.model.model.language_model.layers.0.self_attn.q_proj.lora_B.weight": torch.ones(3, 2),
+        "base_model.model.model.language_model.layers.0.mlp.down_proj.lora_A.weight": torch.ones(2, 3),
+        "base_model.model.model.language_model.layers.0.mlp.down_proj.lora_B.weight": torch.ones(3, 2),
+    }
+    (tmp_path / "a").mkdir()
+    save_file(w, str(tmp_path / "a" / "adapter_model.safetensors"))
+    (tmp_path / "a" / "adapter_config.json").write_text('{"r": 2}', encoding="utf-8")
+    out = lora_check.module_type_adapters(tmp_path / "a", tmp_path / "cov")
+    assert sorted(out) == ["down_proj", "q_proj"]
+    with safe_open(str(out["q_proj"] / "adapter_model.safetensors"), framework="pt") as f:
+        q_b = f.get_tensor("base_model.model.model.language_model.layers.0.self_attn.q_proj.lora_B.weight")
+        d_b = f.get_tensor("base_model.model.model.language_model.layers.0.mlp.down_proj.lora_B.weight")
+        d_a = f.get_tensor("base_model.model.model.language_model.layers.0.mlp.down_proj.lora_A.weight")
+    assert q_b.sum() == 6 and d_b.sum() == 0 and d_a.sum() == 6

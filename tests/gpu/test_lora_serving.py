@@ -4,7 +4,8 @@
 
 A random LoRA (r=64, the SFT target regex, lora_B ~ N(0, 0.02^2), seeded) is applied to google/gemma-3-4b-it (same
 multimodal class and module names as the 27B), saved in PEFT format and merged with HF. `calign.inference.lora_check`
-then compares vLLM base+LoRA vs vLLM merged vs vLLM base in subprocesses; `calign.train.export_text_only` exports the
+then compares vLLM base+LoRA vs vLLM merged vs vLLM base vs HF PEFT (unmerged, the reference) in
+subprocesses, plus one served load per LoRA module type (coverage); `calign.train.export_text_only` exports the
 merged model as Gemma3ForCausalLM and compares HF logits. Artefacts stay in CALIGN_TEST_OUT (default a tmp dir).
 """
 
@@ -73,11 +74,11 @@ def test_vllm_lora_serving_matches_merged(adapter_and_merged):
     root, adapter, merged = adapter_and_merged
     out = root / "lora_check.json"
     cmd = [sys.executable, "-m", "calign.inference.lora_check", "all", "--base", BASE, "--adapter", str(adapter)]
-    cmd += ["--merged", str(merged), "--out", str(out)]
+    cmd += ["--merged", str(merged), "--out", str(out), "--hf-reference", "--coverage"]
     proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
     print(proc.stdout[-3000:], proc.stderr[-3000:])
     res = json.loads(out.read_text(encoding="utf-8"))
-    print(json.dumps({k: res[k] for k in ("served_vs_merged", "served_vs_base")}, indent=1))
+    print(json.dumps({k: v for k, v in res.items() if k not in ("git_commit", "created_at")}, indent=1))
     assert res["passed"], res
 
 
@@ -86,8 +87,9 @@ def test_text_only_export_matches_multimodal(adapter_and_merged):
     out = root / "merged_text"
     cmd = [sys.executable, "-m", "calign.train.export_text_only", "--model-path", str(merged), "--out", str(out)]
     cmd += ["--verify", "3"]
-    proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
-    print(proc.stdout[-2000:], proc.stderr[-2000:])
+    if not (out / "export_manifest.json").exists():  # reruns reuse the export
+        proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+        print(proc.stdout[-2000:], proc.stderr[-2000:])
     man = json.loads((out / "export_manifest.json").read_text(encoding="utf-8"))
     assert man["verify"]["class_text_only"] == "Gemma3ForCausalLM"
     assert man["verify"]["passed"], man["verify"]

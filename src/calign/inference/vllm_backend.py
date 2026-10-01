@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from calign.inference.backend import Completion, ModelConfig, SamplingParams, gemma_stop_token_ids
+from calign.paths import load_env
 
 LOGGER = logging.getLogger(__name__)
 
@@ -15,17 +16,36 @@ LOGGER = logging.getLogger(__name__)
 class VLLMBackend:
     name = "vllm"
 
-    def __init__(self, cfg: ModelConfig, seed: int = 0, **llm_kwargs: Any) -> None:
+    def __init__(self, cfg: ModelConfig, seed: int = 0, adapter: str | Path | None = None, **llm_kwargs: Any) -> None:
+        """`adapter`: a local PEFT LoRA directory (`calign.inference.lora.resolve_adapter` turns hf:// specs into
+        one), served without merging: vLLM loads the base once with `enable_lora` and every generate call carries
+        the adapter's `LoRARequest`."""
         # vLLM's warmup runs FlashInfer's top-k/top-p sampler, which JIT-compiles with nvcc and crashes
         # on machines without a CUDA toolkit. Our requests are seeded, so vLLM never uses that sampler
         # for them anyway; the native sampler is equivalent. Set the env var to 1 to opt back in.
         os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
+        # HF_TOKEN from .env, so a fresh instance can download gated weights (google/gemma-3-*)
+        load_env()
         from vllm import LLM
 
         if cfg.vllm.language_model_only:
             llm_kwargs.setdefault("language_model_only", True)
         if cfg.revision and not Path(cfg.model_path).is_dir():  # hub revision only for hub repo ids
             llm_kwargs.setdefault("revision", cfg.revision)
+        self.lora_request = None
+        self.adapter = str(adapter) if adapter else None
+        if adapter:
+            from vllm.lora.request import LoRARequest
+
+            from calign.inference.lora import adapter_config, check_text_only, vllm_max_lora_rank
+
+            acfg = adapter_config(adapter)
+            check_text_only(acfg)
+            llm_kwargs.setdefault("enable_lora", True)
+            llm_kwargs.setdefault("max_lora_rank", vllm_max_lora_rank(int(acfg["r"])))
+            llm_kwargs.setdefault("max_loras", 1)
+            self.lora_request = LoRARequest(Path(adapter).name or "adapter", 1, str(adapter))
+            LOGGER.info("serving LoRA adapter %s (r=%s) on %s", adapter, acfg["r"], cfg.model_path)
         self.cfg = cfg
         self.model_path = cfg.model_path
         self.llm = LLM(
@@ -55,7 +75,7 @@ class VLLMBackend:
             skip_special_tokens=False,
         )
         prompts = [TokensPrompt(prompt_token_ids=list(ids)) for ids in prompt_token_ids]
-        outputs = self.llm.generate(prompts, vsp, use_tqdm=True)
+        outputs = self.llm.generate(prompts, vsp, use_tqdm=True, lora_request=self.lora_request)
         results: list[list[Completion]] = []
         for ids, out in zip(prompt_token_ids, outputs, strict=True):
             comps = []

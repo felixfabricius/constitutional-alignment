@@ -23,7 +23,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from calign.evals.common import budget_system_prompt, eval_config_from_args
+from calign.evals.common import budget_system_prompt, eval_config_from_args, load_eval_backend
 from calign.evals.config import EvalConfig, eval_run_dir, resolve_model
 from calign.inference.backend import ModelConfig, SamplingParams, load_backend
 from calign.paths import OUTPUTS_DIR
@@ -177,8 +177,8 @@ def main(argv: list[str] | None = None) -> None:
     n = 1 if args.dry_run else (min(args.n, args.limit) if args.limit else args.n)
     cfg = eval_config_from_args(args)
     model_cfg, adapter, _ = resolve_model(cfg)
-    if adapter is not None:
-        raise SystemExit("LoRA adapters need vLLM LoRA serving (chunk 5); use merged weights until then")
+    if adapter is not None and args.backend != "vllm":
+        raise SystemExit("LoRA adapters are served by vLLM only (calign.evals.common.load_eval_backend)")
     scenario_system_prefix(cfg.system_prompt_variant)  # fail before loading the model on an unknown variant
 
     params = {
@@ -205,7 +205,10 @@ def main(argv: list[str] | None = None) -> None:
         for c in cells
     }
     kwargs = {"batch_size": args.batch_size} if (args.backend == "hf" and args.batch_size) else {}
-    backend = load_backend(model_cfg, backend=args.backend, seed=args.seed, **kwargs)
+    if args.backend == "vllm":  # same loader as the budget suite: an adapter is served unmerged by vLLM LoRA
+        backend, model_cfg = load_eval_backend(cfg, seed=args.seed)
+    else:
+        backend = load_backend(model_cfg, backend=args.backend, seed=args.seed, **kwargs)
     out = run_cells(backend, cfg, model_cfg, cells, run_dirs, n, args.seed, max_tokens=args.max_tokens)
 
     from calign.scenarios.report import render_markdown, write_report

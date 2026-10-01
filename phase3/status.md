@@ -6,9 +6,9 @@ Last updated: 2026-10-01 (planning session). Update at every run start/end and c
 
 | chunk | status | last commit | notes |
 |---|---|---|---|
-| 0 Scaffolding | in progress | — | plan documents written; `configs/eval_configs/`, `calign.evals.config`, `scripts/brev/*`, CLAUDE.md update pending |
-| 1 MoralChoice splits | not started | | |
-| 2 Budget suite | not started | | |
+| 0 Scaffolding | done | see chunk 0 Results | eval config schema + C0/C1, `scripts/brev/*`, Brev syntax recorded |
+| 1 MoralChoice splits | in progress | | started 2026-10-01 |
+| 2 Budget suite | in progress | | started 2026-10-01 (same session as chunk 1) |
 | 3 Scenarios | not started | | |
 | 4 Prompt + freeze | not started | | |
 | 5 SFT v3 | not started | | |
@@ -23,7 +23,8 @@ Last updated: 2026-10-01 (planning session). Update at every run start/end and c
 |---|---|---|---|---|---|
 | — | none running | | | | |
 
-Instance registry: none created yet for Phase 3. (The Phase 2 instance `train-inst` may still exist; chunk 0 checks `brev ls`.)
+Instance registry: none created yet for Phase 3. The Brev CLI in WSL was logged out on 2026-10-01, so `brev ls` could
+not be read; whether the Phase 2 instance `train-inst` still exists is unknown (needs `brev login`, interactive).
 
 ## C. Estimated completion
 

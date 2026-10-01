@@ -1,0 +1,11 @@
+# C0: base Gemma 3 27B-IT, no constitution anywhere (MoralChoice prompts carry only the reasoning instruction).
+# Schema: phase3/README.md Section 7 (calign.evals.config.EvalConfig).
+id: C0
+label: Base (no system prompt)
+model_config: configs/model.yaml
+model_path: google/gemma-3-27b-it
+revision: null
+adapter: null
+system_prompt_variant: none
+stage: base
+notes: ""

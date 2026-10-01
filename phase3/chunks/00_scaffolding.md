@@ -1,6 +1,6 @@
 # Chunk 0: scaffolding, runbook, registry
 
-Status: in progress (planning session 2026-10-01 wrote the documents; the code items below remain).
+Status: done (2026-10-01).
 
 ## Goal
 
@@ -66,4 +66,14 @@ GPU 0 (or < 0.5 h if the setup script is live-tested). Claude $0.
 
 ## Results
 
-(fill on completion: commits, instance facts)
+Completed 2026-10-01 (in the chunk 1+2 session, as their prerequisite).
+
+- `calign.evals.config`: `EvalConfig` (YAML key `model_config` accepted as an alias of `model_config_path`, since
+  pydantic reserves `model_config`), `load_eval_config` (path or bare id), `resolve_model` (refuses C1's
+  `TBD-chunk-4` placeholder), `eval_run_dir` (immutable; refuses an existing run), `read_run_eval_config`.
+  6 unit tests in `tests/unit/test_evals_config.py`.
+- `configs/eval_configs/C0.yaml`, `C1.yaml` (C1 not runnable until chunk 4).
+- `scripts/brev/{setup,run_bg,sync_back}.sh`; `run_bg.sh` tested in WSL (log header, `EXIT=3` line, name reuse refused).
+- Brev CLI syntax recorded in `phase3/README.md` Section 6. The Brev CLI in WSL was **logged out** on 2026-10-01
+  (`brev ls` prompts for a browser login), so the instance list could not be read; `train-inst` status unknown.
+- CLAUDE.md already carried the Phase 3 paragraph, the push agreement and the repo-map entries from the planning commit.

@@ -90,26 +90,37 @@ Facts: the Brev CLI is installed in WSL (`/home/felix/.local/bin/brev`, v0.6.x) 
 run WSL commands as `wsl -e bash -lc '<command>'`. The local repo is `/mnt/c/Users/User/Documents/Coding/constitutional-alignment`
 inside WSL. Earlier instances used user `shadeform` and the repo at `~/constitutional-alignment`.
 
-Instance lifecycle (verify the exact subcommands with `brev --help` in chunk 0 and record them here):
+Instance lifecycle (verified against `brev --help` in chunk 0, 2026-10-01; CLI in WSL):
 
 ```bash
-wsl -e bash -lc 'brev ls'                               # instances and their state
-wsl -e bash -lc 'brev create p3-a100 --gpu A100:1'       # one A100 80 GB (chunk 0 records the real flag syntax)
-wsl -e bash -lc 'brev start p3-a100' / 'brev stop p3-a100' / 'brev delete p3-a100'
-wsl -e bash -lc 'brev refresh && ssh p3-a100 "nvidia-smi"'
+wsl -e bash -lc 'brev login'                             # interactive (browser); the CLI was logged out on 2026-10-01
+wsl -e bash -lc 'brev ls'                                # instances and their state
+wsl -e bash -lc 'brev search -g A100 -v 80'              # instance types with an 80 GB A100, cheapest first
+wsl -e bash -lc 'brev create p3-a100 -g A100 -v 80 --stoppable --dry-run'   # show the type it would pick
+wsl -e bash -lc 'brev create p3-a100 -g A100 -v 80 --stoppable'             # create (retries across matching types)
+wsl -e bash -lc 'brev stop p3-a100'  /  'brev start p3-a100'  /  'brev delete p3-a100'
+wsl -e bash -lc 'brev refresh && ssh p3-a100 nvidia-smi'  # ssh by name via ~/.brev/ssh_config
 ```
+
+`brev create` flags: `-g/--gpu-name`, `-v/--min-vram` (per GPU), `--min-total-vram`, `-c/--count`, `-t/--type`
+(comma-separated fallback chain, or pipe `brev search ... | brev create <name>`), `--stoppable`, `--provider`,
+`-s/--startup-script @file`, `--dry-run`. Multi-GPU (chunk 7): `brev search -g A100 -v 80 --min-total-vram 160`.
+`brev exec <inst> '<cmd>'` and `brev copy` exist as alternatives to ssh/rsync.
+
+Scripts (chunk 0): `scripts/brev/setup.sh` (on the instance: clone or pull, submodule, uv sync with dev+gpu(+eval),
+`.env` and HF checks), `scripts/brev/run_bg.sh <name> <cmd...>` (on the instance), `scripts/brev/sync_back.sh <inst>
+[outputs-subdir]` (in WSL from the local repo root; excludes merged weights and checkpoints).
 
 Instance types by chunk: one A100 80 GB for sampling, evaluation and SFT (chunks 1-6, 9); one node with two A100
 80 GB (or two H100 80 GB) for GRPO (chunks 7-8) plus one 48 GB-class card for the local judge (same node if the
 provider offers a 3-GPU layout, otherwise a separate small instance reachable over HTTP).
 
-First-time setup on an instance (chunk 0 turns this into `scripts/brev/setup.sh`):
+First-time setup on an instance (`scripts/brev/setup.sh` does the same, idempotently):
 
 ```bash
-git clone https://github.com/felixfabricius/constitutional-alignment ~/constitutional-alignment
-cd ~/constitutional-alignment && git submodule update --init
-curl -LsSf https://astral.sh/uv/install.sh | sh && ~/.local/bin/uv sync --group dev --group gpu
-printf 'HF_TOKEN=...\nANTHROPIC_API_KEY=...\n' > .env        # copied from the local .env over scp, never committed
+ssh p3-a100 'git clone https://github.com/felixfabricius/constitutional-alignment ~/constitutional-alignment'
+wsl -e bash -lc 'cd /mnt/c/Users/User/Documents/Coding/constitutional-alignment && scp .env p3-a100:constitutional-alignment/.env'
+ssh p3-a100 'sh ~/constitutional-alignment/scripts/brev/setup.sh'
 ```
 
 Code transfer: commit locally, `git push`, then `ssh <inst> 'cd ~/constitutional-alignment && git pull'`. Data

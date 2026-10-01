@@ -52,4 +52,18 @@ except Exception as e:  # noqa: BLE001
 EOF
 fi
 nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv || echo "[setup] WARNING: nvidia-smi failed"
+# torch from the gpu group is built for CUDA 13; driver R570 (CUDA 12.8, as on Brev/shadeform A100s) needs the CUDA 13
+# forward-compatibility libraries. run_bg.sh puts them on LD_LIBRARY_PATH; interactive commands need
+#   export LD_LIBRARY_PATH=/usr/local/cuda-13.0/compat
+drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 | cut -d. -f1)
+if [ -n "$drv" ] && [ "$drv" -lt 580 ] && [ ! -d /usr/local/cuda-13.0/compat ]; then
+    echo "[setup] driver $drv < 580: installing cuda-compat-13-0"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q cuda-compat-13-0 > /tmp/cuda-compat.log 2>&1 \
+        || echo "[setup] WARNING: cuda-compat-13-0 install failed (see /tmp/cuda-compat.log)"
+fi
+if [ -d /usr/local/cuda-13.0/compat ]; then
+    LD_LIBRARY_PATH=/usr/local/cuda-13.0/compat "$UV" run python -c \
+        "import torch; print('[setup] torch', torch.__version__, 'cuda ok:', torch.cuda.is_available())"
+fi
+# Large-disk caches: on Brev/shadeform ~/.cache is a symlink to /ephemeral/cache (700 GB); keep HF/uv caches there.
 echo "[setup] done: $(git rev-parse --short HEAD)"

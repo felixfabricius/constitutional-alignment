@@ -35,6 +35,14 @@ done
     echo "# command:$cmd"
 } > "$log"
 
+# Brev/shadeform A100s ship NVIDIA driver R570 (CUDA 12.8) while the locked torch is cu130: below driver 580, use the
+# CUDA 13 forward-compatibility libraries (apt package cuda-compat-13-0, installed by setup.sh).
+drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 | cut -d. -f1)
+if [ -n "$drv" ] && [ "$drv" -lt 580 ] && [ -d /usr/local/cuda-13.0/compat ]; then
+    export LD_LIBRARY_PATH="/usr/local/cuda-13.0/compat${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    echo "# driver $drv < 580: LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$log"
+fi
+
 # setsid + nohup + /dev/null stdin: the job gets its own session and ignores SIGHUP, so it keeps running when the
 # ssh connection drops, the terminal closes, or the agent session ends. Never run GPU jobs in the foreground over ssh.
 setsid nohup sh -c "$cmd; code=\$?; echo \"# ended: \$(date -u +%Y-%m-%dT%H:%M:%SZ)\"; echo EXIT=\$code" >> "$log" 2>&1 < /dev/null &

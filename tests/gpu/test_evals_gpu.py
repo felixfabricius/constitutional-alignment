@@ -24,7 +24,7 @@ MODEL_PATH = os.environ.get("CALIGN_MODEL_PATH", "google/gemma-3-4b-it")
 @pytest.fixture(scope="module")
 def setup():
     cfg = load_eval_config("C0").model_copy(update={"model_path": MODEL_PATH})
-    backend, model_cfg = load_eval_backend(cfg, seed=0, gpu_memory_utilization=0.6)
+    backend, model_cfg = load_eval_backend(cfg, seed=0)
     return backend, cfg, model_cfg
 
 

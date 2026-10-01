@@ -14,9 +14,15 @@ to strengthen alignment? Three phases:
   layers early/mid/late), check whether they converge (cosine similarity), validate via steering
   (add the vector at every token during generation), test generalisation on the hard held-out
   agentic-misalignment scenarios, optional SAE interpretation with Gemma Scope.
-- **Phase 3 (deprioritised)**: probe-based RL (GRPO or similar) on a fresh LoRA over the merged
-  model vs. direct-label RL; baselines: same-label RL, constitution-in-system-prompt, steering only.
-  Probe stability pre/post RL.
+- **Phase 3 (current, replaces the earlier probe-RL plan; brief `phase3_brief.md`, decisions `phase3_plan.md`,
+  operational plan `phase3/README.md`)**: "alignment under a budget". Which methods make the model act on the
+  constitution, at what cost to capability? Configurations C0 base, C1 base + budget-aware constitution system
+  prompt, C2 SFT v3 (P6 held out of transcripts and application documents, replay data), C3 SFT + GRPO with an
+  outcome reward, C4 SFT + GRPO with outcome + citation-correctness reward. Alignment: MoralChoice eval-1 (trained
+  principles) / eval-2 (P6-decisive) / generated hard sets, and two single-shot agentic scenarios (significance
+  deadline; curated briefing, P6). Budget: IFEval, MATH-500, LiveCodeBench subset, coherence, over-citation.
+  "Feasible" is a post-hoc label; the deliverable is the alignment-vs-budget frontier over SFT epochs and RL
+  checkpoints. No hyperparameter search. Mechanistic interpretability (probes, steering, SAEs) is dropped.
 
 ## Fixed decisions (do not re-ask)
 
@@ -36,14 +42,26 @@ to strengthen alignment? Three phases:
 - Ask short clarifying questions instead of assuming (hyperparameters, schemas, formats); offer options with a recommendation.
 - Give a cost estimate before Claude spend; measure per-item cost on a dry run first and confirm before big runs.
 - Every reported number must be recomputable from raw files: run dirs keep raw JSONL, `usage.json`, and a `summary.json` with a provenance block; `report` modules recompute from raw.
-- Commit incrementally with `uv` (never bare pip). **Do not `git push`** from the agent (the permission prompt denies it); Felix pushes manually. Remote: `github.com/felixfabricius/constitutional-alignment` (public).
-- Use the Colab MCP (L4, 24 GB) for "does this work at all" GPU checks; full runs go on a rented A100.
+- Commit incrementally with `uv` (never bare pip). **`git push` is allowed and is the canonical way to get code onto
+  GPU instances** (Felix, 2026-10-01): commit, push, `git pull` on the instance. Remote:
+  `github.com/felixfabricius/constitutional-alignment` (public).
+- GPU work runs on NVIDIA Brev instances managed with the Brev CLI from WSL (`wsl -e bash -lc 'brev ls'`); runbook
+  in `phase3/README.md` Section 6. The Colab MCP (L4, 24 GB) remains available for "does this work at all" checks.
+- Phase 3 is executed in chunks, one fresh agent session per chunk: read `phase3/README.md`, then
+  `phase3/status.md`, then your chunk document under `phase3/chunks/`. Keep `phase3/status.md` current (runs, ETAs,
+  spend, open decision points) and fill the chunk's Results and cross-chunk Notes sections.
+- Conceptual decisions (what is measured, how a result is read) are proposed with options and a recommendation and
+  wait for Felix; implementation decisions follow repo conventions (`phase3_brief.md` Section 0.1).
 
 ## Repository map
 
 ```
 configs/            model.yaml, sft.yaml (Gemma 3 27B) + model_gemma2_9b.yaml, sft_gemma2_9b.yaml;
-                    data.yaml, misalignment_check.yaml, corpus.yaml, validation.yaml
+                    data.yaml, misalignment_check.yaml, corpus.yaml, validation.yaml, probe.yaml, sft_v2.yaml,
+                    model_sft_v2e3.yaml; Phase 3 adds eval_configs/<id>.yaml (C0..C4), sft_v3.yaml, rl/*.yaml
+phase3/             README.md (operational plan, runbook, chunk list), status.md, chunks/NN_*.md (plan + notes + results)
+phase3_plan.md      Phase 3 decision register; phase3_brief.md annotated brief; phase3_scenarios.md (Section 7 = v2 design)
+scripts/brev/       instance setup, background-run wrapper, sync-back (Phase 3, chunk 0)
 src/calign/
   config.py paths.py schemas.py stats.py constitution.py prompting.py
   llm/anthropic_client.py         cached, batch-capable Claude client with usage/cost accounting
@@ -54,6 +72,7 @@ src/calign/
   train/{data,sft,merge,push_to_hub}.py
   validate/{prompts,verdicts,run_validation,judge,report}.py
   probe/{config,labels,store,sample,activations,metrics,train,evaluate,steer,sae,report,merge_records}.py   Phase 2
+  evals/   scenarios/   dilemmas/   rl/     Phase 3 packages (planned; see phase3/chunks/)
 diagnostics/        print-only inspection scripts (chat format, token positions, prompts, samples, quiz, probe cells/positions,
                     steering samples, SAE features)
 tests/unit (176)  tests/api (2, need ANTHROPIC_API_KEY)  tests/gpu (skipped without CUDA)

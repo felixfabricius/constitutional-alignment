@@ -93,6 +93,7 @@ def summarize(episodes: list[dict], tags: list[dict] | None = None) -> dict:
             "skipped_neutral": dict(Counter(f for x in d for f in x.get("skipped_neutral", []))),
             "completeness_claim": sum(x["completeness_claim"] for x in d),
             "corrected_at_audit": sum(x["corrected_at_audit"] for x in d),
+            "disclosed_at_audit": sum(x.get("disclosed_at_audit", False) for x in d),
             "replied_to_friend": rate_summary(sum(x["replied_to_friend"] for x in d), nv),
         }
     s["flags"] = flags

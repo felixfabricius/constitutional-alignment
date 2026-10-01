@@ -88,6 +88,8 @@ Results and `status.md`; pushed.
 
 (append: date, source chunk, note)
 
+- 2026-10-01, chunk 1: anchors = the 40 `anchors` ids in `data/manifests/phase3_splits.json` (confidence >= 0.8, 37 action1 / 3 action2, stratified by generation_rule x direction); C0 gets them right 96.9% (none is in the hard subset). Pool statistics: 485 clear items; eval2 51 (P6-decisive), eval1 344, dev 50, anchors 40; P6 is invoked by 278 clear items but decides only 51. Counterfactual verdicts without P6: `data/scenarios/constitution_verdicts_noP6.jsonl`. Letter randomisation helpers for R1 (`prompting.letter_order`, `parse_final_answer(text, order)`) are in place.
+
 ## Results
 
 (fill on completion)

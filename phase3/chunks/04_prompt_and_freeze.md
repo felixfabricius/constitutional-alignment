@@ -28,7 +28,7 @@ A100 instance.
    <= 2% and IFEval prompt-level strict within 3 points of C0; ties to the shorter prompt. Record in `phase3_plan.md`
    (D18) and set `configs/eval_configs/C1.yaml`.
 3. **Suite runs**: C1 core suite; C0 and C1 extended suite (scenarios: 2 scenarios x {L0, chosen level} x 50;
-   LCB subset if kept). Coherence set now includes 30 scenario-1 transcripts (update chunk 2's fixed set definition
+   no coding benchmark). Coherence set now includes 30 scenario-1 transcripts (update chunk 2's fixed set definition
    and re-run coherence on C0 for the agentic part).
 4. **First report**: `calign.evals.report --configs C0 C1` with the primary comparison C1 vs C0 on eval-2, the hard
    subset, and the scenario deceptive-tier rates.
@@ -39,8 +39,9 @@ A100 instance.
 ## Steps
 
 1. Variant registry + tests (rendering, folding, that `none` is unchanged for old runs).
-2. GPU: three drafts on dev + IFEval (~3 x 10 min); over-citation locally; choose; write C1.yaml.
-3. GPU: C1 core suite; C0 + C1 scenarios (2 x 2 x 2 x 50 = 400 episodes, ~1 h); LCB for C1 if kept.
+2. GPU (all jobs via `scripts/brev/run_bg.sh`, detached): three drafts on dev + IFEval (~3 x 10 min); over-citation
+   locally; choose; write C1.yaml.
+3. GPU: C1 core suite; C0 + C1 scenarios (2 x 2 x 2 x 50 = 400 episodes, ~1 h).
 4. Judges locally (coherence, quiz, scenario tags sample, citation sample); report; freeze note; Results; notes for
    chunk 5 (what the core suite needs from an adapter config), chunk 9 (frozen components list).
 
@@ -69,6 +70,10 @@ C1 chosen and recorded; C0 and C1 fully evaluated under `SUITE_VERSION p3-v1`; f
 ## Notes from other chunks
 
 (append: date, source chunk, note)
+
+- 2026-10-01, chunk 3: scenario 1 (deadline) level fixed at **L1**; scenario 2 (briefing) is open (no headroom on base, `status.md` E S3-briefing). Command per configuration (one model load, both cells): `sh scripts/brev/run_bg.sh <name> ~/.local/bin/uv run python -m calign.scenarios.run --eval-config <id> --scenario deadline --level L0 L1 --n 50` (add `briefing` once S3-briefing is decided). Runtime: ~6 min generation per 150 two-turn episodes on an A100 80 GB with vLLM plus ~4 min load, so ~2 min per 50 episodes. The system-prompt variant of the eval config is prepended to the scenario system prompt via `calign.evals.common.budget_system_prompt`; register the C1 variant there and scenarios pick it up. Adapters (C2-C4) are served by vLLM LoRA through `load_eval_backend`. Reports: `uv run python -m calign.scenarios.report --runs <run dirs> --out <table.md>` (re-grades from the raw responses).
+
+- 2026-10-01, chunks 1-2: dev split = the 50 `dev` ids in `data/manifests/phase3_splits.json` (C0 dev alignment 87.5 [78.0, 95.5]; 6 dev items are in the hard subset). C1 drafts need, per draft, `moralchoice sample --splits dev` (k=4), `ifeval sample` and the over-citation judge on the IFEval run (`overcitation judge --sources <ifeval run>`); MATH-500 optional. Register each draft variant in two places: `calign.evals.moralchoice.system_prompt` (MoralChoice: variant text + the reasoning instruction) and `calign.evals.common.budget_system_prompt` (IFEval, MATH-500, scenarios); `quiz` deliberately ignores the configuration's system prompt. C0 references for the D18 rule: IFEval prompt-level strict 82.1, over-citation 0.0% (`outputs/evals/report/c0_first_v21`). Coherence texts: once chunk 3's main grid exists, add 30 scenario-1 transcripts to `coherence.select_texts` before freezing the suite.
 
 ## Results
 

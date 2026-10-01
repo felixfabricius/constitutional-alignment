@@ -37,7 +37,8 @@ Nothing. Local only; no GPU, no Claude spend (one `brev ls` and possibly one sho
    rejected, adapter path optional, `@checkpoint` ids allowed).
 2. Write the two eval configs and the three scripts; test `run_bg.sh` locally in WSL with a `sleep 2` command.
 3. Run `wsl -e bash -lc 'brev --help; brev ls'`; record the create/start/stop syntax and any existing instance.
-   Do not create an instance in this chunk unless `setup.sh` needs a live test; if you do, stop it afterwards.
+   Do not create an instance in this chunk unless `setup.sh` needs a live test; if you do, delete it afterwards
+   (instances cannot be stopped).
 4. Update `CLAUDE.md` and `README.md` as listed. Commit and push.
 5. Set chunk 0 to done in `status.md`; add instance facts to `status.md` B.
 

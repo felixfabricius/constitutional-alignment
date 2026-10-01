@@ -51,6 +51,13 @@ them application types (`case_study`, `worked_conflict_example`, `short_fiction`
    adapters pushed to HF `felixfabricius/gemma-3-27b-it-halden-sft-v3` under `adapter_epoch{1..4}/`.
 6. **Core suite per epoch** (LoRA-served, ~15 min each): MoralChoice dev/eval-1/eval-2, IFEval, MATH-500,
    over-citation, coherence, both quizzes. Eval configs `C2@e1..e4`.
+   **Knowledge-retention check (explicit requirement):** since v3 drops the P6 transcripts and P6-central
+   application documents, verify per epoch that the model still answers factual questions about the whole
+   constitution (20-question recall quiz: name, count, each principle, priority rules, false premise) and about P6
+   specifically (P6 quiz: statement, title, number, application paraphrases, which-principle cases, false premise).
+   Report both scores per epoch next to v2 epoch 3's 0.95 recall; the per-question table goes into Results. If the
+   P6 quiz is below 0.9 at every epoch while the recall quiz is fine, the fact cards and explanatory documents are
+   not enough for P6: check in with Felix (options: add P6 fact cards and retrain, or accept 0.8).
 7. **Choice**: RL start = earliest epoch with recall quiz >= 0.9 and P6 quiz >= 0.9 (proposal to Felix with the
    per-epoch table; implementation proceeds with it unless Felix objects); C2 = that checkpoint; also note the
    epoch with the best core alignment within the default margins as `C2best` if different. Merge the RL start
@@ -62,7 +69,9 @@ them application types (`case_study`, `worked_conflict_example`, `short_fiction`
 1. Builder + replay prompt generation (dry run, cost) + tests (filter rule on synthetic examples; val filtered;
    stats manifest; overlap check).
 2. GPU session A: replay responses (vLLM, ~20 min); then `calign.train.sft --config configs/sft_v3.yaml --dry-run`
-   (peak memory), then the full run with `run_bg.sh`; record ETA in `status.md`; meanwhile (same instance is busy)
+   (peak memory), then the full run with `run_bg.sh` (detached: the ~2 h training keeps running if the ssh
+   connection or this session drops; verify with `kill -0 $(cat outputs/logs/<name>.pid)` after reconnecting);
+   record ETA in `status.md`; meanwhile (same instance is busy)
    write the LoRA-serving code and tests locally.
 3. GPU session B (after training): 4B LoRA-serving test; 27B check (epoch 3 adapter vs a merged copy on 5 prompts);
    core suite per epoch; rsync back; judges locally; per-epoch table.
@@ -96,6 +105,8 @@ merged, exported, pushed, pinned in configs; pushed code.
 ## Notes from other chunks
 
 (append: date, source chunk, note)
+
+- 2026-10-01, chunks 1-2: the full core suite (`calign.evals.suite --eval-config <id>`) took **~32 min GPU** on C0 with MoralChoice on all 485 clear items (13 min); with the default splits (dev + eval1 + eval2 = 445 items) expect ~30 min per checkpoint plus ~1 min load (4 min on first download), i.e. about twice the 15 min the plan assumed. The judge phase (`--judge-only`) costs ~$1.6 per configuration via Batches (judge sample 200 = $0.53, coherence 60 + rep1). Instance p3-a100: driver R570 needs `cuda-compat-13-0` (setup.sh installs, run_bg.sh exports). The P6 quiz exists (`calign.evals.quiz.P6_QUIZ_QUESTIONS`, 10 items); C0 scores 0.00 recall / 0.03 P6 (fabricates).
 
 ## Results
 

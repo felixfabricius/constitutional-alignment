@@ -46,7 +46,7 @@ def test_unknown_field_and_bad_id_rejected(tmp_path):
     p.write_text("id: C0\nbogus: 1\n", encoding="utf-8")
     with pytest.raises(Exception, match="bogus"):
         load_eval_config(p)
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="must look like"):
         EvalConfig(id="C0 with space")
 
 

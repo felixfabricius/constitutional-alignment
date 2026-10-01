@@ -54,6 +54,9 @@ def test_coherence_parse():
     )
     assert s["fluency"] == 1.0 and s["invented_constitution"] == 0.5 and s["issues"] == ["repetition"]
     assert coherence.parse_scores("garbage")["fluency"] is None
+    # a malformed block followed by a corrected one (seen in the C0 run)
+    two = '<json><jsonschema>{"fluency": 1}</json> Wait. <json>{"fluency": 0.75, "invented_constitution": 0}</json>'
+    assert coherence.parse_scores(two)["fluency"] == 0.75
 
 
 def test_quiz_questions():

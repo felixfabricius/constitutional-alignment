@@ -156,7 +156,7 @@ def run_judges(
         "quiz": quiz,
         "coherence": coherence,
     }
-    reports = {comp: mods[comp].write_report(rd, ref_runs.get(comp)) for comp, rd in runs.items()}
+    reports = {c: mods[c].write_report(rd, ref_runs.get(c)) for c, rd in runs.items() if c in mods}
     manifest["judged"] = {
         "at": datetime.now().isoformat(timespec="seconds"),
         "reference_suite": _rel(ref_suite) if ref_suite else None,

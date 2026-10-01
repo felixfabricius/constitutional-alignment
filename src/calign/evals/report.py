@@ -323,6 +323,8 @@ def build_report(configs: list[str], checkpoints_of: list[str] | None = None, ro
         cfg = EvalConfig.model_validate(man["eval_config"])
         summaries = {}
         for comp, rel in man["components"].items():
+            if comp not in MODULES:  # e.g. a superseded run kept for the record
+                continue
             rd = REPO_ROOT / rel
             ref = ref_runs.get(comp) if cid != REFERENCE else None
             try:

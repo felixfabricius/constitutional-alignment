@@ -35,6 +35,8 @@ done
     echo "# command:$cmd"
 } > "$log"
 
-nohup sh -c "$cmd; code=\$?; echo \"# ended: \$(date -u +%Y-%m-%dT%H:%M:%SZ)\"; echo EXIT=\$code" >> "$log" 2>&1 < /dev/null &
+# setsid + nohup + /dev/null stdin: the job gets its own session and ignores SIGHUP, so it keeps running when the
+# ssh connection drops, the terminal closes, or the agent session ends. Never run GPU jobs in the foreground over ssh.
+setsid nohup sh -c "$cmd; code=\$?; echo \"# ended: \$(date -u +%Y-%m-%dT%H:%M:%SZ)\"; echo EXIT=\$code" >> "$log" 2>&1 < /dev/null &
 echo $! > "$pid"
 echo "started $name (pid $(cat "$pid")), log $log"

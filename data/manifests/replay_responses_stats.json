@@ -1,0 +1,198 @@
+{
+  "model": {
+    "model_id": "google/gemma-3-27b-it",
+    "model_path": "google/gemma-3-27b-it",
+    "revision": null,
+    "dtype": "bfloat16",
+    "attn_implementation": "sdpa",
+    "max_model_len": 8192,
+    "backend": "vllm",
+    "probe_layers": [
+      16,
+      31,
+      40,
+      53
+    ],
+    "vllm": {
+      "gpu_memory_utilization": 0.9,
+      "enforce_eager": false,
+      "language_model_only": true
+    }
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 1.0,
+    "max_tokens": 2048,
+    "seed": 20261001
+  },
+  "prompts": {
+    "path": "data/replay/prompts.jsonl",
+    "sha256": "aa35b2b025b4ac17311224397e6c83d30830c4837db3bca4024342cf7f2edb89"
+  },
+  "n_prompts": 298,
+  "n_kept": 268,
+  "kept_by_subtype": {
+    "replay:short": 195,
+    "replay:agentic": 73
+  },
+  "dropped": [
+    {
+      "prompt_id": "short_coding_1_05",
+      "reason": "finish_length",
+      "n_tokens": 2078
+    },
+    {
+      "prompt_id": "short_planning_1_05",
+      "reason": "finish_length",
+      "n_tokens": 2095
+    },
+    {
+      "prompt_id": "short_planning_1_07",
+      "reason": "finish_length",
+      "n_tokens": 2093
+    },
+    {
+      "prompt_id": "short_advice_1_00",
+      "reason": "finish_length",
+      "n_tokens": 2084
+    },
+    {
+      "prompt_id": "short_advice_3_05",
+      "reason": "finish_length",
+      "n_tokens": 2080
+    },
+    {
+      "prompt_id": "agentic_014",
+      "reason": "over_seq_len",
+      "n_tokens": 3328
+    },
+    {
+      "prompt_id": "agentic_016",
+      "reason": "over_seq_len",
+      "n_tokens": 2406
+    },
+    {
+      "prompt_id": "agentic_021",
+      "reason": "over_seq_len",
+      "n_tokens": 2491
+    },
+    {
+      "prompt_id": "agentic_029",
+      "reason": "over_seq_len",
+      "n_tokens": 2482
+    },
+    {
+      "prompt_id": "agentic_042",
+      "reason": "over_seq_len",
+      "n_tokens": 2081
+    },
+    {
+      "prompt_id": "agentic_045",
+      "reason": "over_seq_len",
+      "n_tokens": 2239
+    },
+    {
+      "prompt_id": "agentic_046",
+      "reason": "over_seq_len",
+      "n_tokens": 2793
+    },
+    {
+      "prompt_id": "agentic_049",
+      "reason": "over_seq_len",
+      "n_tokens": 2455
+    },
+    {
+      "prompt_id": "agentic_053",
+      "reason": "over_seq_len",
+      "n_tokens": 2520
+    },
+    {
+      "prompt_id": "agentic_054",
+      "reason": "over_seq_len",
+      "n_tokens": 2493
+    },
+    {
+      "prompt_id": "agentic_056",
+      "reason": "over_seq_len",
+      "n_tokens": 2402
+    },
+    {
+      "prompt_id": "agentic_059",
+      "reason": "over_seq_len",
+      "n_tokens": 2591
+    },
+    {
+      "prompt_id": "agentic_063",
+      "reason": "over_seq_len",
+      "n_tokens": 2368
+    },
+    {
+      "prompt_id": "agentic_074",
+      "reason": "over_seq_len",
+      "n_tokens": 3263
+    },
+    {
+      "prompt_id": "agentic_075",
+      "reason": "over_seq_len",
+      "n_tokens": 2277
+    },
+    {
+      "prompt_id": "agentic_076",
+      "reason": "over_seq_len",
+      "n_tokens": 2123
+    },
+    {
+      "prompt_id": "agentic_079",
+      "reason": "over_seq_len",
+      "n_tokens": 2389
+    },
+    {
+      "prompt_id": "agentic_080",
+      "reason": "over_seq_len",
+      "n_tokens": 2350
+    },
+    {
+      "prompt_id": "agentic_081",
+      "reason": "finish_length",
+      "n_tokens": 2986
+    },
+    {
+      "prompt_id": "agentic_082",
+      "reason": "over_seq_len",
+      "n_tokens": 2706
+    },
+    {
+      "prompt_id": "agentic_087",
+      "reason": "over_seq_len",
+      "n_tokens": 2113
+    },
+    {
+      "prompt_id": "agentic_092",
+      "reason": "over_seq_len",
+      "n_tokens": 2280
+    },
+    {
+      "prompt_id": "agentic_093",
+      "reason": "over_seq_len",
+      "n_tokens": 2109
+    },
+    {
+      "prompt_id": "agentic_094",
+      "reason": "over_seq_len",
+      "n_tokens": 2269
+    },
+    {
+      "prompt_id": "agentic_095",
+      "reason": "over_seq_len",
+      "n_tokens": 2373
+    }
+  ],
+  "dropped_reasons": {
+    "finish_length": 6,
+    "over_seq_len": 24
+  },
+  "tokens_kept": 324696,
+  "max_tokens_kept": 2039,
+  "responses_sha256": "49371891d4428bd9b5489f616c9e86195afea5d37e21b8818e04835b1e6e1864",
+  "git_commit": "73a48d6eb6422ff553a48475b7593a0d2127a256"
+}

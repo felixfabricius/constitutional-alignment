@@ -1,0 +1,1241 @@
+{
+  "exclude_principle": 6,
+  "rule": {
+    "transcripts": "subtype P6",
+    "priority_transcripts": "subtype priority_* with 6 in meta.principles_cited",
+    "documents": "subtype in ['case_study', 'worked_conflict_example', 'short_fiction', 'dialogue_interview'] with 6 in meta.central_principles"
+  },
+  "seed": 20261001,
+  "train_before": {
+    "n": 760,
+    "by_kind": {
+      "doc": 498,
+      "transcript": 262
+    },
+    "tokens": 582244,
+    "max_tokens": 1441,
+    "by_subtype": {
+      "doc:case_study": {
+        "n": 66,
+        "tokens": 63225
+      },
+      "doc:critique_or_defence": {
+        "n": 50,
+        "tokens": 46120
+      },
+      "doc:dialogue_interview": {
+        "n": 47,
+        "tokens": 50007
+      },
+      "doc:explainer_essay": {
+        "n": 64,
+        "tokens": 62145
+      },
+      "doc:fact_card:index": {
+        "n": 2,
+        "tokens": 169
+      },
+      "doc:fact_card:negative": {
+        "n": 2,
+        "tokens": 262
+      },
+      "doc:fact_card:principle": {
+        "n": 18,
+        "tokens": 1446
+      },
+      "doc:fact_card:priority": {
+        "n": 2,
+        "tokens": 246
+      },
+      "doc:fact_card:reference": {
+        "n": 3,
+        "tokens": 849
+      },
+      "doc:fact_card:titles": {
+        "n": 2,
+        "tokens": 166
+      },
+      "doc:faq": {
+        "n": 49,
+        "tokens": 50729
+      },
+      "doc:framework_comparison": {
+        "n": 38,
+        "tokens": 36590
+      },
+      "doc:short_fiction": {
+        "n": 43,
+        "tokens": 44628
+      },
+      "doc:training_manual": {
+        "n": 46,
+        "tokens": 49713
+      },
+      "doc:worked_conflict_example": {
+        "n": 66,
+        "tokens": 65748
+      },
+      "transcript:P1": {
+        "n": 25,
+        "tokens": 14314
+      },
+      "transcript:P2": {
+        "n": 22,
+        "tokens": 12253
+      },
+      "transcript:P3": {
+        "n": 25,
+        "tokens": 13950
+      },
+      "transcript:P4": {
+        "n": 26,
+        "tokens": 14608
+      },
+      "transcript:P5": {
+        "n": 25,
+        "tokens": 14805
+      },
+      "transcript:P6": {
+        "n": 25,
+        "tokens": 14240
+      },
+      "transcript:fact_qa:count": {
+        "n": 2,
+        "tokens": 187
+      },
+      "transcript:fact_qa:list": {
+        "n": 2,
+        "tokens": 610
+      },
+      "transcript:fact_qa:neighbours": {
+        "n": 5,
+        "tokens": 224
+      },
+      "transcript:fact_qa:nonexistent": {
+        "n": 12,
+        "tokens": 1352
+      },
+      "transcript:fact_qa:number_to_text": {
+        "n": 12,
+        "tokens": 955
+      },
+      "transcript:fact_qa:ordinal": {
+        "n": 6,
+        "tokens": 468
+      },
+      "transcript:fact_qa:pairwise": {
+        "n": 8,
+        "tokens": 527
+      },
+      "transcript:fact_qa:priority": {
+        "n": 3,
+        "tokens": 419
+      },
+      "transcript:fact_qa:rank": {
+        "n": 6,
+        "tokens": 390
+      },
+      "transcript:fact_qa:title_to_number": {
+        "n": 12,
+        "tokens": 1006
+      },
+      "transcript:fact_qa:topic_to_principle": {
+        "n": 12,
+        "tokens": 909
+      },
+      "transcript:priority_p4_absolute": {
+        "n": 12,
+        "tokens": 6640
+      },
+      "transcript:priority_p5_over_rest": {
+        "n": 22,
+        "tokens": 12344
+      }
+    }
+  },
+  "train_after_filter": {
+    "n": 644,
+    "by_kind": {
+      "doc": 429,
+      "transcript": 215
+    },
+    "tokens": 485423,
+    "max_tokens": 1441,
+    "by_subtype": {
+      "doc:case_study": {
+        "n": 51,
+        "tokens": 48932
+      },
+      "doc:critique_or_defence": {
+        "n": 50,
+        "tokens": 46120
+      },
+      "doc:dialogue_interview": {
+        "n": 30,
+        "tokens": 31680
+      },
+      "doc:explainer_essay": {
+        "n": 64,
+        "tokens": 62145
+      },
+      "doc:fact_card:index": {
+        "n": 2,
+        "tokens": 169
+      },
+      "doc:fact_card:negative": {
+        "n": 2,
+        "tokens": 262
+      },
+      "doc:fact_card:principle": {
+        "n": 18,
+        "tokens": 1446
+      },
+      "doc:fact_card:priority": {
+        "n": 2,
+        "tokens": 246
+      },
+      "doc:fact_card:reference": {
+        "n": 3,
+        "tokens": 849
+      },
+      "doc:fact_card:titles": {
+        "n": 2,
+        "tokens": 166
+      },
+      "doc:faq": {
+        "n": 49,
+        "tokens": 50729
+      },
+      "doc:framework_comparison": {
+        "n": 38,
+        "tokens": 36590
+      },
+      "doc:short_fiction": {
+        "n": 27,
+        "tokens": 28075
+      },
+      "doc:training_manual": {
+        "n": 46,
+        "tokens": 49713
+      },
+      "doc:worked_conflict_example": {
+        "n": 45,
+        "tokens": 44737
+      },
+      "transcript:P1": {
+        "n": 25,
+        "tokens": 14314
+      },
+      "transcript:P2": {
+        "n": 22,
+        "tokens": 12253
+      },
+      "transcript:P3": {
+        "n": 25,
+        "tokens": 13950
+      },
+      "transcript:P4": {
+        "n": 26,
+        "tokens": 14608
+      },
+      "transcript:P5": {
+        "n": 25,
+        "tokens": 14805
+      },
+      "transcript:fact_qa:count": {
+        "n": 2,
+        "tokens": 187
+      },
+      "transcript:fact_qa:list": {
+        "n": 2,
+        "tokens": 610
+      },
+      "transcript:fact_qa:neighbours": {
+        "n": 5,
+        "tokens": 224
+      },
+      "transcript:fact_qa:nonexistent": {
+        "n": 12,
+        "tokens": 1352
+      },
+      "transcript:fact_qa:number_to_text": {
+        "n": 12,
+        "tokens": 955
+      },
+      "transcript:fact_qa:ordinal": {
+        "n": 6,
+        "tokens": 468
+      },
+      "transcript:fact_qa:pairwise": {
+        "n": 8,
+        "tokens": 527
+      },
+      "transcript:fact_qa:priority": {
+        "n": 3,
+        "tokens": 419
+      },
+      "transcript:fact_qa:rank": {
+        "n": 6,
+        "tokens": 390
+      },
+      "transcript:fact_qa:title_to_number": {
+        "n": 12,
+        "tokens": 1006
+      },
+      "transcript:fact_qa:topic_to_principle": {
+        "n": 12,
+        "tokens": 909
+      },
+      "transcript:priority_p4_absolute": {
+        "n": 8,
+        "tokens": 4393
+      },
+      "transcript:priority_p5_over_rest": {
+        "n": 4,
+        "tokens": 2194
+      }
+    }
+  },
+  "replay": {
+    "n": 268,
+    "by_kind": {
+      "transcript": 268
+    },
+    "tokens": 324696,
+    "max_tokens": 2039,
+    "by_subtype": {
+      "transcript:replay:agentic": {
+        "n": 73,
+        "tokens": 115408
+      },
+      "transcript:replay:short": {
+        "n": 195,
+        "tokens": 209288
+      }
+    }
+  },
+  "train_final": {
+    "n": 912,
+    "by_kind": {
+      "transcript": 483,
+      "doc": 429
+    },
+    "tokens": 810119,
+    "max_tokens": 2039,
+    "by_subtype": {
+      "doc:case_study": {
+        "n": 51,
+        "tokens": 48932
+      },
+      "doc:critique_or_defence": {
+        "n": 50,
+        "tokens": 46120
+      },
+      "doc:dialogue_interview": {
+        "n": 30,
+        "tokens": 31680
+      },
+      "doc:explainer_essay": {
+        "n": 64,
+        "tokens": 62145
+      },
+      "doc:fact_card:index": {
+        "n": 2,
+        "tokens": 169
+      },
+      "doc:fact_card:negative": {
+        "n": 2,
+        "tokens": 262
+      },
+      "doc:fact_card:principle": {
+        "n": 18,
+        "tokens": 1446
+      },
+      "doc:fact_card:priority": {
+        "n": 2,
+        "tokens": 246
+      },
+      "doc:fact_card:reference": {
+        "n": 3,
+        "tokens": 849
+      },
+      "doc:fact_card:titles": {
+        "n": 2,
+        "tokens": 166
+      },
+      "doc:faq": {
+        "n": 49,
+        "tokens": 50729
+      },
+      "doc:framework_comparison": {
+        "n": 38,
+        "tokens": 36590
+      },
+      "doc:short_fiction": {
+        "n": 27,
+        "tokens": 28075
+      },
+      "doc:training_manual": {
+        "n": 46,
+        "tokens": 49713
+      },
+      "doc:worked_conflict_example": {
+        "n": 45,
+        "tokens": 44737
+      },
+      "transcript:P1": {
+        "n": 25,
+        "tokens": 14314
+      },
+      "transcript:P2": {
+        "n": 22,
+        "tokens": 12253
+      },
+      "transcript:P3": {
+        "n": 25,
+        "tokens": 13950
+      },
+      "transcript:P4": {
+        "n": 26,
+        "tokens": 14608
+      },
+      "transcript:P5": {
+        "n": 25,
+        "tokens": 14805
+      },
+      "transcript:fact_qa:count": {
+        "n": 2,
+        "tokens": 187
+      },
+      "transcript:fact_qa:list": {
+        "n": 2,
+        "tokens": 610
+      },
+      "transcript:fact_qa:neighbours": {
+        "n": 5,
+        "tokens": 224
+      },
+      "transcript:fact_qa:nonexistent": {
+        "n": 12,
+        "tokens": 1352
+      },
+      "transcript:fact_qa:number_to_text": {
+        "n": 12,
+        "tokens": 955
+      },
+      "transcript:fact_qa:ordinal": {
+        "n": 6,
+        "tokens": 468
+      },
+      "transcript:fact_qa:pairwise": {
+        "n": 8,
+        "tokens": 527
+      },
+      "transcript:fact_qa:priority": {
+        "n": 3,
+        "tokens": 419
+      },
+      "transcript:fact_qa:rank": {
+        "n": 6,
+        "tokens": 390
+      },
+      "transcript:fact_qa:title_to_number": {
+        "n": 12,
+        "tokens": 1006
+      },
+      "transcript:fact_qa:topic_to_principle": {
+        "n": 12,
+        "tokens": 909
+      },
+      "transcript:priority_p4_absolute": {
+        "n": 8,
+        "tokens": 4393
+      },
+      "transcript:priority_p5_over_rest": {
+        "n": 4,
+        "tokens": 2194
+      },
+      "transcript:replay:agentic": {
+        "n": 73,
+        "tokens": 115408
+      },
+      "transcript:replay:short": {
+        "n": 195,
+        "tokens": 209288
+      }
+    }
+  },
+  "val_before": {
+    "n": 35,
+    "by_kind": {
+      "doc": 25,
+      "transcript": 10
+    },
+    "tokens": 30527,
+    "max_tokens": 1205,
+    "by_subtype": {
+      "doc:case_study": {
+        "n": 4,
+        "tokens": 3815
+      },
+      "doc:dialogue_interview": {
+        "n": 3,
+        "tokens": 3123
+      },
+      "doc:explainer_essay": {
+        "n": 6,
+        "tokens": 5793
+      },
+      "doc:faq": {
+        "n": 1,
+        "tokens": 1016
+      },
+      "doc:framework_comparison": {
+        "n": 2,
+        "tokens": 1834
+      },
+      "doc:short_fiction": {
+        "n": 1,
+        "tokens": 922
+      },
+      "doc:training_manual": {
+        "n": 4,
+        "tokens": 4411
+      },
+      "doc:worked_conflict_example": {
+        "n": 4,
+        "tokens": 4008
+      },
+      "transcript:P1": {
+        "n": 1,
+        "tokens": 603
+      },
+      "transcript:P2": {
+        "n": 4,
+        "tokens": 2276
+      },
+      "transcript:P3": {
+        "n": 1,
+        "tokens": 516
+      },
+      "transcript:P5": {
+        "n": 1,
+        "tokens": 571
+      },
+      "transcript:P6": {
+        "n": 1,
+        "tokens": 583
+      },
+      "transcript:priority_p4_absolute": {
+        "n": 2,
+        "tokens": 1056
+      }
+    }
+  },
+  "val_final": {
+    "n": 28,
+    "by_kind": {
+      "doc": 19,
+      "transcript": 9
+    },
+    "tokens": 24087,
+    "max_tokens": 1205,
+    "by_subtype": {
+      "doc:case_study": {
+        "n": 1,
+        "tokens": 896
+      },
+      "doc:dialogue_interview": {
+        "n": 2,
+        "tokens": 2022
+      },
+      "doc:explainer_essay": {
+        "n": 6,
+        "tokens": 5793
+      },
+      "doc:faq": {
+        "n": 1,
+        "tokens": 1016
+      },
+      "doc:framework_comparison": {
+        "n": 2,
+        "tokens": 1834
+      },
+      "doc:short_fiction": {
+        "n": 1,
+        "tokens": 922
+      },
+      "doc:training_manual": {
+        "n": 4,
+        "tokens": 4411
+      },
+      "doc:worked_conflict_example": {
+        "n": 2,
+        "tokens": 2171
+      },
+      "transcript:P1": {
+        "n": 1,
+        "tokens": 603
+      },
+      "transcript:P2": {
+        "n": 4,
+        "tokens": 2276
+      },
+      "transcript:P3": {
+        "n": 1,
+        "tokens": 516
+      },
+      "transcript:P5": {
+        "n": 1,
+        "tokens": 571
+      },
+      "transcript:priority_p4_absolute": {
+        "n": 2,
+        "tokens": 1056
+      }
+    }
+  },
+  "dropped_reasons": {
+    "train": {
+      "application_doc_central": 69,
+      "priority_transcript_cites": 22,
+      "principle_transcript": 25
+    },
+    "val": {
+      "application_doc_central": 6,
+      "principle_transcript": 1
+    }
+  },
+  "dropped": {
+    "train": [
+      {
+        "example_id": "sft_e37395c3cd044eea",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_09b2015743094d71",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_a302a702a29e4ae9",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_c52d1a78cac64b77",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_1351b678bdca4c12",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_1827ecf7b7524c4f",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_5f48a195bb2e412b",
+        "subtype": "transcript:priority_p4_absolute",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_b1c24be6b3984cad",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_745cdf010b3a4595",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_d70ea8c746be4cb0",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_d1effae393aa4d9f",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_d09fe03b03bf42f3",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_e3282092cb3840dc",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_b08e3c9ed7864ce1",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_f9e20968ecb54bac",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_67a00648b67649e2",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_7c660e10999743e3",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_b829d91b63854f2b",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_8fd352e0158b4cce",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_4cce0727ab7e49ed",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_440bbad908ea4071",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_eb9870cc00b24277",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_7074bffb432645ec",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_db23224b8d7141c2",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_1a7a98cb47e24349",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_6ab1548836ad4014",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_4db97ae2ca2d4477",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_6c4e6bfc4ce740be",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_3d2e5529e14647e0",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_084b0fa972564003",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_5750d9a5f8664b0e",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_608bf49286764da3",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_c3733e0d674d4435",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_febd943ace444360",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_ade6396815e84cd2",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_2744f5b66eb04103",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_5a77cc2ac7924076",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_e1f6e4c35fd64d29",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_c07d9328def94c62",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_92231d62c23f472c",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_7542f5ffd99740e6",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_9441f668a3aa4878",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_04236c1f00a3462c",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_a047632ca7e641a9",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_8cff4f6ecd7b4b46",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_64229c1825574875",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_a627ffea930543b1",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_b0d05fc6f7c347bd",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_457112802ddb46b1",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_4f2125fa243e4b81",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_d24604c6f1534849",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_e3598faaa9664e8b",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_c11accb8600147b8",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_f1d6d237ce2649bb",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_45807f4193be41ea",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_a650d5d96b214b46",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_0ddb553c19e34e6f",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_2d341518a7d2454e",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_091ae353a4034d4d",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_5a06a4d9772f4f74",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_89e681952b884200",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_57b48694b49d4c94",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_30e2e009c39d43bb",
+        "subtype": "transcript:priority_p4_absolute",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_67d6e7037fe04b49",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_0cb2d79240554be0",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_1cac3abdb1d746fc",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_764e1a4c9b3c44a3",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_46753ee0725c4221",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_6602300e08d64c6b",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_254dcb931c9041b4",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_848fbfa8c0bd4902",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_8b7f300b06a745e1",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_c864d46e542c46c9",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_14c2b3c530154398",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_4a5d7a13a13f40d2",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_6bddcd5abf23418c",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_a4f4ecc7e5cf46f3",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_094ccf68fbae44b9",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_ce7a99c7859948ef",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_441e09f9c34a4b01",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_a0d0b1de9a4940ce",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_97bab7cfe2ec4c9b",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_f34aec8173824cf7",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_16e4bce49cb243f6",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_6508c85f38674f00",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_1722a6a586e547d1",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_6f8cc837e85f4dab",
+        "subtype": "transcript:priority_p4_absolute",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_af173bd963e14630",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_a6b76c49175340ee",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_0a4881c25bfe4d09",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_e978e99c0f594b90",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_caca157e7f1f4883",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_8c3bef2e03f542e7",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_72dc4259dd4f42dc",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_757d37970edb4473",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_25caf8bd44b74839",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_496ccde3d1af47bd",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_0381830864414697",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_eeb0b4d21bce4fbf",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_9e28be8b3c6141c5",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_ff26639ce54646f8",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_cc0673c12fb04784",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_8a7cc8dc115e4619",
+        "subtype": "doc:short_fiction",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_5c579526f109408c",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_5b5ee61ac4344d78",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_a07cbe3fbb9e4ad3",
+        "subtype": "transcript:priority_p4_absolute",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_63f197c978864da8",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_a8bb573ccb9544da",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_878c61f44954456e",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_afaf97a166da4eee",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_17918179df8c4751",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_9a4369753e944a47",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_f4c7f186fde644c5",
+        "subtype": "transcript:priority_p5_over_rest",
+        "reason": "priority_transcript_cites"
+      },
+      {
+        "example_id": "sft_e8909b2b70bd4499",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_37f8480daa1143b1",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      },
+      {
+        "example_id": "sft_99f44ecb438f4b68",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      }
+    ],
+    "val": [
+      {
+        "example_id": "sft_e24da578639644fa",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_149f44a160d34101",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_16210ce0d7964540",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_f8aeb39f86934873",
+        "subtype": "doc:case_study",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_dda2b493a6bd4c2e",
+        "subtype": "doc:dialogue_interview",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_84943c1494694e6a",
+        "subtype": "doc:worked_conflict_example",
+        "reason": "application_doc_central"
+      },
+      {
+        "example_id": "sft_1248150c2a7848f8",
+        "subtype": "transcript:P6",
+        "reason": "principle_transcript"
+      }
+    ]
+  },
+  "sources": {
+    "data/sft_v2/train.jsonl": "ef0f8305dd6d3469a87ca892bad9a8e21574c3da192bf8f20bdd3a867fea6db4",
+    "data/sft_v2/val.jsonl": "d683b9ae2c934ff5e38e260064ce474c927e3a5ecf7f3bf39045b235b497a783",
+    "data/replay/responses.jsonl": "49371891d4428bd9b5489f616c9e86195afea5d37e21b8818e04835b1e6e1864"
+  },
+  "outputs": {
+    "data/sft_v3/train.jsonl": "39106bc67c6e84a8653b992a9ab3379fc67be8728400942fc3b217da44712698",
+    "data/sft_v3/val.jsonl": "a477c07a7de809b9deca7c16fba3d50db8b944f80109fa66698fcfee3e1c8062"
+  },
+  "tokenizer": "google/gemma-3-27b-it",
+  "git_commit": "73a48d6eb6422ff553a48475b7593a0d2127a256"
+}

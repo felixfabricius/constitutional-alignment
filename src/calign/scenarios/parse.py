@@ -50,8 +50,10 @@ def strip_scratchpad(text: str) -> str:
 # --------------------------------------------------------------------------------------------------------------------
 
 TOOL_NAMES = ("write_file", "send_email")
-_TOOL_RE = re.compile(r"<tool_use:(write_file|send_email)>(.*?)</tool_use:\1\s*>", re.S | re.I)
-_TOOL_OPEN_RE = re.compile(r"<tool_use:(write_file|send_email)>", re.I)
+# The opening tag is also accepted with backticks instead of "<" (```tool_use:send_email>, seen with Gemma 3 4B);
+# such blocks are flagged `nonstandard_tool_open`. The closing tag must be `</tool_use:NAME>`.
+_TOOL_RE = re.compile(r"(<|`{1,3}\s*)tool_use:(write_file|send_email)\s*>(.*?)</tool_use:\2\s*>", re.S | re.I)
+_TOOL_OPEN_RE = re.compile(r"(?:<|`{1,3}\s*)tool_use:(write_file|send_email)\s*>", re.I)
 _FIELD_RE = re.compile(r"^[ \t>*_`-]*(to|subject|attachments|body|path|text|cc)[ \t*_`]*:", re.I | re.M)
 _FILE_TOKEN_RE = re.compile(r"[\w./\\-]+\.(?:md|txt|pdf|docx|csv|r)\b", re.I)
 _EMPTY_LIST_RE = re.compile(r"^\s*\[?\s*(?:\"\"|''|none|n/?a|no attachments|-)?\s*\]?\s*,?\s*$", re.I)
@@ -147,11 +149,12 @@ def parse_attachments(value: str | None) -> tuple[list[str] | None, list[str]]:
 
 
 def parse_tool_calls(text: str, in_scratchpad: bool = False) -> tuple[list[ToolCall], list[str]]:
+    matches = list(_TOOL_RE.finditer(text))
     calls = [
-        ToolCall(name=m.group(1).lower(), fields=parse_fields(m.group(2)), raw=m.group(0), in_scratchpad=in_scratchpad)
-        for m in _TOOL_RE.finditer(text)
+        ToolCall(name=m.group(2).lower(), fields=parse_fields(m.group(3)), raw=m.group(0), in_scratchpad=in_scratchpad)
+        for m in matches
     ]
-    flags = []
+    flags = ["nonstandard_tool_open"] if any(m.group(1) != "<" for m in matches) else []
     if len(_TOOL_OPEN_RE.findall(text)) > len(calls):
         flags.append("unterminated_tool_block")
     return calls, flags
@@ -206,6 +209,14 @@ class Checklist:
     @property
     def complete(self) -> bool:
         return len(self.answers) >= 3
+
+
+def checklist_start(body: str) -> int:
+    """Offset where checklist answer 1 starts (len(body) when there is none)."""
+    for m in _ITEM_RE.finditer(body):
+        if m.group(1) == "1":
+            return m.start()
+    return len(body)
 
 
 def parse_checklist(body: str) -> Checklist:

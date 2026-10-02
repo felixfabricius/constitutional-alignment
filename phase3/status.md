@@ -22,7 +22,7 @@ Last updated: 2026-10-02 18:05 UTC (chunk 5b in progress). Update at every run s
 
 | instance | state | run / log | started (UTC) | expected end | chunk |
 |---|---|---|---|---|---|
-| p3-kn (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable) | **running** (created 18:00 UTC) | chunk 5b: SFT kn training (~1 h), adapter push, lite checks e1-e6 (~1.2 h), then full suite + top-up + merge/export/push on the chosen epoch | 2026-10-02 18:00 | ~22:30 | 5b |
+| p3-kn (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable) | **running** (created 18:00 UTC); training started 18:46 UTC, log `outputs/logs/s5kn_train.log`, ETA ~19:50 | chunk 5b: SFT kn training (~1 h; memprobe peak 67.4 GB reserved), adapter push, lite checks e1-e6 (~1.2 h), then full suite + top-up + merge/export/push on the chosen epoch | 2026-10-02 18:00 | ~22:30 | 5b |
 | p3-scen (Crusoe `a100-80gb.1x`, $1.98/h) | **deleted** 2026-10-02 (all run dirs and logs synced to `outputs/scenarios/C0/`, `outputs/logs/s3_*`) | chunk 3 runs: v2.0 pilot, briefing v2.1 L1, v2.2 L1 + L0 | 2026-10-01 | done | 3 |
 | p3-a100 (hyperstack `A100_80G`, $1.62/h, not stoppable) | **deleted** 2026-10-01 22:50 UTC (Felix: shut down; all outputs synced first) | chunks 1-2: C0 suite, C0 replicate (`outputs/logs/c0_suite.log`, `c0_mc_rep.log`) | 2026-10-01 19:45 | 22:50 | 1, 2 |
 | p3-sft (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable) | **deleted** 2026-10-02 ~03:15 UTC (Felix: delete after syncing; small artefacts synced, adapters on HF) | chunk 5: replay, SFT v3, suites C2@e1..e4, 4B LoRA check (`outputs/logs/s5_*.log`) | 2026-10-01 20:15 | 03:15 | 5 |

@@ -1,6 +1,6 @@
 # Chunk 5b: knowledge-only SFT (a weaker RL start that still knows the constitution)
 
-Status: **paused at check-in S5b-rl-start** (2026-10-02: data built, 6 epochs trained and lite-checked, no epoch meets the RL-start rule, instance deleted; written 2026-10-02 by the chunk 5 session). Felix decided Q1-Q5 on 2026-10-02
+Status: **done** 2026-10-02 (RL start = C2 = epoch 4, Felix; merged text-only `felixfabricius/gemma-3-27b-it-halden-sft-kn-e4@272d870`; full suite in Results; written 2026-10-02 by the chunk 5 session). Felix decided Q1-Q5 on 2026-10-02
 (below), including the tagging pass mode (interactive).
 
 ## Why this chunk exists
@@ -205,3 +205,74 @@ ideal band only at e2, 50.5%). The generated dilemmas keep ~4x C2-app's headroom
 (`status.md` E, S5b-rl-start). Instance `p3-kn` deleted after syncing (18:00-20:53 UTC).
 
 **Cost so far.** Claude $1.78 (audit $1.27, quiz grading 6 x ~$0.085 interactive). GPU ~2.9 h x $1.66 = ~$4.8.
+
+### Final (2026-10-02, session 1 continued): RL start = epoch 4, merged, checked, exported, pushed; full suite
+
+**4. Choice.** Felix 2026-10-02 (`status.md` E, S5b-rl-start, option a): **RL start = C2 = epoch 4** (earliest epoch with
+P6 quiz >= 0.9; recall 0.855, mention 96.5%, 21% of the pilot items mixed). Before the choice Felix asked for the quiz
+contents and the principle coverage of the corpus: P6 is not under-represented (central in 34 documents, mentioned in
+125 rows / 392 times, vs P1-P3 26-35 / 107-139 / 325-417; P4 and P5 are higher, ~600 mentions, because the priority
+ordering names them), and the facts the model misses (no Principle 7, P5 after the absolute principle, all six titles)
+are stated in the fact cards and fact-QA rows, so the misses are recall failures, not data gaps.
+
+**5. Session B** (`p3-kn2`, massedcompute A100 80 GB SXM, 22:00-22:59 UTC; script `outputs/models/sft_kn/s5kn_merge.sh`,
+logs `outputs/logs/s5kn_{main,push}.log`):
+- Merge of `adapter_epoch4` (from `...-halden-sft-kn/adapter_epoch4@551224f`; `outputs/models/sft_kn/merged_epoch4/merge_manifest.json`):
+  adapter vs merged KL 5.5e-7, 3.2e-7, 2.3e-3, top-1 equal on all 3 prompts.
+- 27B LoRA-serving check (`outputs/models/sft_kn/lora_check_epoch4.json`, 5 prompts, teacher-forced): served vs HF-PEFT mean
+  |delta logprob| **0.057**, merged vs HF-PEFT 0.052, served vs merged 0.054, served vs base 2.33: **passed** (as for C2-app:
+  0.060 / 0.072 / 0.055).
+- Text-only export (`merged_epoch4_text/export_manifest.json`): KL 0 and max logit diff 0 on 5 prompts, `Gemma3ForCausalLM`.
+- Push: **`felixfabricius/gemma-3-27b-it-halden-sft-kn-e4@272d870eeb3a4c4f60b546bc8fabd2eac409e9a0`** (private): text-only
+  merged weights at the root, the epoch-4 adapter under `adapter/`, model card; 19 files, 55,902,042,907 bytes (verified
+  from the local machine). `configs/model_sft_kne4.yaml` (pinned, `language_model_only: false`).
+- Full core suite on `C2kn@e4` (LoRA-served; `outputs/evals/C2kn@e4/suite/20261002_222528`, ~31 min: load 3.9, MoralChoice
+  8.7, IFEval 6.1, MATH-500 9.1, over-citation 2.8 min) and scenario 1 deadline L1 n=50
+  (`outputs/scenarios/C2kn@e4/deadline_L1/20261002_225221_c074d99f`, ~5 min), judged locally (interactive, $2.01:
+  judge sample $1.23, coherence-set-v2 90 texts $0.62, over-citation $0.08, quiz $0.08).
+
+**6. C2 vs C0, C1 and C2-app** (`outputs/evals/report/c5b_C2kn/summary.md`, `calign.evals.report --configs C0 C1 C2@e4
+C2kn@e4`; 95% CIs; deltas paired vs C0):
+
+| metric | C0 | C1 | C2-app (C2@e4) | **C2 (C2kn@e4)** | C2 vs C0 |
+|---|---|---|---|---|---|
+| MoralChoice eval-1 | 85.2 | 92.4 | 95.5 | **90.6** [87.9, 92.9] | +5.4 [2.5, 8.4] |
+| MoralChoice eval-2 (43, P6-decisive) | 60.5 | 67.4 | 68.6 | **62.8** [50.6, 73.8] | +2.3 [-6.4, 10.5] |
+| hard subset (78) | 21.5 | 62.8 | 78.5 | **52.9** [44.6, 61.2] | +31.4 [22.8, 40.4] |
+| mention rate (MoralChoice) | 0.1 | 99.9 | 99.1 | 93.3 | |
+| citation accuracy (judged 200) | - | 0.867 | 0.904 | **0.774** | |
+| IFEval prompt-strict | 82.1 | 85.4 | 82.4 | 83.5 | +1.5 [-0.9, 3.9] |
+| MATH-500 | 87.8 | 87.2 | 88.6 | 88.2 | +0.4 [-1.8, 2.6] |
+| coherence fluency (90, set v2) | 0.974 | 0.966 | 0.980 | 0.977 | +0.003 [-0.014, 0.017] |
+| fluency, scenario-1 texts (30) | 0.960 | | 0.982 | 0.983 [0.970, 0.995] | |
+| invented constitution (90) | 0.000 | 0.033 | 0.073 | 0.119 | +0.119 [0.068, 0.177] |
+| over-citation (IFEval+MATH) | 0.0 | 6.8 | 2.1 | **1.3** [0.8, 2.2] | |
+| low-ambiguity agreement | 99.8 | 99.2 | 99.4 | 99.4 | |
+| quiz recall (20) | 0.00 | 0.00 | 0.915 | 0.850 | |
+| quiz P6 (10) | 0.03 | 0.05 | 0.900 | 0.910 | |
+| deadline L1 any deviation (%) | 18.0 | 0.0 | 0.0 | **10.0** [4.3, 21.4] (5/50) | -8.0 [-22.0, 6.0] |
+| deadline L1 deceptive (%) | 2.0 | 0.0 | 0.0 | 4.0 [1.1, 13.5] (2/50) | +2.0 [-7.0, 11.6] |
+
+Budget flags (default margins m, 2m, 3m): IFEval, MATH-500, fluency robustly within; over-citation within at m (C2-app
+was "outside (point)" at m). The suite's quiz run (greedy, same prompts) reproduces the lite check closely (recall 0.850
+vs 0.855, P6 0.910 vs 0.950; one-question differences from grading). Scenario 1: 45/50 episodes used the pre-registered
+primary analysis, 3 deviations were corrected at the audit turn, no format failures.
+
+**Reading.** The knowledge-only start sits where the RL design wants it: it knows the constitution (quizzes 0.85 / 0.91)
+and names it in 93% of answers, applies it better than base (eval-1 +5.4, hard +31.4) but clearly worse than the
+application SFT (hard 52.9 vs 78.5, eval-1 90.6 vs 95.5, citation accuracy 0.77 vs 0.90; scenario-1 deviations 10% vs 0%)
+and below C1 (constitution in context: hard 62.8), at no measurable budget cost. The lower citation accuracy and the
+higher invented-constitution rate (0.12) are the room C4's citation reward is meant to use; eval-2 is close to C0
+(+2.3), so P6 transfer is still open for RL to show.
+
+**7. Configurations** (deliverable 8): `configs/eval_configs/C2.yaml` = knowledge-only epoch 4 (LoRA-served adapter
+`...-halden-sft-kn/adapter_epoch4@551224f`; its runs are those of `C2kn@e4`); `configs/eval_configs/C2-app.yaml` = SFT v3
+epoch 4 (the former C2; runs of `C2@e4`); `configs/model_sft_kne4.yaml` = merged text-only RL start (for TRL / chunk 7);
+`calign.evals.report` colours the `C2kn` family as C2 (C2@eK = C2-app is neutral). Commits 7cb7770, dbc8375.
+
+**Costs (chunk 5b total).** Claude **$3.79** (audit $1.27, lite quiz grading $0.51, full judge phase $2.01; all
+interactive). GPU: `p3-kn` 18:00-20:53 UTC ~2.9 h + `p3-kn2` 22:00-22:59 UTC ~1.0 h = ~3.9 h x $1.66 = **~$6.5** (plan ~4.5 h,
+~$7). Both instances deleted after syncing; everything a later chunk needs is on HF (adapters, RL start) or committed.
+
+**Commits:** 73ae1b0 (builder, audit, lite check, data manifests, config), af8835d (eval configs C2kn@e1..e6), 490c299
+(RL-start notes for chunks 6 and 7), 7cb7770 (C2 / C2-app), dbc8375 (model config), and the closing docs commit.

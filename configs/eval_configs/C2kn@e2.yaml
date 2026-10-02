@@ -1,0 +1,11 @@
+# C2kn@e2: knowledge-only SFT (configs/sft_kn.yaml, chunk 5b) epoch-2 LoRA adapter on base Gemma 3 27B-IT, served
+# by vLLM LoRA (not merged). Adapter pinned to the HF repo revision holding all six epoch adapters.
+id: C2kn@e2
+label: SFT kn epoch 2 (LoRA-served)
+model_config: configs/model.yaml
+model_path: google/gemma-3-27b-it
+revision: null
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch2@551224f2bf55925982529a30bab5395dc7452548
+system_prompt_variant: none
+stage: sft
+notes: "per-epoch lite check for the RL-start choice (chunk 5b)"

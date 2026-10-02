@@ -4,16 +4,21 @@ CLI:
     # GPU (vLLM): base k=4 at T=0.7 on every pool item (the MoralChoice eval prompt: `none` variant, letter
     # randomisation); RL start k=8 at T=1.0 (LoRA-served eval config or merged weights)
     uv run python -m calign.dilemmas.filter sample --eval-config C0 --pools p15 p6 [--k 4 --temperature 0.7]
-    uv run python -m calign.dilemmas.filter sample --eval-config C2@e3 --pools p15 p6 --k 8 --temperature 1.0
+    uv run python -m calign.dilemmas.filter sample --eval-config C2@e4 --pools p15 p6 --k 8 --temperature 1.0
+    # any Dilemma file (e.g. a pilot's items.jsonl incl. rejected items) instead of the pools
+    uv run python -m calign.dilemmas.filter sample --eval-config C2@e4 --file data/dilemmas/pilot/items.jsonl --k 8 \
+        --temperature 1.0
     # local: per-item counts -> final sets, anchors, manifest (without --rl-start-run: RL-start filter pending)
-    uv run python -m calign.dilemmas.filter select --base-run outputs/dilemmas/C0/dilemma_filter/<run> \
-        [--rl-start-run outputs/dilemmas/C2@e3/dilemma_filter/<run>] [--pools p15 p6] [--dry-run]
+    uv run python -m calign.dilemmas.filter select --rl-start-run outputs/dilemmas/C2@e4/dilemma_filter/<run> \
+        [--base-run outputs/dilemmas/C0/dilemma_filter/<run>] [--pools p15 p6] [--dry-run]
 
-Rules (chunk doc 06, D3 (v)): an item is base-hard if the base model's parsed answer disagrees with the verdict in
->= `min_base_wrong` of its k=4 samples (2, i.e. half; the MoralChoice hard-subset rule). RL-train keeps base-hard
-items whose RL-start pass count at k=8 is strictly between 0 and k (a pass = parsed and equal to the verdict; an
-unparsed sample is a fail, as R1 scores it 0), so every kept item gives GRPO groups with reward variance.
-eval-1-hard and eval-2-hard keep base-hard items only (no selection on the RL start). The family split was fixed
+Rules: RL-train keeps items whose RL-start (SFT v3 epoch 4, Felix 2026-10-02) pass count at k=8, T=1.0 is strictly
+between 0 and k (a pass = parsed and equal to the verdict; an unparsed sample is a fail, as R1 scores it 0), so every
+kept item gives GRPO groups with reward variance. The base model plays no role for RL-train (Felix 2026-10-02,
+replacing D3 (v)'s base-disagreement condition); if items are too easy the questions are revised rather than the RL
+start moved to an earlier epoch. eval-1-hard and eval-2-hard (selection rule still open, chunk doc 06) keep base-hard
+items: the base model's parsed answer disagrees with the verdict in >= `min_base_wrong` of its k=4 samples (2, the
+MoralChoice hard-subset rule); no selection on the RL start. The family split was fixed
 before sampling (calign.dilemmas.generate split). Anchors: the 40 `anchors` ids of data/manifests/phase3_splits.json
 as Dilemma rows (variant_kind=anchor, source=moralchoice) appended to the RL-train file, unfiltered.
 
@@ -75,7 +80,13 @@ def run_sample(args: argparse.Namespace) -> Path:
     from calign.evals.moralchoice import run_sample as mc_run_sample
 
     cfg = eval_config_from_args(args)
-    items = load_pools(args.pools)
+    if args.file is not None:
+        items = [
+            d if d.meta.get("set") else d.model_copy(update={"meta": {**d.meta, "set": "dilemma_pool"}})
+            for d in read_jsonl(args.file, Dilemma)
+        ]
+    else:
+        items = load_pools(args.pools)
     if args.sets:
         items = [d for d in items if d.meta.get("set") in args.sets]
     limit = item_limit(args)
@@ -94,7 +105,11 @@ def run_sample(args: argparse.Namespace) -> Path:
     run_dir = eval_run_dir(
         cfg,
         COMPONENT,
-        {**params.model_dump(), "pools": args.pools},
+        {
+            **params.model_dump(),
+            "pools": None if args.file else args.pools,
+            "file": str(args.file) if args.file else None,
+        },
         out_root=args.out_root or OUTPUTS_DIR / "dilemmas",
         out=args.out,
         dry_run=args.dry_run,
@@ -103,7 +118,8 @@ def run_sample(args: argparse.Namespace) -> Path:
     write_json(
         run_dir / "items.json",
         {
-            "pools": {t: file_provenance(pool_path(t)) for t in args.pools},
+            "pools": {t: file_provenance(pool_path(t)) for t in args.pools} if args.file is None else None,
+            "file": file_provenance(args.file) if args.file is not None else None,
             "n_items": len(items),
             "by_set": dict(Counter(d.meta["set"] for d in items)),
         },
@@ -114,6 +130,7 @@ def run_sample(args: argparse.Namespace) -> Path:
     )
     write_jsonl(run_dir / RECORDS_FILE, records)
     summary = summarize_run(records, items, min_base_wrong=math.ceil(params.k / 2))
+    summary["breakdown"] = pass_breakdown(records, items)
     write_json(run_dir / "summary.json", summary)
     LOGGER.info("summary %s", summary["by_set"])
     if args.dry_run:
@@ -164,15 +181,46 @@ def summarize_run(records: list[GenerationRecord], items: list[Dilemma], min_bas
     }
 
 
+def pass_breakdown(records: list[GenerationRecord], items: list[Dilemma]) -> dict:
+    """Pass-count histogram and mixed shares by principle, variant kind and the generation checks (kept/rejected).
+    `mixed` = 0 < passes < n (R1 variance; parse failures count as fails); `mixed_parsed` = at least one pass and at
+    least one parsed wrong answer (variance that does not come from format failures)."""
+    counts = item_counts(records, items)
+
+    def agg(sel: list[Dilemma]) -> dict:
+        cs = [counts[d.item_id] for d in sel if d.item_id in counts]
+        if not cs:
+            return {"n": 0}
+        return {
+            "n": len(cs),
+            "mean_pass_rate": round(sum(c["n_pass"] / c["n"] for c in cs) / len(cs), 4),
+            "all_pass": sum(c["n_pass"] == c["n"] for c in cs),
+            "all_fail": sum(c["n_pass"] == 0 for c in cs),
+            "mixed": sum(0 < c["n_pass"] < c["n"] for c in cs),
+            "mixed_parsed": sum(c["n_pass"] > 0 and c["n_wrong"] > 0 for c in cs),
+            "parse_fail_samples": sum(c["n"] - c["n_parsed"] for c in cs),
+        }
+
+    groups: dict[str, list[Dilemma]] = {"all": items}
+    for d in items:
+        groups.setdefault(f"kept={d.meta.get('kept', True)}", []).append(d)
+        groups.setdefault(f"P{d.principle_focus}", []).append(d)
+        groups.setdefault(f"kind={d.variant_kind}", []).append(d)
+    hist = Counter(c["n_pass"] for c in counts.values())
+    return {"groups": {g: agg(v) for g, v in sorted(groups.items())}, "pass_histogram": dict(sorted(hist.items()))}
+
+
 def filter_decision(
     item: Dilemma, base: dict | None, rl: dict | None, min_base_wrong: int, rl_applied: bool
 ) -> tuple[bool, str | None]:
-    """(keep, reason) for one pool item under the set's rule."""
-    if base is None:
-        return False, "not_sampled_base"
-    if base["n_wrong"] < min_base_wrong:
-        return False, "base_easy"
-    if item.meta.get("set") != "rl_train" or not rl_applied:
+    """(keep, reason) for one pool item under its set's rule (RL-train: RL start only; eval sets: base only)."""
+    if item.meta.get("set") != "rl_train":
+        if base is None:
+            return False, "not_sampled_base"
+        if base["n_wrong"] < min_base_wrong:
+            return False, "base_easy"
+        return True, None
+    if not rl_applied:
         return True, None
     if rl is None:
         return False, "not_sampled_rl_start"
@@ -260,7 +308,7 @@ def survival_table(pool: list[Dilemma], decisions: dict[str, tuple[bool, str | N
 
 def run_select(args: argparse.Namespace) -> dict:
     pool = load_pools(args.pools)
-    base_records = read_jsonl(args.base_run / RECORDS_FILE, GenerationRecord)
+    base_records = read_jsonl(args.base_run / RECORDS_FILE, GenerationRecord) if args.base_run else []
     rl_records = read_jsonl(args.rl_start_run / RECORDS_FILE, GenerationRecord) if args.rl_start_run else []
     base = item_counts(base_records, pool)
     rl = item_counts(rl_records, pool)
@@ -294,7 +342,7 @@ def run_select(args: argparse.Namespace) -> dict:
         "rl_start_filter": "applied" if rl_applied else "pending",
         "rules": {
             "base_hard": f"base parsed answer != verdict in >= {args.min_base_wrong} samples",
-            "rl_train": "base_hard and 0 < RL-start passes < k (unparsed = fail)"
+            "rl_train": "0 < RL-start passes < k (unparsed = fail); no base condition"
             + ("" if rl_applied else " [RL-start part pending]"),
             "eval1_hard": "base_hard (no RL-start selection)",
             "eval2_hard": "base_hard (no RL-start selection); evaluation only",
@@ -303,10 +351,11 @@ def run_select(args: argparse.Namespace) -> dict:
         "params": {"min_base_wrong": args.min_base_wrong, "pools": args.pools},
         "inputs": {
             "pools": {t: file_provenance(pool_path(t)) for t in args.pools},
-            "base_run": {
-                "dir": str(args.base_run).replace("\\", "/"),
-                "records": file_provenance(args.base_run / RECORDS_FILE),
-            },
+            "base_run": (
+                {"dir": str(args.base_run).replace("\\", "/"), "records": file_provenance(args.base_run / RECORDS_FILE)}
+                if args.base_run
+                else None
+            ),
             "rl_start_run": (
                 {
                     "dir": str(args.rl_start_run).replace("\\", "/"),
@@ -355,12 +404,13 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("sample", help="GPU: sample a configuration on the pool items")
     add_eval_args(s)
     s.add_argument("--pools", nargs="+", default=["p15", "p6"])
+    s.add_argument("--file", type=Path, default=None, help="sample this Dilemma JSONL instead of the pools")
     s.add_argument("--sets", nargs="+", default=None, choices=SETS)
     s.add_argument("--k", type=int, default=4)
     s.add_argument("--temperature", type=float, default=0.7)
     s.add_argument("--max-tokens", type=int, default=2048)
     c = sub.add_parser("select", help="local: final sets, anchors, manifest")
-    c.add_argument("--base-run", type=Path, required=True)
+    c.add_argument("--base-run", type=Path, default=None, help="base run for the eval sets' selection")
     c.add_argument("--rl-start-run", type=Path, default=None)
     c.add_argument("--pools", nargs="+", default=["p15", "p6"])
     c.add_argument("--min-base-wrong", type=int, default=2)
@@ -375,4 +425,6 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from calign.inference.process import run_and_exit
+
+    run_and_exit(main)  # vLLM + LoRA processes do not exit on their own (see calign.inference.process)

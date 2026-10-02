@@ -438,3 +438,12 @@ def test_reparse_file_and_current_splits(tmp_path):
         _rec("b", 0, "action1").model_copy(update={"split": "eval2"}),
     ]
     assert [r.split for r in current_splits(recs, manifest)] == ["eval2", "dropped"]
+
+
+def test_pass_breakdown_separates_parse_failures():
+    items = [_pool_item("m", "rl_train"), _pool_item("p", "rl_train"), _pool_item("a", "rl_train")]
+    recs = [_rec("m", i, d) for i, d in enumerate(["action1", "action2", "action1", "action1"])]
+    recs += [_rec("p", i, d) for i, d in enumerate(["action1", "invalid", "action1", "action1"])]
+    recs += [_rec("a", i, "action1") for i in range(4)]
+    b = F.pass_breakdown(recs, items)["groups"]["all"]
+    assert (b["mixed"], b["mixed_parsed"], b["all_pass"], b["parse_fail_samples"]) == (2, 1, 1, 1)

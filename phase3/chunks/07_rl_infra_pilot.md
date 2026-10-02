@@ -111,7 +111,7 @@ Package `calign.rl` (import-light; only `train_grpo` imports TRL/torch), configs
 (identical except `run_name`, `label`, `reward.kind`, `notes`; unit-tested), scripts `scripts/brev/rl_setup.sh`
 (one-command node setup: `setup.sh`, which now also syncs the `rl` group, TRL import check, RL-start + judge
 download, data dry run, `nvidia-smi topo`) and `scripts/brev/rl_serve.sh` (rollout server on GPU 1, judge on GPU 2,
-each through `run_bg.sh`). Tests: `tests/unit/test_rl.py` (37), `tests/gpu/test_rl_grpo.py` (GRPOConfig build + 2
+each through `run_bg.sh`). Tests: `tests/unit/test_rl.py` (42), `tests/gpu/test_rl_grpo.py` (GRPOConfig build + 2
 GRPO steps on the 4B, vLLM colocated, judge stubbed).
 
 | module | what it does |
@@ -161,10 +161,7 @@ Implementation choices (no check-in needed, recorded here):
 - Monitoring flags on per-step rates use a rolling mean over 5 steps (~28 math completions per step make a single
   step's mention rate jump in 3.6-point steps).
 
-Open (conceptual, in `status.md` E as R7-relevance): which principle set the R2 relevance check uses, and whether
-restating the priority rules (Principles 4 and 5) on an item outside 4/5 is an "irrelevant citation" (-1).
-Implemented now: set = the verdict judge's principles plus the generator's stated principles (anchors: verdict only);
-priority restatements count as irrelevant.
+R7-relevance (decided by Felix 2026-10-01, option b): the relevance check uses the item set = the verdict judge's principles plus the generator's stated principles (anchors: verdict only); Principles 4 and 5 cited outside that set are not irrelevant when a sentence citing them uses priority language (priority / precedence / override / overrule / outrank / trumps), so restating the priority ordering is neutral at the deterministic layer and the judge checks it against the priority text (`citations.priority_restatement`).
 
 ### Runbook (GPU steps of this chunk)
 

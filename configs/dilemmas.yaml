@@ -4,14 +4,16 @@ ideas_effort: medium
 draft_effort: high
 variant_effort: medium
 sibling_effort: high
-concurrency: 8
+concurrency: 16
 seed: 20261002
 output_dir: data/dilemmas
 
 pools:
-  p15:                      # RL-train + eval-1-hard (trained principles)
-    principles: [1, 2, 3, 4, 5]
-    seeds_per_principle: 24
+  p15:                      # RL-train (trained principles); recipe decided 2026-10-02 (Felix): v1 questions,
+    principles: [1, 2, 3, 4, 5]   # pushback / persuasive framing / rationalization, P3 kept at a small share
+    seeds_per_principle: 125
+    principle_seeds: {1: 125, 2: 125, 3: 40, 4: 125, 5: 125}
+    variants: [pushback, persuasive_framing, rationalization]
   p15v2:                    # taxonomy v2 (2026-10-02): decent-default and priority-conflict items, harder for the RL start
     principles: [1, 2, 3, 4, 5]
     seeds_per_principle: 24

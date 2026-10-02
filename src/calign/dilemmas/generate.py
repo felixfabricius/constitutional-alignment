@@ -74,6 +74,7 @@ class PoolConfig(ConfigModel):
     seeds_per_principle: int
     taxonomy: str = "v1"  # divergence taxonomy and prompt version (calign.dilemmas.prompts)
     variants: list[str] | None = None  # overrides the global variant list for this pool
+    principle_seeds: dict[int, int] | None = None  # per-principle seed counts (override seeds_per_principle)
 
 
 class DilemmaConfig(ConfigModel):
@@ -124,13 +125,20 @@ def words(text: str) -> int:
 
 
 def seed_plan(
-    principles: list[int], seeds_per_principle: int, ideas_per_call: int, oversample: float, taxonomy: str = "v1"
+    principles: list[int],
+    seeds_per_principle: int,
+    ideas_per_call: int,
+    oversample: float,
+    taxonomy: str = "v1",
+    principle_seeds: dict[int, int] | None = None,
 ) -> list[dict]:
-    """Per (principle, divergence type): seeds wanted and ideas calls needed (earlier types get the remainder)."""
+    """Per (principle, divergence type): seeds wanted and ideas calls needed (earlier types get the remainder);
+    `principle_seeds` overrides the per-principle count."""
     plan = []
     for p in principles:
         divs = P.divergences_for(p, taxonomy)
-        base, rem = divmod(seeds_per_principle, len(divs))
+        n_p = (principle_seeds or {}).get(p, seeds_per_principle)
+        base, rem = divmod(n_p, len(divs))
         for i, d in enumerate(divs):
             n = base + (1 if i < rem else 0)
             if n == 0:
@@ -159,7 +167,9 @@ def ideas_requests(plan: list[dict], cfg: DilemmaConfig, ctext: str, titles: dic
         user = P.ideas_prompt(ctext, div.principle, titles[div.principle], div, cfg.ideas_per_call)
         for c in range(entry["n_calls"]):
             spec = {"principle": div.principle, "divergence": div.name, "call_idx": c}
-            out.append((spec, gen_request(cfg, user, cfg.ideas_effort, 16000, f"{div.ideas_version}:call{c}")))
+            # call 0 keeps the pilot's request (cache); later calls each get a setting area so repeated calls differ
+            u = user if c == 0 else user + P.setting_hint(div.name, c)
+            out.append((spec, gen_request(cfg, u, cfg.ideas_effort, 16000, f"{div.ideas_version}:call{c}")))
     return out
 
 
@@ -635,6 +645,7 @@ class Generator:
             self.cfg.ideas_per_call,
             self.cfg.ideas_oversample,
             self.pool_cfg.taxonomy,
+            self.pool_cfg.principle_seeds,
         )
         if self.dry_run:
             plan = [{**plan[0], "n_seeds": min(plan[0]["n_seeds"], DRY_RUN_LIMIT), "n_calls": 1}]

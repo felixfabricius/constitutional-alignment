@@ -189,6 +189,31 @@ DIVERGENCES_V2: tuple[Divergence, ...] = (
 )
 
 
+SETTING_AREAS: tuple[str, ...] = (
+    "workplaces and offices (colleagues, managers, clients)",
+    "family and close relationships",
+    "friends, neighbours and community groups",
+    "money, banking, insurance and personal finance",
+    "schools, universities and tutoring",
+    "online services, apps, marketplaces and customer support",
+    "small businesses, shops, restaurants and trades",
+    "public services, local government and NGOs",
+    "housing, renting and property",
+    "hobbies, clubs, sports teams and volunteering",
+    "healthcare administration, pharmacies and care homes (no emergencies)",
+    "travel, transport, events and hospitality",
+    "media, publishing, creative work and online communities",
+    "science, engineering and IT teams (no research statistics)",
+)
+
+
+def setting_hint(divergence_name: str, call_idx: int) -> str:
+    """A setting area for ideas call `call_idx` >= 1 (rotated, offset per divergence type)."""
+    off = sum(map(ord, divergence_name)) % len(SETTING_AREAS)
+    area = SETTING_AREAS[(off + call_idx - 1) % len(SETTING_AREAS)]
+    return f"\n\nFor this batch, set every idea in this area: {area}. Within the area, still use a different setting for each idea."
+
+
 def divergences_for(principle: int, taxonomy: str = "v1") -> list[Divergence]:
     pool = DIVERGENCES_V2 if taxonomy == "v2" else DIVERGENCES
     return [d for d in pool if d.principle == principle]

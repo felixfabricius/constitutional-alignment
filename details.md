@@ -339,7 +339,7 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
 
 - Eval configs `configs/eval_configs/<id>.yaml` -> `calign.evals.config.EvalConfig` (YAML `model_config` is an alias of
   `model_config_path`; pydantic reserves the name). `resolve_model` refuses C1's `TBD-chunk-4` placeholder;
-  `load_eval_backend` refuses adapters until chunk 5 adds vLLM LoRA serving. Run dirs
+  `load_eval_backend` serves an adapter (local dir or `hf://ns/repo/subdir@rev`) with vLLM LoRA (chunk 5). Run dirs
   `outputs/evals/<id>/<component>/<stamp>_<hash>/` embed the eval config in `resolved_config.yaml`.
 - Letter randomisation: `prompting.letter_order(scenario_id, sample_idx, seed)` = per-scenario coin for sample 0,
   then alternating (exactly half AB / half BA at even k). `parse_final_answer(text, order)` maps the letter back
@@ -404,6 +404,32 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   Metrics logged through TRL's `log_metric` land in the same log dict as TRL's (`kl`, `grad_norm`,
   `frac_reward_zero_std`, `completions/clipped_ratio`) and in `steps.jsonl` via the StepLogger callback.
 - `import trl` takes ~2.5 min on the Windows dev box (fast on Linux); TRL-dependent tests are in `tests/gpu`.
+
+## Phase 3 SFT v3 and LoRA serving (chunk 5)
+
+- Data: `calign.corpus.build_sft_v3 --exclude-principle 6 --replay data/replay/responses.jsonl --tokenizer ...`
+  (rule in the module docstring; manifest `data/manifests/sft_v3_stats.json`). Replay:
+  `calign.corpus.replay prompts` (Claude, local; prompts committed in `data/replay/prompts.jsonl`, the only
+  un-ignored file under `data/replay/`) and `... respond` (vLLM base, drops transcripts over the 2048 SFT window).
+  The instance needs `data/sft_v2/*.jsonl` and `data/scenarios/moralchoice_*.jsonl` rsynced (gitignored).
+- Memory: SFT at 2048 tokens (micro-batch 1, gradient checkpointing, r=64) peaks at 67.5 GB reserved on an 80 GB A100
+  with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`; probe with a config pointing at the 8 longest examples and
+  `--dry-run` (3 steps).
+- vLLM LoRA serving: `VLLMBackend(cfg, adapter=dir)` sets `enable_lora`, `max_lora_rank` (adapter r rounded up to a
+  vLLM rank), `max_loras=1` and passes a `LoRARequest` on every generate; works on the multimodal Gemma 3 class with
+  `language_model_only` (vLLM 0.29 maps `base_model.model.model.language_model.*`). `hf://` specs download only the
+  subfolder (`calign.inference.lora.resolve_adapter`). Check: `calign.inference.lora_check all --hf-reference
+  [--coverage]`; bf16 noise floor for a large random 4B adapter ~0.11 mean |delta logprob| for both served and merged
+  vs PEFT, so compare served against the merged-vs-PEFT distance, not an absolute bound.
+- vLLM 0.29 + LoRA process exit: after its work the process stays alive (engine core); a hard `os._exit` orphans the
+  engine-core child, which keeps ~75 GB. `calign.evals.suite` terminates children (psutil) then exits hard. When
+  killing by hand use `pkill -f "[V]LLM::EngineCore"` (a plain pattern matches the ssh shell itself).
+- Text-only export: `calign.train.export_text_only` (shard rewrite, no model instantiation; `--verify N` compares
+  HF logits; bit-exact on the 4B). vLLM cannot load a model from a hub repo subfolder, so merged checkpoints go to their
+  own repo (root); `push_to_hub --merged-path-in-repo` exists (hard-link staging) but is for archival copies only.
+- Rsync pitfalls: `--exclude "..."` inside `wsl -e bash -lc '...'` keeps the literal quotes and matches nothing;
+  write the rsync into a script file. Never rsync `outputs/evals` from an instance over locally judged runs (quiz
+  grades are written into `records.jsonl`); re-judge from the API cache if it happens.
 
 ## Known gaps / TODO
 

@@ -91,6 +91,16 @@ Results and `status.md`; pushed.
 - 2026-10-01, chunk 1: anchors = the 40 `anchors` ids in `data/manifests/phase3_splits.json` (confidence >= 0.8, 37 action1 / 3 action2, stratified by generation_rule x direction); C0 gets them right 96.9% (none is in the hard subset). Pool statistics: 485 clear items; eval2 51 (P6-decisive), eval1 344, dev 50, anchors 40; P6 is invoked by 278 clear items but decides only 51. Counterfactual verdicts without P6: `data/scenarios/constitution_verdicts_noP6.jsonl`. Letter randomisation helpers for R1 (`prompting.letter_order`, `parse_final_answer(text, order)`) are in place.
 - 2026-10-01, chunk 7 (code): `calign.rl.dataset` reads `data/dilemmas/final/rl_train.jsonl` (Dilemma rows; anchors recognised by `variant_kind == "anchor"`), needs a definite `verdict.prescribed_action` on every row, and builds both letter orders itself (do not double rows here). The R2 relevance set per item = `verdict.principles_invoked` ∪ `generator_intent.principles`, so keep both populated. Judge calibration (`calign.rl.calibrate_judge sample --records`) reads the RL-start k=8 run's `records.jsonl` (`scenario_id` = item id) together with `final/rl_train.jsonl` and `final/eval1_hard.jsonl`; please commit the final sets (or note where they live) so the RL node can `git pull` them.
 
+- 2026-10-02, chunk 5: **RL start = SFT v3 epoch 4** (proposal per D23, proceeds unless Felix objects; status E
+  S5-rl-start). Until the merged checkpoint is pushed, the k=8 filter can sample it LoRA-served with no merge: eval
+  config `C2@e4` (`configs/eval_configs/C2@e4.yaml`, adapter
+  `hf://felixfabricius/gemma-3-27b-it-halden-sft-v3/adapter_epoch4@0d470988dbc040973bd0f14affca77a340830b8e` on base
+  `google/gemma-3-27b-it`); `calign.evals.common.load_eval_backend(cfg)` downloads the adapter subfolder and serves it
+  (validated on the 4B: as faithful to the PEFT model as a bf16 merge). After the merge, the text-only RL start will be
+  `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4` (own repo, root, `Gemma3ForCausalLM`; `configs/model_sft_v3e4.yaml`).
+  C2@e4 MoralChoice: eval-1 95.5, eval-2 68.6 (43 items), hard 78.5, so the generated items must be harder than
+  MoralChoice to leave headroom.
+
 ## Results
 
 ### Interim (2026-10-01, session 1): code and Claude-side pilot

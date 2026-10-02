@@ -203,6 +203,20 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
 
 - 2026-10-01, chunk 6: RL data is `data/dilemmas/final/rl_train.jsonl` (committed; `calign.schemas.Dilemma` rows): generated items (`source="generated"`, `variant_kind` seed / pushback / persuasive_framing / long_context / sibling) plus the 40 MoralChoice anchors (`variant_kind="anchor"`, `source="moralchoice"`, `principle_focus=None`). Reward columns: truth = `verdict.prescribed_action` (action1/action2; equals `generator_intent.halden_answer` for generated items by construction); the item's principle set for the R2 relevance check = `verdict.principles_invoked` (the independent judge's set, available for anchors too); `family_id`, `item_id`, `principle_focus`, `meta.filter` (base / RL-start counts). Prompt: `d.to_scenario("rl_train")` + `prompting.format_scenario_user_prompt(s, order)` with `constitution.render_system_prompt(c, "none")`, i.e. exactly the MoralChoice eval prompt; build both letter orders per item. P1-P5 items never have P6 in `principles_invoked` (dropped at generation). The RL-start k=8 samples for the judge calibration are `outputs/dilemmas/<C2@eK>/dilemma_filter/<run>/records.jsonl` (GenerationRecords with `extra.letter_order`, `parsed_decision` already mapped). eval-1-hard for monitoring: `data/dilemmas/final/eval1_hard.jsonl`, also the core-suite component `hardsets` (`calign.evals.dilemmas`).
 
+- 2026-10-02, chunk 5: text-only export is `calign.train.export_text_only --model-path <merged multimodal dir or hub
+  id> --out <dir> [--verify N]` (rewrites the safetensors shards key by key: `model.language_model.*` /
+  `language_model.model.*` -> `model.*`, vision tower and projector dropped, tied `lm_head` dropped; config =
+  `text_config` with `architectures: [Gemma3ForCausalLM]`). On the 4B it is bit-exact against the multimodal load (KL 0,
+  logit diff 0). The 27B RL start (epoch 4) is merged and exported in the pending chunk 5 GPU step and pushed to
+  `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4` (root, so vLLM/TRL can load it by repo id + revision). SFT
+  adapters are PEFT on the multimodal class (keys `base_model.model.model.language_model.layers.N...`, r=64, alpha 64,
+  regex `target_modules`); they do not apply to the text-only class without renaming, so RL adapters trained on the
+  text-only start are a separate lineage (serve them on the text-only base). vLLM LoRA serving
+  (`VLLMBackend(cfg, adapter=dir)`; `enable_lora`, `max_lora_rank` rounded up from r) is validated on the multimodal
+  4B; for RL checkpoints on the text-only base run `calign.inference.lora_check all --hf-reference` once on the first
+  checkpoint. vLLM 0.29 with LoRA: a process does not exit after its work (engine core); `calign.evals.suite` now exits
+  hard and terminates its children (82719a0); other long-lived CLIs that load vLLM with LoRA may need the same.
+
 ## Results
 
 (fill on completion)

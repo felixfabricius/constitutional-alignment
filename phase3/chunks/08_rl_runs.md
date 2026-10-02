@@ -69,6 +69,14 @@ Both runs complete with six adapters each on HF; core suites done; per-checkpoin
 
 - 2026-10-01, chunk 7 (code; the pilot will add measured numbers): node setup is `sh scripts/brev/rl_setup.sh configs/rl/C3.yaml`, servers `sh scripts/brev/rl_serve.sh configs/rl/<id>.yaml <tag>` (C3 starts only the rollout server), trainer `sh scripts/brev/run_bg.sh <name> env CUDA_VISIBLE_DEVICES=0 ~/.local/bin/uv run python -m calign.rl.train_grpo --config configs/rl/<id>.yaml --out outputs/rl/<id>`. A run dir holds `steps.jsonl` (per-step metrics incl. step wall-clock and peak memory), `rollouts.jsonl` (every completion with its reward components; the judge-audit samples at steps 40/80 come from here), `judge_cache.jsonl` (C4), `checkpoint-<step>/` (PEFT adapter only, `save_only_model`), `dataset.jsonl` + manifest. `calign.rl.monitor --run-dir <run> --config-id <id> --fail-on-flag` prints the table and the flags (length, math mentions, letter prior, zero variance, knowledge retention from the `<id>@s<step>` suites). The adapters target the **text-only** module names (`model.layers.N...`), so the per-checkpoint eval configs need `model_path` = the text-only RL start, not the multimodal base.
 
+- 2026-10-02, chunk 5: core suite per LoRA-served 27B checkpoint measured at **30-33 min GPU** (MoralChoice 11-13,
+  IFEval 6, MATH-500 8.5-9, over-citation 4, quiz < 1, load 1.5 min) plus **~$0.85-1.05 judging** (judge sample 200
+  ~$0.6-0.8, coherence 60 $0.17, over-citation, quiz). Six RL checkpoints x 2 runs ~ 6.5 GPU-h and ~$12. Launch the
+  per-checkpoint suites in one script that waits for a free GPU between checkpoints (`nvidia-smi` memory < 2 GB);
+  never rsync `outputs/evals` back over locally judged run dirs (quiz grades live in `records.jsonl`; re-judging
+  from the API cache restores them at $0 but resets the manifest costs). Starting values (C2@e4): quiz recall 0.915,
+  P6 0.90 (stop flag below 0.8), over-citation 2.1%, fluency 0.979.
+
 ## Results
 
 (fill on completion)

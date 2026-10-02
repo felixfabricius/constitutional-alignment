@@ -74,6 +74,11 @@ rsynced locally; all instances deleted (after verifying HF and local copies); pu
 
 - 2026-10-01, chunks 1-2: hard subset = items the first C0 run gets wrong in >= 2 of 4 parsed samples (78 items; `data/manifests/phase3_hard_subset.json`). **It is selected on that run**, so an independent C0 replicate (`outputs/evals/C0/moralchoice/c0_rep_seed20261002`) scores 21.5 vs 16.0 on it (+5.4 [0.0, 10.9]) with the same model: Felix decided (E3) that the replicate is C0's MoralChoice reference; C0's suite manifest points at it. Report layout: `calign.evals.report --configs ... --checkpoints-of ...` writes `outputs/evals/report/<run>/{summary.json, summary.md, frontier.json, frontier_<budget>.png}`; it reads each configuration's newest suite manifest and re-runs every component report against C0's runs. Coherence is `coherence-v2.1` (v2 superseded).
 
+- 2026-10-02, chunk 5: per-epoch SFT table `outputs/evals/report/c5_epochs_v2/summary.md` (C0 + C2@e1..e4) and the
+  per-question quiz table in the chunk 5 Results. The C2 epochs' coherence was judged on the 60-text set v1 (before
+  chunk 4's set v2); the suite's judge phase tops up to set v2 once a scenario-1 run exists for the configuration
+  (status E, S5-agentic-coherence). Over-citation sits at ~2% for epochs 2-4 ("outside (point)" at m = 2 points).
+
 ## Results
 
 (fill on completion)

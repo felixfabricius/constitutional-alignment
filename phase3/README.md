@@ -55,7 +55,7 @@ Dependency graph: `0 -> 1 -> 2 -> 4`, `0 -> 3 -> 4`, `1,2 -> 5 -> 5b -> 7`, `1 -
 Results, `status.md` E5). Felix's direction: start RL from a **knowledge-only SFT** (fact and explanatory material,
 no application material), chunk 5b (decided 2026-10-02). C2 = the knowledge-only checkpoint (the RL start) and **C2-app** =
 SFT v3 epoch 4 (an extra row). Chunks 6 (filtering) and 7 (GPU pilot) wait for 5b; their code is unaffected except the
-RL-start checkpoint (and chunk 7's reward-scale measurement, D24, which is done on the RL start).
+RL-start checkpoint (and chunk 7's reward-scale measurement, D24, which is done on the RL start). **Chosen 2026-10-02 (Felix): knowledge-only SFT epoch 4**, adapter `felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f` (eval config `C2kn@e4`, LoRA-served; usable now); merged text-only copy `felixfabricius/gemma-3-27b-it-halden-sft-kn-e4` (pending).
 
 ### 3.1 What blocks what (code readiness vs results), as of chunks 0-2 code being pushed
 

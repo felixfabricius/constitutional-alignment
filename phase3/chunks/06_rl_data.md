@@ -1,8 +1,9 @@
 # Chunk 6: RL data (generated dilemmas, hard evals, anchors)
 
-Status: **paused** (2026-10-02). Code and two pilots done; the generated dilemmas are too easy for the current RL
-start (SFT v3 epoch 4). Felix's direction: a weaker, knowledge-only SFT start (chunk 5 follow-up, not started); chunk 6
-resumes with the difficulty check on that start. See Results, "Findings and proposed direction".
+Status: **ready to resume** (2026-10-02). Code and two pilots done; the generated dilemmas were too easy for SFT v3
+epoch 4 (now C2-app). **New RL start: knowledge-only SFT epoch 4 (chunk 5b), eval config `C2kn@e4`**; its difficulty
+check on both pilots is done (21% of items mixed at k=8; see the 2026-10-02 chunk 5b note below). Next: scale the pool
+(~750 items for >= 150 RL-train items) and filter on `C2kn@e4`. Background: Results, "Findings and proposed direction".
 
 ## Goal
 
@@ -107,6 +108,23 @@ Results and `status.md`; pushed.
   `--model-config configs/model_sft_v3e4.yaml` (`language_model_only: false`). The LoRA-served `C2@e4` / `C2` eval
   configs are the same model (27B check: served is as close to the trained PEFT model as the merge, 0.060 vs 0.072
   mean |delta logprob|), so either works for the k=8 filter; the merged repo avoids LoRA overhead.
+
+- 2026-10-02, chunk 5b: **new RL start = knowledge-only SFT epoch 4** (Felix 2026-10-02, status E S5b-rl-start,
+  option a). Chunk 6 can resume now, LoRA-served, without waiting for the merge: eval config **`C2kn@e4`**
+  (`configs/eval_configs/C2kn@e4.yaml`; base `google/gemma-3-27b-it`, adapter
+  `hf://felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f2bf55925982529a30bab5395dc7452548`), e.g.
+  `calign.dilemmas.filter sample --eval-config C2kn@e4 --pools <tags> --k 8 --temperature 1.0`, then
+  `calign.dilemmas.filter select --rl-start-run outputs/dilemmas/C2kn@e4/dilemma_filter/<run>`. The instance needs the
+  gitignored pool files and `data/scenarios/` rsynced. The difficulty check on both pilots is already done on this
+  checkpoint (k=8, T=1.0, every pilot item): `outputs/dilemmas/C2kn@e4/dilemma_filter/20261002_203402_b61bacaf` (v1: 47
+  items, 34 all-pass, **11 mixed**, 2 all-fail, mean pass 0.875) and `.../20261002_203606_716448da` (v2: 40 items, 32
+  all-pass, **7 mixed**, 1 all-fail, mean pass 0.903); together **18/87 = 21% mixed** (C2-app 4.6%); on the items that
+  passed the generation checks 11/53; parse rate 1.00; mention rate 99% / 92%. Expected RL-train yield ~20% of
+  generated items, so a pool of **~750 items** is needed for >= 150 RL-train items (~1.5x the planned pool). MoralChoice
+  dev on this checkpoint equals C2-app (92.5 vs 93.0, paired -0.5 [-5.0, 3.5]), so the headroom is in the generated
+  dilemmas. Until the C2 / C2-app rename (chunk 5b deliverable 8) the id is `C2kn@e4`; `C2.yaml` will then point at the
+  same adapter, and a merged text-only copy will be `felixfabricius/gemma-3-27b-it-halden-sft-kn-e4` (same model; either
+  works for the filter).
 
 ## Results
 

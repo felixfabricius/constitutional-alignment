@@ -257,6 +257,15 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
   chunk 6 found SFT v3 epoch 4 saturates the dilemmas). Code is unaffected; the pilot, the judge calibration and the
   reward-scale measurement (D24) must use the new start (`configs/model_sft_kneK.yaml` once chunk 5b pushes it).
 
+- 2026-10-02, chunk 5b: **the RL start changed** to the knowledge-only SFT epoch 4 (Felix 2026-10-02). LoRA-served now:
+  eval config `C2kn@e4` (adapter `hf://felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f`); merged
+  text-only `Gemma3ForCausalLM` (for TRL) will be `felixfabricius/gemma-3-27b-it-halden-sft-kn-e4` with
+  `configs/model_sft_kne4.yaml` (pending, chunk 5b). Replace `model_sft_v3e4.yaml` in `configs/rl/C3,C4.yaml` with it,
+  and measure the C4 reward scale (D24) and the judge calibration on samples from this start, not from SFT v3 e4. The
+  start cites its constitution in ~96% of MoralChoice answers (C2-app 99%) and is weaker on the generated dilemmas
+  (mean pass 0.875 / 0.903 vs 0.968 / 0.994 on the v1 / v2 pilots). Knowledge-retention baseline for the RL stop flags:
+  recall 0.855, P6 0.95 at the start (lite check; the full suite's quiz run will replace these).
+
 ## Results
 
 (fill on completion)

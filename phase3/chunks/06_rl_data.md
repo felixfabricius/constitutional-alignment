@@ -1,9 +1,8 @@
 # Chunk 6: RL data (generated dilemmas, hard evals, anchors)
 
-Status: **ready to resume** (2026-10-02). Code and two pilots done; the generated dilemmas were too easy for SFT v3
-epoch 4 (now C2-app). **New RL start: knowledge-only SFT epoch 4 (chunk 5b), eval config `C2kn@e4`**; its difficulty
-check on both pilots is done (21% of items mixed at k=8; see the 2026-10-02 chunk 5b note below). Next: scale the pool
-(~750 items for >= 150 RL-train items) and filter on `C2kn@e4`. Background: Results, "Findings and proposed direction".
+Status: **in progress, waiting on Felix** (2026-10-02 session 2): candidate RL questions evaluated on the new RL start
+`C2kn@e4` (knowledge-only SFT epoch 4); recipe for the scale-up proposed in Results, "Candidate RL questions"; nothing
+scaled yet.
 
 ## Goal
 
@@ -232,3 +231,41 @@ pilot items (`data/dilemmas/pilot{,_v2}/items.jsonl`) for the first difficulty c
 pipeline for the scale-up (P1-P5 pool with twice the seeds, strict P6 rule; P6 pool for eval-2-hard). Which taxonomy
 (v1, v2 or a mix) to scale is decided after that check. The eval-1-hard / eval-2-hard selection rule (base-hard in the
 plan) is still open; scoring checkpoints on those sets belongs to the core suites of chunks 7-9 (`hardsets`).
+
+### Candidate RL questions on the knowledge-only RL start `C2kn@e4` (2026-10-02, session 2)
+
+Inputs: chunk 5b's k=8 runs of both pilots on `C2kn@e4` (`outputs/dilemmas/C2kn@e4/dilemma_filter/20261002_203402_b61bacaf`
+v1, `.../20261002_203606_716448da` v2) and a recipe pilot **recipe1** run here: pool `p15r` (v1 questions, 8 seeds per
+principle = 40 seeds, half of them the cached v1 pilot seeds; variants pushback, persuasive framing and a new
+**rationalization** insert, prompt `dilemma-rationalization-v1`: a paragraph that reads the duty narrowly, "technically
+accurate", "not obliged to volunteer this"; long-context dropped), generated interactively ($0.61; 94 items, 60 kept,
+intent = verdict on 39/39 definite; 21 seeds rejected by the strict P6 rule), sampled on `C2kn@e4` at k=8, T=1.0 on
+instance p3-dil2 (~0.5 h, deleted): `outputs/dilemmas/C2kn@e4/dilemma_filter/recipe1_k8_T1`.
+
+| items that passed the generation checks | n | mixed (0 < passes < 8) | all-fail | 8/8 |
+|---|---:|---:|---:|---:|
+| seed | 18 | 3 (17%) | 0 | 15 |
+| pushback | 15 | 2 (13%) | 0 | 13 |
+| persuasive framing | 13 | 5 (38%) | 2 | 6 |
+| rationalization | 14 | 2 (14%) | 0 | 12 |
+| **all** | **60** | **12 (20%)** | 2 | 46 |
+| by principle: P1 / P2 / P3 / P4 / P5 | 6 / 7 / 16 / 15 / 16 | 4 / 2 / **0** / 3 / 3 | | |
+
+Parse rate 0.999, letter-A share 0.50. The 12 mixed items come from 9 of the 18 kept families and carry high-confidence
+verdicts (0.88-0.98). The wrong answers are genuine misapplications, often with a process error a citation reward can
+see: inventing a clause of Principle 1 ("does not require volunteering unrequested painful truths"), claiming the
+constitution gives "no obvious ordering" between P5 and outcomes (P5 takes priority), adopting the planted
+rationalization ("the stronger reading of Principle 2 is about not projecting false confidence"), recasting a
+self-serving omission as "framing". P3 items are saturated in every run so far (recipe1 0/16 kept items mixed; pilots
+1/14). Taxonomy v2 adds nothing over v1 on this start (v1 pilot 9/32 kept items mixed, v2 2/21).
+
+Yield: **0.30 RL-usable items per generated seed** (0.375 without P3). For >= 150 RL-train items with 80% of families
+in RL-train: ~625 seeds (all principles) or ~500 seeds (P3 reallocated). Cost at recipe1's rate: Claude ~$0.015 per seed
+interactive (~$7.5 for 500 seeds, ~half with Batches), GPU ~1.5 h (~1 200 items x 8 samples plus setup).
+
+**Recipe proposed for the scale-up (check-in with Felix before running):** v1 questions; strict P6 rule; variants
+pushback + persuasive framing + rationalization (cheap; persuasive carries the yield); no long-context; P3 seeds
+reallocated to P1, P2, P4, P5 (P3 stays in the anchors and in eval-1) or kept at a small share; ~500 seeds; RL-train =
+items with 0 < passes < 8 on `C2kn@e4`; Batches for the generation (~$4). Open alongside: eval-1-hard and eval-2-hard
+selection (the plan's base-hard rule no longer fits; proposal: items of the held-out families with < 8/8 on the RL
+start, with C2's reference value taken from an independent sample, the E3 lesson) and the P6 pool size for eval-2-hard.

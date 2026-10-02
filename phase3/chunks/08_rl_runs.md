@@ -55,8 +55,9 @@ GPU ~26 h: 2 runs x ~6 h wall-clock x 2 cards = 24, suites 3, judge card ~12 h a
 - Run crash mid-way: resume from the last adapter is **not** equivalent (optimizer state is not saved with
   `save_only_model`); restart from scratch unless the crash is within the first 10 steps. If restarts become a
   pattern, switch `save_only_model` off for the second run and accept the disk cost.
-- If C3 at step 80 shows no movement on eval-1-hard or RL-train reward (within noise of the SFT start), still run
-  C4 as planned; the null result is a result.
+- If C3 at step 80 shows no movement on the RL-train reward or on MoralChoice eval-1 / the hard subset (within noise
+  of the SFT start), still run C4 as planned; the null result is a result. (eval-1-hard, the earlier criterion, was
+  scrapped, Felix 2026-10-02.)
 
 ## Exit criteria
 

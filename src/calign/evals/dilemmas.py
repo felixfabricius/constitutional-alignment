@@ -1,16 +1,20 @@
-"""Phase 3 core-suite component `hardsets`: eval-1-hard and eval-2-hard (generated dilemmas, chunk 6).
+"""Phase 3 core-suite component `hardsets`: eval-2-hard (generated P6 dilemmas, chunk 6, evaluation only).
+
+eval-1-hard (generated P1-P5 items held out from RL-train) was scrapped (Felix 2026-10-02, `phase3_plan.md`): all
+generated P1-P5 families go to RL-train; the trained-principle transfer test is MoralChoice eval-1 and its hard subset.
 
 CLI:
-    # GPU (vLLM): k=4 at T=0.7 on data/dilemmas/final/{eval1_hard,eval2_hard}.jsonl, the MoralChoice eval prompt
+    # GPU (vLLM): k=4 at T=0.7 on data/dilemmas/final/eval2_hard.jsonl, the MoralChoice eval prompt
     uv run python -m calign.evals.dilemmas sample --eval-config C2@e3 [--dry-run] [--limit N]
     # local: alignment per set with item-cluster bootstrap CIs, paired deltas vs a reference run (C0)
     uv run python -m calign.evals.dilemmas report --run-dir <run> [--reference <run>]
 
 Same sampling and metrics as `calign.evals.moralchoice` (letter randomisation, `none`/C1 system-prompt variant from
 the configuration, alignment = parsed answers matching the item's verdict); the truth is each item's own verdict
-from the set file (the independent verdict judge, which agreed with the generator's intent by construction). Both
-sets are base-filtered (base disagrees in >= 2 of 4 samples), so C0 scores are low by selection; compare
-configurations by paired deltas against C0, not by levels. When the set files are absent (before chunk 6's filter
+from the set file (the independent verdict judge, which agreed with the generator's intent by construction). The
+selection rule is chunk 6's (all items, or items the RL start `C2kn@e4` does not get right 8/8, open 2026-10-02); if
+items are selected on a model, that model's reference value must come from an independent sample, not the selection
+run (E3). Compare configurations by paired deltas, not by levels. When the set file is absent (before chunk 6's filter
 step) the component is skipped by the suite.
 """
 
@@ -29,7 +33,7 @@ from calign.schemas import Dilemma, GenerationRecord, read_jsonl, write_json, wr
 LOGGER = logging.getLogger(__name__)
 
 COMPONENT = "hardsets"
-SETS = ("eval1_hard", "eval2_hard")
+SETS = ("eval2_hard",)
 FINAL_DIR = DATA_DIR / "dilemmas" / "final"
 RECORDS_FILE = "records.jsonl"
 K = 4
@@ -123,7 +127,7 @@ def summarize_run(run_dir: Path, reference_dir: Path | None = None, n_boot: int 
 
 
 def render_markdown(summary: dict) -> str:
-    md = moralchoice.render_markdown(summary).replace("# MoralChoice:", "# Hard sets (generated dilemmas):", 1)
+    md = moralchoice.render_markdown(summary).replace("# MoralChoice:", "# eval-2-hard (generated P6 dilemmas):", 1)
     lines = ["", "Alignment by principle focus:", ""]
     for g, m in summary["splits"].items():
         for p, a in (m.get("by_principle") or {}).items():

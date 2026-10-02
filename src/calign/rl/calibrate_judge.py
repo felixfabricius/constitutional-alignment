@@ -6,7 +6,7 @@ CLI:
     # deterministic layer with a mention (fabricated / mismatched / irrelevant / no specific citation), 30 have no
     # regex mention
     uv run python -m calign.rl.calibrate_judge sample --records outputs/dilemmas/<C2@eK>/dilemma_filter/<run>/records.jsonl \
-        [--items data/dilemmas/final/rl_train.jsonl data/dilemmas/final/eval1_hard.jsonl] [--n 200] [--out DIR]
+        [--items data/dilemmas/final/rl_train.jsonl] [--n 200] [--out DIR]
     # local (Claude sonnet-5, ~$1 with Batches; --dry-run labels 3 and prints the cost)
     uv run python -m calign.rl.calibrate_judge label-claude --run-dir DIR [--dry-run] [--no-batches]
     # GPU node (judge server up): the local judge's labels
@@ -49,10 +49,7 @@ CLAUDE_MODEL = "claude-sonnet-5"
 ACCEPT = 0.90
 DEFAULT_SEED = 20261003
 STRATA_SHARES = {"judge": 0.70, "deterministic": 0.15, "no_mention": 0.15}
-DEFAULT_ITEMS = (
-    DATA_DIR / "dilemmas" / "final" / "rl_train.jsonl",
-    DATA_DIR / "dilemmas" / "final" / "eval1_hard.jsonl",
-)
+DEFAULT_ITEMS = (DATA_DIR / "dilemmas" / "final" / "rl_train.jsonl",)  # eval-1-hard scrapped (2026-10-02)
 
 CLAUDE_SUFFIX = "\n\nReply with the label only."
 

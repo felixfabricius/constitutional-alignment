@@ -241,7 +241,7 @@ def _model_cfg():
 
 def test_suite_end_to_end(tmp_path, fakes, monkeypatch):
     monkeypatch.setattr(suite, "EVALS_DIR", tmp_path)
-    monkeypatch.setattr(suite.dilemmas, "FINAL_DIR", tmp_path / "no_dilemma_sets")  # hardsets is skipped without sets
+    monkeypatch.setattr(suite.dilemmas, "FINAL_DIR", tmp_path / "no_dilemma_sets")  # hardsets skipped: no eval-2-hard
     monkeypatch.setattr(coherence, "SCENARIOS_DIR", tmp_path / "scenarios")  # no scenario-1 run: the 60-text set
     monkeypatch.setattr(report, "SCENARIOS_DIR", tmp_path / "scenarios")
     cfg = load_eval_config("C0")

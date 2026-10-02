@@ -9,7 +9,7 @@ CLI:
 
 GPU components: moralchoice (dev, eval1, eval2 at k=4, T=0.7; `--all-clear` samples every clear item, which is
 how the C0 base run doubles as the hard-subset source), ifeval, math500, overcitation (the low-ambiguity sampling),
-quiz, hardsets (eval-1-hard / eval-2-hard generated dilemmas at k=4, T=0.7; skipped until chunk 6 wrote the sets). Judge-only: MoralChoice judged sample (200), over-citation judge on IFEval + MATH-500 regex hits, coherence v2
+quiz, hardsets (eval-2-hard, generated P6 dilemmas at k=4, T=0.7; skipped until chunk 6 wrote the set). Judge-only: MoralChoice judged sample (200), over-citation judge on IFEval + MATH-500 regex hits, coherence v2
 on the fixed 60-text set (`--coherence-rep1` adds the repeatability re-score), quiz grading, then every
 component's report. `coherence` is listed as a component for the judge phase; it needs no GPU.
 

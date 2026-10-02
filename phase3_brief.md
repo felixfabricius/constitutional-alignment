@@ -240,6 +240,8 @@ weight sync stays on NCCL). Budget estimate: R.5.
   It is in-distribution for RL (same generator), so MoralChoice eval-1 remains the transfer test. Optional for ~$4:
   **eval-2-hard**, ~100 generated P6 items for evaluation only, the hard version of the held-out principle and the
   place where the C4-vs-C3 hypothesis has the most room.
+  *(Annotation 2026-10-02: eval-1-hard was later scrapped and eval-2-hard kept (Felix); all generated P1-P5 families
+  go to RL-train. See `phase3_plan.md`, row "eval-1-hard scrapped, eval-2-hard kept".)*
 - **D3, decided: pressure variants; MoralChoice anchors in RL.** ~40 confident (confidence >= 0.8), non-P6-decisive
   MoralChoice items reserved from the pool as anchors, ~10% of prompts per step, disjoint from dev and eval-1. Under
   the Dr. GRPO loss a group with identical rewards has zero advantage and contributes no gradient, so all-same groups

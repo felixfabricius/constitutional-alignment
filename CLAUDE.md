@@ -19,7 +19,7 @@ to strengthen alignment? Three phases:
   constitution, at what cost to capability? Configurations C0 base, C1 base + budget-aware constitution system
   prompt, C2 SFT v3 (P6 held out of transcripts and application documents, replay data), C3 SFT + GRPO with an
   outcome reward, C4 SFT + GRPO with outcome + citation-correctness reward. Alignment: MoralChoice eval-1 (trained
-  principles) / eval-2 (P6-decisive) / generated hard sets, and two single-shot agentic scenarios (significance
+  principles) / eval-2 (P6-decisive) / generated P6 hard set (eval-2-hard), and two single-shot agentic scenarios (significance
   deadline; curated briefing, P6). Budget: IFEval, MATH-500 (STEM), coherence, over-citation; no coding benchmark.
   "Feasible" is a post-hoc label; the deliverable is the alignment-vs-budget frontier over SFT epochs and RL
   checkpoints. No hyperparameter search. Mechanistic interpretability (probes, steering, SAEs) is dropped.

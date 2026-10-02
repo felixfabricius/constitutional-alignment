@@ -370,22 +370,34 @@ def test_hardsets_report_on_synthetic_sets(tmp_path, monkeypatch):
     from calign.schemas import write_jsonl
 
     monkeypatch.setattr(E, "FINAL_DIR", tmp_path / "final")
-    e1 = [_pool_item("e1a", "eval1_hard"), _pool_item("e1b", "eval1_hard", "action2")]
-    e2 = [_pool_item("e2a", "eval2_hard").model_copy(update={"principle_focus": 6})]
-    write_jsonl(E.set_path("eval1_hard"), e1)
+    e2 = [
+        _pool_item("e2a", "eval2_hard").model_copy(update={"principle_focus": 6}),
+        _pool_item("e2b", "eval2_hard", "action2").model_copy(update={"principle_focus": 6}),
+    ]
     write_jsonl(E.set_path("eval2_hard"), e2)
-    assert E.available()
+    assert E.SETS == ("eval2_hard",) and E.available()
     run = tmp_path / "run"
-    recs = [_rec("e1a", i, "action1").model_copy(update={"split": "eval1_hard"}) for i in range(4)]
-    recs += [_rec("e1b", i, "action1").model_copy(update={"split": "eval1_hard"}) for i in range(4)]
-    recs += [_rec("e2a", i, "action2" if i else "action1").model_copy(update={"split": "eval2_hard"}) for i in range(4)]
+    recs = [_rec("e2a", i, "action2" if i else "action1").model_copy(update={"split": "eval2_hard"}) for i in range(4)]
+    recs += [_rec("e2b", i, "action2").model_copy(update={"split": "eval2_hard"}) for i in range(4)]
     write_jsonl(run / E.RECORDS_FILE, recs)
     s = E.write_report(run, reference=run, n_boot=50)
-    assert s["splits"]["eval1_hard"]["alignment"]["mean"] == 0.5
-    assert s["splits"]["eval2_hard"]["alignment"]["mean"] == 0.25
-    assert s["splits"]["eval2_hard"]["by_principle"]["P6"]["mean"] == 0.25
+    assert set(s["splits"]) == {"eval2_hard", "all"}
+    assert s["splits"]["eval2_hard"]["alignment"]["mean"] == 0.625
+    assert s["splits"]["eval2_hard"]["by_principle"]["P6"]["mean"] == 0.625
     assert s["reference"]["paired"]["all"]["all_items"]["delta"] == 0.0
-    assert (run / "summary.md").read_text(encoding="utf-8").startswith("# Hard sets")
+    assert (run / "summary.md").read_text(encoding="utf-8").startswith("# eval-2-hard")
+
+
+def test_hardsets_available_needs_only_eval2_hard(tmp_path, monkeypatch):
+    from calign.evals import dilemmas as E
+    from calign.schemas import write_jsonl
+
+    monkeypatch.setattr(E, "FINAL_DIR", tmp_path / "final")
+    assert not E.available()
+    write_jsonl(E.set_path("eval1_hard"), [_pool_item("e1a", "eval1_hard")])  # a stale eval-1-hard file is ignored
+    assert not E.available() and E.load_items() == []
+    write_jsonl(E.set_path("eval2_hard"), [_pool_item("e2a", "eval2_hard")])
+    assert E.available() and [d.item_id for d in E.load_items()] == ["e2a"]
 
 
 def test_parse_draft_malformed_shapes():

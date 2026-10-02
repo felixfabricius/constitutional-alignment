@@ -21,8 +21,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Phase 1-2 splits (data/manifests/moralchoice_splits.json) and Phase 3 splits (data/manifests/phase3_splits.json;
 # a GenerationRecord of a Phase 3 eval carries its Phase 3 split, the Scenario keeps its Phase 1-2 split). Generated
-# dilemmas (chunk 6, data/manifests/dilemmas_v1.json): rl_train / eval1_hard / eval2_hard, `dilemma_pool` before the
-# family split.
+# dilemmas (chunk 6, data/manifests/dilemmas_v1.json): rl_train / eval2_hard, `dilemma_pool` before the family split.
+# `eval1_hard` is deprecated (2026-10-02, eval-1-hard scrapped); kept because old pilot pool files and records carry it.
 Split = Literal[
     "probe_train",
     "probe_val",
@@ -34,7 +34,7 @@ Split = Literal[
     "dropped",
     "low_ambiguity",
     "rl_train",
-    "eval1_hard",
+    "eval1_hard",  # deprecated 2026-10-02
     "eval2_hard",
     "dilemma_pool",
 ]

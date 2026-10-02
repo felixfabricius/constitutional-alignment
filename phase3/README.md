@@ -20,7 +20,7 @@ Question: which methods make Gemma 3 27B-IT act in line with the Halden Constitu
 capability. Configurations: C0 base, C1 base + constitution system prompt, C2 SFT v3 (constitution corpus with the
 held-out principle P6 removed from transcripts and application documents, plus replay data), C3 SFT + GRPO with an
 outcome reward (R1), C4 SFT + GRPO with outcome plus citation-correctness reward (R2). Alignment is measured on
-MoralChoice (eval-1 on trained principles, eval-2 on P6-decisive items, plus generated hard sets) and on two new
+MoralChoice (eval-1 on trained principles, eval-2 on P6-decisive items, plus the generated P6 hard set eval-2-hard) and on two new
 single-shot agentic scenarios (scenario 1 trained principles, scenario 2 P6). Budget is measured by IFEval, MATH-500,
 coherence and over-citation (no coding benchmark: removed 2026-10-01, MATH-500 is the STEM check). "Feasible" is a post-hoc label; the deliverable is the
 alignment-vs-budget frontier across SFT epochs and RL checkpoints. No hyperparameter search; training time is the knob.
@@ -40,7 +40,7 @@ other chunks append notes to, and a results section filled on completion.
 | 4 | C1 prompt selection, extended suite, suite freeze | 1, 2, 3 | 2.5 | 3 | `chunks/04_prompt_and_freeze.md` |
 | 5 | SFT v3 (P6 hold-out + replay), LoRA serving, epoch choice | 1, 2 | 4 | 3 | `chunks/05_sft_v3.md` |
 | 5b | Knowledge-only SFT: weaker RL start that still knows the constitution (decided 2026-10-02) | 5 | 4.5 | 3 | `chunks/05b_sft_knowledge.md` |
-| 6 | RL data: generated dilemmas, hard evals, anchors | 1, 5b (filtering) | 1 | 25 | `chunks/06_rl_data.md` |
+| 6 | RL data: generated dilemmas, eval-2-hard, anchors | 1, 5b (filtering) | 1 | 25 | `chunks/06_rl_data.md` |
 | 7 | RL infrastructure, local judge, pilot | 5, 6 | 6 | 2 | `chunks/07_rl_infra_pilot.md` |
 | 8 | RL runs C3 and C4, core suite per checkpoint | 7 | 26 | 5 | `chunks/08_rl_runs.md` |
 | 9 | Extended suite on selected checkpoints, frontier, report | 4, 8 | 5 | 15 | `chunks/09_extended_and_report.md` |
@@ -218,7 +218,8 @@ on the command line for one configuration; `calign.evals.report` assembles confi
 ## 9. Glossary
 
 - eval-1: MoralChoice clear-verdict items not decided by P6 (trained principles). eval-2: P6-decisive items.
-  eval-1-hard / eval-2-hard: generated hard items (P1-P5 / P6), evaluation only. dev: 50 MoralChoice items for
+  eval-2-hard: ~100 generated P6 items, evaluation only (eval-1-hard, generated P1-P5 items, was scrapped; all
+  generated P1-P5 families go to RL-train; Felix 2026-10-02, `phase3_plan.md`). dev: 50 MoralChoice items for
   prompt selection. anchors: 40 confident MoralChoice items mixed into RL prompts.
 - core suite: MoralChoice evals (k=4, T=0.7), IFEval, MATH-500, over-citation, coherence-60, **both quizzes**
   (20-question recall quiz on the whole constitution and the 10-question P6 quiz); ~15 min per LoRA-served
@@ -251,7 +252,7 @@ Components:
 | core | over-citation | strict: regex pre-filter + `overcite-v1` judge (>= 0.5) over IFEval + MATH-500; diagnostic: 687 low-ambiguity items, greedy |
 | core | coherence | `coherence-v2.1` judge on `coherence-set-v2`: 30 dev + 30 IFEval + first turns of episodes 0-29 of the configuration's deadline-L1 scenario run |
 | core | quizzes | 20-question recall + 10-question P6, no system prompt, graded with `validate-v1` |
-| core | hardsets | eval-1-hard / eval-2-hard, k=4, T=0.7; the sets themselves come from chunk 6 under their own manifest |
+| core | hardsets | eval-2-hard only (amended 2026-10-02, Felix: eval-1-hard scrapped; the frozen manifest still names both), k=4, T=0.7; the set itself comes from chunk 6 under its own manifest |
 | extended | scenarios | `scenarios-v2.2`, grader `scenario-grade-v1`, main grid deadline L0/L1 + briefing L0/L1, 50 episodes per cell, T=1.0, two turns, max 2000 tokens; judges `scenario-tags-v3` / `scenario-tier-check-v3` (descriptive only) |
 
 System prompts: C0 `none`; C1 `budget_silent` (D18; governed-by line + named constitution + "Act according to it at all

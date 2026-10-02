@@ -145,7 +145,8 @@ def components() -> dict:
             "overcitation (strict judge on IFEval + MATH-500 regex hits; low-ambiguity diagnostic)",
             "coherence (coherence-v2.1 judge on coherence-set-v2: 30 dev + 30 IFEval + 30 deadline-L1 turn-1)",
             "quiz (20-question recall + 10-question P6; no system prompt)",
-            "hardsets (eval-1-hard / eval-2-hard, k=4, T=0.7; data added by chunk 6 under its own manifest)",
+            # amended 2026-10-02 (Felix): eval-1-hard scrapped; the p3-v1 manifest keeps the frozen wording
+            "hardsets (eval-2-hard, k=4, T=0.7; data added by chunk 6 under its own manifest)",
         ],
         "extended": ["scenarios: deadline and briefing x L0 / L1 x 50 episodes, T=1.0, two turns"],
         "removed": ["coding benchmark (LiveCodeBench subset), removed 2026-10-01"],
@@ -188,6 +189,11 @@ def main(argv: list[str] | None = None) -> None:
     if frozen.get("suite_version") != now["suite_version"]:
         print(f"suite version {frozen.get('suite_version')} (manifest) vs {now['suite_version']} (code)")
     d = diff(frozen, now)
+    # component descriptions are amended in the docs without a version bump (phase3/README.md Section 10)
+    amended = [x for x in d if x.startswith("components.")]
+    d = [x for x in d if x not in amended]
+    if amended:
+        print("amended component descriptions (not a freeze violation):\n" + "\n".join(amended))
     print("\n".join(d) if d else f"suite {SUITE_VERSION}: no differences")
     raise SystemExit(1 if d else 0)
 

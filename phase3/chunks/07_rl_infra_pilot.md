@@ -17,8 +17,8 @@ randomisation; R2 = R1 + 0.5 x m x c with c in {-1, 0, +1}; deterministic checks
 
 ## Depends on / inputs
 
-Chunk 5 (merged, text-only-exported RL start; `configs/model_sft_v3eK.yaml`), chunk 6 (RL-train file with anchors,
-eval-1-hard for monitoring). Instance: one node with 2 x A100 80 GB (or H100) for trainer + vLLM rollouts, plus a
+Chunk 5 (merged, text-only-exported RL start; `configs/model_sft_v3eK.yaml`), chunk 6 (RL-train file with anchors;
+monitoring uses the RL-train reward and the MoralChoice core suite, eval-1-hard was scrapped 2026-10-02). Instance: one node with 2 x A100 80 GB (or H100) for trainer + vLLM rollouts, plus a
 48 GB-class card for the judge (same node if available; else a separate instance on the same provider network).
 
 ## Deliverables
@@ -265,6 +265,12 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
   start cites its constitution in ~96% of MoralChoice answers (C2-app 99%) and is weaker on the generated dilemmas
   (mean pass 0.875 / 0.903 vs 0.968 / 0.994 on the v1 / v2 pilots). Knowledge-retention baseline for the RL stop flags:
   recall 0.855, P6 0.95 at the start (lite check; the full suite's quiz run will replace these).
+
+- 2026-10-02, design change (Felix): **eval-1-hard is scrapped** (`phase3_plan.md`, row "eval-1-hard scrapped"); all
+  generated P1-P5 families go to RL-train, so there is no `data/dilemmas/final/eval1_hard.jsonl` and the chunk 6 note
+  above is superseded on that point. Monitor RL on the RL-train reward (per-step logs) and on the MoralChoice core suite
+  per checkpoint (eval-1, eval-2, hard subset). `calibrate_judge sample --items` now defaults to `rl_train.jsonl`
+  only. The core-suite component `hardsets` covers eval-2-hard (P6, evaluation only) only.
 
 ## Results
 

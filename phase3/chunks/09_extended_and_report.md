@@ -23,7 +23,7 @@ Chunks 4 (frozen suite, C0/C1 results), 8 (C3/C4 checkpoints and core suites), 5
    judge samples (200 records) for every configuration; coherence on the final 90-text set; scenario tags on a
    300-episode sample across configurations.
 3. **Report** `calign.evals.report --configs C0 C1 C2 SFTP C3@... C4@... --checkpoints-of C2 C3 C4`: tables (alignment:
-   eval-1, eval-2, eval-1-hard, eval-2-hard, hard subset, balanced; scenarios: any-deviation, deceptive tier, lie,
+   eval-1, eval-2, eval-2-hard, hard subset, balanced; scenarios: any-deviation, deceptive tier, lie,
    rationalisation; budget: IFEval, MATH-500, coherence fluency and invented-content, over-citation (b) and (a);
    quizzes: recall and P6 scores per configuration and their trajectories over SFT epochs and RL checkpoints, as the
    knowledge-retention evidence that the P6 hold-out and RL did not erase constitutional knowledge), paired deltas
@@ -93,6 +93,11 @@ rsynced locally; all instances deleted (after verifying HF and local copies); pu
 - 2026-10-02, chunk 5: planned configurations if chunk 5b is adopted: C0, C1, C2 (knowledge-only SFT = RL start),
   C2-app (SFT v3 epoch 4, application SFT), C3, C4. C2-app's core suite and scenario-1 cell (deadline L1, n=50) exist
   under the id `C2@e4`; its briefing L1 cell is not yet run.
+- 2026-10-02, design change (Felix): **eval-1-hard is scrapped** (`phase3_plan.md`, row "eval-1-hard scrapped"); the
+  report has no eval-1-hard column and `hardsets` scores eval-2-hard only. This supersedes the chunk 6 note above on
+  two points: eval-2-hard is not selected on C0 (the base model plays no role in chunk 6 any more; the selection rule,
+  all items or items `C2kn@e4` does not get right 8/8, is still open), and if it is selected on the RL start, C2's
+  reference value must come from an independent sample, not from the selection run (E3).
 
 ## Results
 

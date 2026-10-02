@@ -61,8 +61,8 @@ LOGGER = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "dilemmas.yaml"
 HELD_OUT = 6
-VARIANT_SUFFIX = {"pushback": "push", "persuasive_framing": "pers", "long_context": "long"}
-INSERT_WORDS = {"pushback": (8, 90), "persuasive_framing": (40, 180)}
+VARIANT_SUFFIX = {"pushback": "push", "persuasive_framing": "pers", "long_context": "long", "rationalization": "rat"}
+INSERT_WORDS = {"pushback": (8, 90), "persuasive_framing": (40, 180), "rationalization": (40, 180)}
 STAGES = ("ideas", "drafts", "check", "variants", "split", "siblings", "all")
 
 BANNED_RE = re.compile(r"\b(halden|constitution\w*|principle\s*\d)\b", re.IGNORECASE)
@@ -73,6 +73,7 @@ class PoolConfig(ConfigModel):
     principles: list[int]
     seeds_per_principle: int
     taxonomy: str = "v1"  # divergence taxonomy and prompt version (calign.dilemmas.prompts)
+    variants: list[str] | None = None  # overrides the global variant list for this pool
 
 
 class DilemmaConfig(ConfigModel):
@@ -349,7 +350,7 @@ def build_variants(seed: Dilemma, inserts: dict[str, str], kinds: list[str]) -> 
             continue
         if kind == "pushback":
             ctx = f"{seed.context.rstrip()} {ins}"
-        elif kind == "persuasive_framing":
+        elif kind in ("persuasive_framing", "rationalization"):
             ctx = f"{seed.context.rstrip()}\n\n{ins}"
         elif kind == "long_context":
             ctx = f"{ins}\n\n{seed.context.strip()}"
@@ -365,7 +366,7 @@ def build_variants(seed: Dilemma, inserts: dict[str, str], kinds: list[str]) -> 
                     "meta": {
                         "seed_id": seed.item_id,
                         "insert": ins,
-                        "prompt_version": P.VARIANT_VERSION,
+                        "prompt_version": P.RATIONALIZATION_VERSION if kind == "rationalization" else P.VARIANT_VERSION,
                         "persona": seed.meta.get("persona"),
                         "gen_model": seed.meta.get("gen_model"),
                     },
@@ -744,14 +745,34 @@ class Generator:
             )
             for d in seeds
         ]
+        kinds = self.pool_cfg.variants or self.cfg.variants
         resps = await self._many(reqs, "dilemma_variant")
+        rat: list = [None] * len(seeds)
+        if "rationalization" in kinds:
+            rat_reqs = [
+                gen_request(
+                    self.cfg,
+                    P.rationalization_prompt(d.context, hhh_text(d), halden_text(d)),
+                    self.cfg.variant_effort,
+                    6000,
+                    P.RATIONALIZATION_VERSION,
+                )
+                for d in seeds
+            ]
+            rat = await self._many(rat_reqs, "dilemma_rationalization")
         out, failed = [], []
-        for d, r in zip(seeds, resps, strict=True):
-            ins = parse_variants(r.text)
-            if ins is None:
+        for d, r, rr in zip(seeds, resps, rat, strict=True):
+            ins = parse_variants(r.text) or {}
+            if rr is not None:
+                x = extract_json_object(rr.text).get("rationalization") or fields_by_regex(
+                    rr.text, ("rationalization",)
+                ).get("rationalization")
+                if isinstance(x, str) and x.strip():
+                    ins["rationalization"] = x.strip()
+            if not ins:
                 failed.append(d.item_id)
                 continue
-            out += build_variants(d, ins, self.cfg.variants)
+            out += build_variants(d, ins, kinds)
         if failed:
             LOGGER.warning("unparsable variants: %s", failed)
         write_jsonl(self.path("variants.jsonl"), out)

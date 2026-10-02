@@ -112,7 +112,9 @@ class ConstitutionVerdict(StrictModel):
 # Generated dilemmas (Phase 3 RL data and hard evals, calign.dilemmas)
 # ---------------------------------------------------------------------------
 
-VariantKind = Literal["seed", "pushback", "persuasive_framing", "long_context", "sibling", "anchor"]
+VariantKind = Literal[
+    "seed", "pushback", "persuasive_framing", "long_context", "rationalization", "sibling", "anchor"
+]
 Action = Literal["action1", "action2"]
 
 

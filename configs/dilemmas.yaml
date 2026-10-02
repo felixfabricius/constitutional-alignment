@@ -16,6 +16,10 @@ pools:
     principles: [1, 2, 3, 4, 5]
     seeds_per_principle: 24
     taxonomy: v2
+  p15r:                     # recipe candidate 2026-10-02: v1 questions; pushback, persuasive framing, rationalization
+    principles: [1, 2, 3, 4, 5]
+    seeds_per_principle: 8
+    variants: [pushback, persuasive_framing, rationalization]
   p6:                       # eval-2-hard (held-out principle, evaluation only)
     principles: [6]
     seeds_per_principle: 50

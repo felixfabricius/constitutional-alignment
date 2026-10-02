@@ -1,0 +1,186 @@
+{
+  "tag": "recipe1",
+  "n_ideas_selected": 40,
+  "n_items": 94,
+  "n_kept": 60,
+  "survival": 0.6383,
+  "by_kind": {
+    "persuasive_framing": {
+      "n": 18,
+      "kept": 13
+    },
+    "pushback": {
+      "n": 18,
+      "kept": 15
+    },
+    "rationalization": {
+      "n": 18,
+      "kept": 14
+    },
+    "seed": {
+      "n": 40,
+      "kept": 18
+    }
+  },
+  "by_principle": {
+    "1": {
+      "n": 17,
+      "kept": 6
+    },
+    "2": {
+      "n": 14,
+      "kept": 7
+    },
+    "3": {
+      "n": 23,
+      "kept": 16
+    },
+    "4": {
+      "n": 20,
+      "kept": 15
+    },
+    "5": {
+      "n": 20,
+      "kept": 16
+    }
+  },
+  "by_divergence_kept": {
+    "absent_third_party": 9,
+    "benevolent_deception": 12,
+    "benevolent_nudge": 4,
+    "false_confidence": 7,
+    "goal_preservation": 4,
+    "requester_loyalty": 7,
+    "self_continuation": 11,
+    "softened_truth": 1,
+    "white_lie": 5
+  },
+  "reject_reasons": {
+    "p6_rule": 33,
+    "verdict_definite": 1
+  },
+  "format_issues": {},
+  "intent_verdict_agreement": {
+    "definite_items": 93,
+    "agree": 93,
+    "rate": 1.0,
+    "seeds_and_siblings_rate": 1.0,
+    "any_clear_verdict_rate": 0.9894,
+    "all_items_rate": 0.9894
+  },
+  "verdict_actions": {
+    "action1": 51,
+    "action2": 43
+  },
+  "p6_invoked": 34,
+  "kept_direction": {
+    "action1": 33,
+    "action2": 27
+  },
+  "kept_persona": {
+    "ai_assistant": 39,
+    "human_role": 21
+  },
+  "mean_confidence_kept": 0.9663,
+  "mean_context_words": {
+    "persuasive_framing": 227.4,
+    "pushback": 144.0,
+    "rationalization": 237.8,
+    "seed": 102.3
+  },
+  "cost_usd_total": 0.6139,
+  "params": {
+    "generator_model": "claude-sonnet-5",
+    "ideas_effort": "medium",
+    "draft_effort": "high",
+    "variant_effort": "medium",
+    "sibling_effort": "high",
+    "concurrency": 8,
+    "seed": 20261002,
+    "output_dir": "data/dilemmas",
+    "pools": {
+      "p15": {
+        "principles": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "seeds_per_principle": 24,
+        "taxonomy": "v1",
+        "variants": null
+      },
+      "p15v2": {
+        "principles": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "seeds_per_principle": 24,
+        "taxonomy": "v2",
+        "variants": null
+      },
+      "p15r": {
+        "principles": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "seeds_per_principle": 8,
+        "taxonomy": "v1",
+        "variants": [
+          "pushback",
+          "persuasive_framing",
+          "rationalization"
+        ]
+      },
+      "p6": {
+        "principles": [
+          6
+        ],
+        "seeds_per_principle": 50,
+        "taxonomy": "v1",
+        "variants": null
+      }
+    },
+    "ideas_per_call": 8,
+    "ideas_oversample": 1.3,
+    "idea_dedupe_jaccard": 0.6,
+    "variants": [
+      "pushback",
+      "persuasive_framing",
+      "long_context"
+    ],
+    "context_words": [
+      40,
+      200
+    ],
+    "background_words": [
+      250,
+      800
+    ],
+    "action_words": [
+      3,
+      35
+    ],
+    "min_verdict_confidence": 0.7,
+    "ref_max_jaccard": 0.5,
+    "family_dedupe_jaccard": 0.8,
+    "p6_require_decisive": true,
+    "eval1_hard_family_share": 0.2,
+    "siblings_per_exemplar": 2
+  },
+  "git_commit": "7cb7770ad3aba57fdbd448159a4833d9b25f3426",
+  "files": {
+    "ideas.jsonl": "ae409f974affec0da0c23a167eb39117a5055f70e2cc6f3c135615e7d7963cd6",
+    "seeds.jsonl": "e1f0942a7fe2602fc2f539574658b435a610266f9d2a624b7d16b47684330c28",
+    "variants.jsonl": "0f9d8f661437a8ad88b487294eb2d8f30bbe506be263f7cd575e6c20f0276a45",
+    "items.jsonl": "1de9f028a3d585766b760151452886ef1fbd8968811bc043145b7d561762f7d7",
+    "pool.jsonl": "e239351c892e7267345000bd15ddd0e70b4e838dc6e59bb13637f480354f1d14"
+  }
+}

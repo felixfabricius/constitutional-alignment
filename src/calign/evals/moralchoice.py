@@ -100,7 +100,7 @@ class SampleParams(ConfigModel):
 
 def system_prompt(constitution: Constitution, variant: str) -> str:
     """MoralChoice system prompt for a configuration's variant (`none` = reasoning instruction only, `full` = the
-    Phase 1-2 constitution prompt; chunk 4 adds the C1 budget-aware variants here)."""
+    Phase 1-2 constitution prompt, a budget variant = its system text followed by the reasoning instruction)."""
     return render_system_prompt(constitution, variant)
 
 

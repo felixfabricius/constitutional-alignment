@@ -1,8 +1,13 @@
 """Coherence v2 (D9): fluency and invented constitutional content on a fixed text set per configuration.
 
-Text set (identical prompts for every configuration; responses differ): 30 MoralChoice dev items (seeded choice of
-dev ids; the record with sample_idx 0) from the configuration's MoralChoice run, and 30 IFEval prompts (seeded
-choice of keys) from its IFEval run; scenario-1 transcripts join once chunk 3 exists. All texts are vLLM samples.
+Text set `coherence-set-v2` (identical prompts for every configuration; responses differ; frozen in chunk 4): 30
+MoralChoice dev items (seeded choice of dev ids; the record with sample_idx 0) from the configuration's MoralChoice
+run, 30 IFEval prompts (seeded choice of keys) from its IFEval run, and the first-turn responses of episodes 0-29 of
+the configuration's newest scenario-1 run at the chosen level (deadline L1, current materials version; the judge sees
+the scenario system prompt without the configuration's prefix, then the user turn). All texts are vLLM samples. A
+run without a scenario-1 run scores the 60-text set `coherence-set-v1` (`complete: false` in the summary); the
+suite's judge phase re-scores into a new run dir once the scenario run exists (the 60 shared texts are judge-cache
+hits).
 
 Judge prompt `coherence-v2.1` (Claude, effort low, no thinking) returns two separate 0-1 scores:
 - `fluency`: the coherence-v1 comprehensibility rubric (1 = fluent and coherent ... 0 = unreadable or empty);
@@ -33,6 +38,7 @@ from calign.constitution import load_constitution
 from calign.corpus.prompts import extract_json_object
 from calign.evals.common import file_provenance, paired_item_delta
 from calign.evals.config import eval_run_dir, load_eval_config
+from calign.paths import OUTPUTS_DIR
 from calign.schemas import GenerationRecord, read_json, read_jsonl, write_json
 from calign.stats import mean_summary
 
@@ -45,6 +51,10 @@ PROMPT_VERSION = "coherence-v2.1"
 JUDGE_MODEL = "claude-sonnet-5"
 TEXT_SEED = 20261001
 N_PER_SOURCE = 30
+SET_VERSION = "coherence-set-v2"  # 30 dev + 30 IFEval + 30 scenario-1 (deadline L1) first turns
+SET_VERSION_PARTIAL = "coherence-set-v1"  # 30 dev + 30 IFEval (chunk 2; before a scenario-1 run exists)
+SCENARIO_CELL = ("deadline", "L1")
+SCENARIOS_DIR = OUTPUTS_DIR / "scenarios"
 ISSUE_LABELS = (
     "repetition",
     "garbled_tokens",
@@ -106,10 +116,13 @@ Return only JSON inside <json></json> with keys:
 
 
 def select_texts(
-    moralchoice: list[GenerationRecord], ifeval: list[GenerationRecord], n: int = N_PER_SOURCE
+    moralchoice: list[GenerationRecord],
+    ifeval: list[GenerationRecord],
+    n: int = N_PER_SOURCE,
+    scenario_episodes: list[dict] | None = None,
 ) -> list[dict]:
-    """The fixed text set: n seeded dev items (sample_idx 0) + n seeded IFEval keys. Selection depends only on the
-    item ids, so every configuration is scored on the same prompts."""
+    """The fixed text set: n seeded dev items (sample_idx 0) + n seeded IFEval keys (+ scenario-1 episodes 0..n-1
+    when given). Selection depends only on the item ids, so every configuration is scored on the same prompts."""
     dev = sorted({r.scenario_id for r in moralchoice if r.split == "dev"})
     keys = sorted({r.scenario_id for r in ifeval}, key=lambda x: int(x) if x.isdigit() else x)
     dev_pick = sorted(random.Random(f"{TEXT_SEED}:dev").sample(dev, min(n, len(dev))))
@@ -130,7 +143,54 @@ def select_texts(
                     "response": r.response_text,
                 }
             )
+    if scenario_episodes is not None:
+        out += scenario_texts(scenario_episodes, n)
     return out
+
+
+def scenario_texts(episodes: list[dict], n: int = N_PER_SOURCE) -> list[dict]:
+    """Episodes 0..n-1 of a scenario-1 run: the prompt is the scenario's own system prompt (no configuration
+    prefix) folded before the user turn, identical for every configuration; the text is the first response."""
+    from calign.scenarios.prompts import build_episode_prompt
+
+    scenario, level = SCENARIO_CELL
+    p = build_episode_prompt(scenario, level)
+    by_idx = {e["sample_idx"]: e for e in episodes if (e["scenario"], e["level"]) == SCENARIO_CELL}
+    missing = [i for i in range(n) if i not in by_idx]
+    if missing:
+        raise ValueError(f"scenario run lacks {scenario} {level} episodes {missing[:5]} (needs 0..{n - 1})")
+    out = []
+    for i in range(n):
+        e = by_idx[i]
+        if e.get("user_sha") and e["user_sha"] != p.user_sha:
+            raise ValueError(f"episode {e['episode_id']}: user turn differs from the current materials")
+        out.append(
+            {
+                "text_id": f"scenario_{scenario}_{level}:{i:03d}",
+                "source": f"scenario_{scenario}_{level}",
+                "item_id": f"{i:03d}",
+                "record_id": e["episode_id"],
+                "prompt": f"{p.system.strip()}\n\n{p.user.strip()}",
+                "response": e["response_1"],
+            }
+        )
+    return out
+
+
+def latest_scenario_run(cfg_id: str, root: Path | None = None, n: int = N_PER_SOURCE) -> Path | None:
+    """Newest scenario-1 run of a configuration at SCENARIO_CELL whose user turn matches the current materials and
+    that holds episodes 0..n-1 (n episodes per cell at least)."""
+    from calign.scenarios.prompts import build_episode_prompt
+
+    sha = build_episode_prompt(*SCENARIO_CELL).user_sha
+    base = (root or SCENARIOS_DIR) / cfg_id / f"{SCENARIO_CELL[0]}_{SCENARIO_CELL[1]}"
+    if not base.exists():
+        return None
+    for d in sorted((p for p in base.iterdir() if (p / "episodes.jsonl").exists()), reverse=True):
+        idx = {e["sample_idx"] for e in _read_jsonl(d / "episodes.jsonl") if e.get("user_sha") == sha}
+        if set(range(n)) <= idx:
+            return d
+    return None
 
 
 def judge_request(t: dict, name: str, ctext: str, salt: str = "") -> dict:
@@ -229,19 +289,23 @@ def run_judge(
     salt: str = "",
     use_batches: bool | None = None,
     limit: int | None = None,
+    scenario_run: Path | None = None,
 ) -> dict:
     from calign.llm.anthropic_client import ClaudeClient
 
     mc = read_jsonl(moralchoice_run / "records.jsonl", GenerationRecord)
     ie = read_jsonl(ifeval_run / "records.jsonl", GenerationRecord)
-    texts = select_texts(mc, ie)
+    eps = _read_jsonl(scenario_run / "episodes.jsonl") if scenario_run else None
+    texts = select_texts(mc, ie, scenario_episodes=eps)
     if limit:
         texts = texts[:limit]
     write_json(
         run_dir / "texts.json",
         {
+            "set_version": SET_VERSION if scenario_run else SET_VERSION_PARTIAL,
             "moralchoice_run": file_provenance(moralchoice_run / "records.jsonl"),
             "ifeval_run": file_provenance(ifeval_run / "records.jsonl"),
+            "scenario_run": file_provenance(scenario_run / "episodes.jsonl") if scenario_run else None,
             "text_ids": [t["text_id"] for t in texts],
         },
     )
@@ -251,8 +315,19 @@ def run_judge(
     return client.dump_usage(run_dir / f"usage_coherence{'_' + salt if salt else ''}.json")
 
 
+def set_version(run_dir: Path) -> str | None:
+    """The text-set version a coherence run scored (None before texts.json exists; chunk-2 runs predate the field)."""
+    p = Path(run_dir) / "texts.json"
+    if not p.exists():
+        return None
+    return read_json(p).get("set_version", SET_VERSION_PARTIAL)
+
+
 def summarize(rows: list[dict], rep: list[dict] | None = None, reference: list[dict] | None = None) -> dict:
     out: dict = {"component": COMPONENT, "prompt_version": PROMPT_VERSION, "n": len(rows)}
+    sources = sorted({r["source"] for r in rows})
+    out["n_by_source"] = {src: sum(r["source"] == src for r in rows) for src in sources}
+    out["complete"] = any(src.startswith("scenario_") for src in sources)
     for k in SCORES:
         vals = [r[k] for r in rows if r[k] is not None]
         out[k] = mean_summary(vals)
@@ -295,6 +370,7 @@ def write_report(run_dir: Path, reference: Path | None = None) -> dict:
     ref = _read_jsonl(reference / "scores.jsonl") if reference else None
     s = summarize(rows, rep, ref)
     s["run_dir"] = str(run_dir).replace("\\", "/")
+    s["set_version"] = set_version(run_dir)
     s["provenance"] = {
         "scores": file_provenance(run_dir / "scores.jsonl"),
         "scores_rep1": file_provenance(run_dir / scores_file("rep1")),
@@ -312,7 +388,12 @@ def _m(x: dict) -> str:
 
 
 def render_markdown(s: dict) -> str:
-    lines = [f"# Coherence ({PROMPT_VERSION}, {s['n']} texts)", "", "| score | all | by source |", "|---|---|---|"]
+    lines = [
+        f"# Coherence ({PROMPT_VERSION}, {s.get('set_version') or '?'}, {s['n']} texts)",
+        "",
+        "| score | all | by source |",
+        "|---|---|---|",
+    ]
     for k in SCORES:
         by = "; ".join(f"{src} {_m(v)}" for src, v in s[f"{k}_by_source"].items())
         lines.append(f"| {k} | {_m(s[k])} | {by} |")
@@ -345,6 +426,7 @@ def main(argv: list[str] | None = None) -> None:
     j.add_argument("--eval-config", "--config", dest="eval_config", required=True)
     j.add_argument("--moralchoice-run", type=Path, required=True)
     j.add_argument("--ifeval-run", type=Path, required=True)
+    j.add_argument("--scenario-run", type=Path, default=None, help="scenario-1 (deadline L1) run: the full set")
     j.add_argument("--run-dir", type=Path, default=None, help="existing coherence run (for --salt rep1)")
     j.add_argument("--out", type=Path, default=None)
     j.add_argument("--out-root", type=Path, default=None)
@@ -367,6 +449,7 @@ def main(argv: list[str] | None = None) -> None:
         {
             "moralchoice_run": str(args.moralchoice_run),
             "ifeval_run": str(args.ifeval_run),
+            "scenario_run": str(args.scenario_run) if args.scenario_run else None,
             "n_per_source": N_PER_SOURCE,
         },
         out_root=args.out_root,
@@ -380,6 +463,7 @@ def main(argv: list[str] | None = None) -> None:
         salt=args.salt,
         use_batches=False if args.no_batches else None,
         limit=3 if args.dry_run else args.limit,
+        scenario_run=args.scenario_run,
     )
     LOGGER.info("coherence judge cost $%.4f", usage["total_cost_usd"])
     print(render_markdown(write_report(run_dir)))

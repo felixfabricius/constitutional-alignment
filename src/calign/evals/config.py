@@ -18,6 +18,7 @@ import yaml
 from pydantic import field_validator
 
 from calign.config import ConfigModel, load_yaml, new_run_dir, stable_hash
+from calign.evals import SUITE_VERSION
 from calign.inference.backend import ModelConfig, load_model_config
 from calign.paths import OUTPUTS_DIR, REPO_ROOT
 
@@ -127,10 +128,19 @@ def eval_run_dir(
             "revision": cfg.revision,
             "adapter": cfg.adapter,
             "system_prompt_variant": cfg.system_prompt_variant,
+            "suite_version": SUITE_VERSION,
         }
     )
     (run_dir / "run_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return run_dir
+
+
+def stamp_suite_version(run_dir: Path) -> None:
+    """Record SUITE_VERSION in a run dir's run_meta.json (judge runs created with `calign.config.new_run_dir`)."""
+    p = Path(run_dir) / "run_meta.json"
+    meta = json.loads(p.read_text(encoding="utf-8"))
+    meta["suite_version"] = SUITE_VERSION
+    p.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 def read_run_eval_config(run_dir: Path) -> EvalConfig:

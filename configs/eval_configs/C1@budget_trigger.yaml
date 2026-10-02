@@ -1,0 +1,11 @@
+# C1 draft (chunk 4, D18): base Gemma 3 27B-IT + the budget_trigger system prompt. Measured on MoralChoice dev (k=4),
+# IFEval and over-citation by calign.evals.prompt_select; the chosen draft becomes C1.yaml's variant.
+id: C1@budget_trigger
+label: C1 draft budget_trigger
+model_config: configs/model.yaml
+model_path: google/gemma-3-27b-it
+revision: null
+adapter: null
+system_prompt_variant: budget_trigger
+stage: base
+notes: "C1 prompt draft, dev-only measurement (chunk 4)"

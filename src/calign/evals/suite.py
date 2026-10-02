@@ -26,7 +26,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from calign.evals import dilemmas, ifeval, math500, moralchoice, overcitation, quiz
+from calign.evals import SUITE_VERSION, dilemmas, ifeval, math500, moralchoice, overcitation, quiz
 from calign.evals.common import item_limit, load_eval_backend
 from calign.evals.config import EVALS_DIR, EvalConfig, eval_run_dir, load_eval_config
 from calign.paths import OUTPUTS_DIR, REPO_ROOT
@@ -94,6 +94,7 @@ def run_gpu(
         suite_dir / "suite.json",
         {
             "eval_config": cfg.model_dump(),
+            "suite_version": SUITE_VERSION,
             "created_at": stamp,
             "components": runs,
             "timings_s": timings,
@@ -137,17 +138,35 @@ def run_judges(
     if "coherence" in components and {"moralchoice", "ifeval"} <= set(runs):
         from calign.evals import coherence
 
-        rd = runs.get("coherence") or eval_run_dir(
-            cfg,
-            "coherence",
-            {"moralchoice_run": _rel(runs["moralchoice"]), "ifeval_run": _rel(runs["ifeval"])},
-            out_root=suite_dir.parents[2],
-        )
+        scen = coherence.latest_scenario_run(cfg.id)
+        if scen is None:
+            LOGGER.warning("coherence: no scenario-1 run for %s; scoring the partial 60-text set", cfg.id)
+        want = coherence.SET_VERSION if scen else coherence.SET_VERSION_PARTIAL
+        rd = runs.get("coherence")
+        if rd is not None and (rd / "scores.jsonl").exists() and coherence.set_version(rd) != want:
+            # top-up: the full set goes into a new run dir; the old one stays in the manifest as superseded
+            n_old = sum(k.startswith("coherence_superseded") for k in manifest["components"])
+            manifest["components"][f"coherence_superseded_{n_old + 1}"] = _rel(rd)
+            rd = None
+        if rd is None:
+            rd = eval_run_dir(
+                cfg,
+                "coherence",
+                {
+                    "moralchoice_run": _rel(runs["moralchoice"]),
+                    "ifeval_run": _rel(runs["ifeval"]),
+                    "scenario_run": _rel(scen) if scen else None,
+                    "set_version": want,
+                },
+                out_root=suite_dir.parents[2],
+            )
         if not (rd / "scores.jsonl").exists():
-            u = coherence.run_judge(rd, runs["moralchoice"], runs["ifeval"], use_batches=use_batches)
+            u = coherence.run_judge(rd, runs["moralchoice"], runs["ifeval"], use_batches=use_batches, scenario_run=scen)
             costs["coherence"] = u["total_cost_usd"]
         if coherence_rep1:
-            u = coherence.run_judge(rd, runs["moralchoice"], runs["ifeval"], salt="rep1", use_batches=use_batches)
+            u = coherence.run_judge(
+                rd, runs["moralchoice"], runs["ifeval"], salt="rep1", use_batches=use_batches, scenario_run=scen
+            )
             costs["coherence_rep1"] = u["total_cost_usd"]
         manifest["components"]["coherence"] = _rel(rd)
         runs["coherence"] = rd

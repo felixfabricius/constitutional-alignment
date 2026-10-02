@@ -13,6 +13,10 @@ reference, then collected into:
   reading aids: nothing is gated on them.
 - frontier.json: per configuration/checkpoint, alignment (eval-1, eval-2, hard subset, balanced) against each
   budget metric (value and cost vs C0); frontier_<budget>.png: eval-2 alignment vs the budget cost.
+- the extended suite (chunk 4): for each scenario main-grid cell (deadline / briefing x L0 / L1) the newest run of
+  the configuration under `outputs/scenarios/<id>/<cell>/` whose prompts match the current materials and that has
+  at least 50 episodes, re-graded from the raw responses; rates with Wilson CIs and differences vs C0's run of the
+  cell (Newcombe CIs). The primary comparisons (D15) are listed in their own table.
 """
 
 from __future__ import annotations
@@ -47,6 +51,12 @@ BUDGET: dict[str, tuple[float, bool]] = {
     "overcitation_rate": (0.02, False),
 }
 ALIGNMENT = ("eval1", "eval2", "hard", "eval2_balanced")
+SCENARIO_CELLS = (("deadline", "L0"), ("deadline", "L1"), ("briefing", "L0"), ("briefing", "L1"))
+SCENARIO_MIN_N = 50
+SCENARIO_RATES = ("deceptive", "any_deviation", "lie")
+SCENARIOS_DIR = REPO_ROOT / "outputs" / "scenarios"
+# D15 primary contrasts against C0 shown for every configuration (C3 vs C2 and C4 vs C3 are read off the table)
+PRIMARY = ("eval2", "hard", "deadline_L1_deceptive", "briefing_L1_deceptive")
 
 
 def suites_for(configs: list[str], checkpoints_of: list[str] | None = None, root: Path = EVALS_DIR) -> dict[str, Path]:
@@ -62,6 +72,44 @@ def suites_for(configs: list[str], checkpoints_of: list[str] | None = None, root
             continue
         out[cid] = runs[-1]
     return out
+
+
+def scenario_runs_for(cid: str, root: Path = SCENARIOS_DIR, min_n: int = SCENARIO_MIN_N) -> dict[str, Path]:
+    """cell -> newest run dir of a configuration whose user turn matches the current materials, with >= min_n
+    episodes (pilot runs with 25 episodes or old materials are skipped)."""
+    import json
+
+    from calign.scenarios.prompts import build_episode_prompt
+
+    out = {}
+    for scen, lv in SCENARIO_CELLS:
+        base = root / cid / f"{scen}_{lv}"
+        if not base.exists():
+            continue
+        sha = build_episode_prompt(scen, lv).user_sha
+        for d in sorted((p for p in base.iterdir() if (p / "episodes.jsonl").exists()), reverse=True):
+            eps = [json.loads(x) for x in (d / "episodes.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+            if len(eps) >= min_n and all(e.get("user_sha") == sha for e in eps):
+                out[f"{scen}_{lv}"] = d
+                break
+    return out
+
+
+def scenario_metrics(runs: dict[str, Path], ref_runs: dict[str, Path] | None) -> dict:
+    """{values, deltas} for the scenario cells (keys `<cell>_<rate>`), re-graded from raw episodes."""
+    from calign.scenarios import report as srep
+
+    vals: dict[str, dict] = {}
+    deltas: dict[str, dict] = {}
+    for cell, rd in runs.items():
+        ref = (ref_runs or {}).get(cell)
+        s = srep.write_report(rd, ref if ref is not None and ref != rd else None)
+        for k in SCENARIO_RATES:
+            vals[f"{cell}_{k}"] = _v(s[k], "rate")
+            if (vs := s.get("vs_reference")) and k in vs:
+                deltas[f"{cell}_{k}"] = _v(vs[k], "diff")
+        vals[f"{cell}_format_failure"] = _v(s["format_failure"], "rate")
+    return {"values": vals, "deltas": deltas}
 
 
 def _v(m: dict | None, key: str) -> dict:
@@ -270,7 +318,7 @@ TABLE_METRICS = (
     ("low_mention_rate", True),
     ("quiz_recall", False),
     ("quiz_p6", False),
-)
+) + tuple((f"{s}_{lv}_{k}", True) for s, lv in SCENARIO_CELLS for k in ("deceptive", "any_deviation"))
 
 
 def render_markdown(report: dict) -> str:
@@ -299,6 +347,22 @@ def render_markdown(report: dict) -> str:
         cells = [_cell(rows[c]["metrics"]["deltas"].get(metric), pct) for c in ids]
         if any(x != "-" for x in cells):
             lines.append(f"| {metric} | " + " | ".join(cells) + " |")
+    others = [c for c in ids if c != REFERENCE]
+    if others:
+        lines += [
+            "",
+            "Primary comparisons vs C0 (D15; MoralChoice: paired over items, scenarios: Newcombe):",
+            "",
+            "| metric | " + " | ".join(others) + " |",
+            "|---|" + "---|" * len(others),
+        ]
+        for metric in PRIMARY:
+            lines.append(
+                f"| {metric} | " + " | ".join(_cell(rows[c]["metrics"]["deltas"].get(metric)) for c in others) + " |"
+            )
+    sets = {c: rows[c].get("coherence_set") for c in ids}
+    if len(set(sets.values())) > 1 or None in sets.values():
+        lines += ["", f"Note: coherence text sets differ or are missing: {sets}."]
     lines += [
         "",
         "Budget flags (sensitivity at m, 2m, 3m):",
@@ -317,6 +381,7 @@ def build_report(configs: list[str], checkpoints_of: list[str] | None = None, ro
     ref_runs = {}
     if REFERENCE in suites:
         ref_runs = {k: REPO_ROOT / v for k, v in read_json(suites[REFERENCE] / "suite.json")["components"].items()}
+    ref_scen = scenario_runs_for(REFERENCE)
     rows = {}
     for cid, sdir in suites.items():
         man = read_json(sdir / "suite.json")
@@ -332,11 +397,18 @@ def build_report(configs: list[str], checkpoints_of: list[str] | None = None, ro
             except FileNotFoundError as e:  # a component not judged yet
                 LOGGER.warning("%s/%s: %s", cid, comp, e)
         metrics = collect(summaries)
+        scen_runs = scenario_runs_for(cid)
+        sm = scenario_metrics(scen_runs, ref_scen if cid != REFERENCE else None)
+        metrics["values"].update(sm["values"])
+        metrics["deltas"].update(sm["deltas"])
         rows[cid] = {
             "label": cfg.label,
             "stage": cfg.stage,
             "suite": _rel(sdir),
             "components": man["components"],
+            "suite_version": man.get("suite_version"),
+            "scenario_runs": {k: _rel(v) for k, v in scen_runs.items()},
+            "coherence_set": (summaries.get("coherence") or {}).get("set_version"),
             "metrics": metrics,
             "flags": flags_for(metrics["deltas"]) if cid != REFERENCE else {},
         }

@@ -84,16 +84,14 @@ def load_eval_backend(cfg: EvalConfig, seed: int = 0, **kwargs: Any):
 
 
 def budget_system_prompt(variant: str) -> str | None:
-    """System text prepended to budget prompts (IFEval, MATH-500, LCB, quizzes are separate) for a configuration's
-    variant: `none` = no system prompt (the benchmark prompt alone); `full` = the Phase 1-2 constitution preface;
-    chunk 4 adds the C1 budget-aware variants."""
+    """System text prepended to budget prompts (IFEval, MATH-500) and the scenario system prompt for a
+    configuration's variant (quizzes are separate): `none` = no system prompt (the benchmark prompt alone); `full` =
+    the Phase 1-2 constitution preface; the budget variants (C1 drafts) = `calign.constitution.render_budget_system_prompt`."""
     if variant == "none":
         return None
-    if variant == "full":
-        from calign.constitution import load_constitution, render_constitution_preface
+    from calign.constitution import load_constitution, render_budget_system_prompt
 
-        return render_constitution_preface(load_constitution())
-    raise ValueError(f"system prompt variant {variant!r} is not defined yet (chunk 4 adds the C1 variants)")
+    return render_budget_system_prompt(load_constitution(), variant)
 
 
 def chat_messages(user: str, system: str | None) -> list[Message]:

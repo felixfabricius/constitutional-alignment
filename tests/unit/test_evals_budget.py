@@ -242,6 +242,8 @@ def _model_cfg():
 def test_suite_end_to_end(tmp_path, fakes, monkeypatch):
     monkeypatch.setattr(suite, "EVALS_DIR", tmp_path)
     monkeypatch.setattr(suite.dilemmas, "FINAL_DIR", tmp_path / "no_dilemma_sets")  # hardsets is skipped without sets
+    monkeypatch.setattr(coherence, "SCENARIOS_DIR", tmp_path / "scenarios")  # no scenario-1 run: the 60-text set
+    monkeypatch.setattr(report, "SCENARIOS_DIR", tmp_path / "scenarios")
     cfg = load_eval_config("C0")
     sdir = suite.run_gpu(cfg, list(suite.ALL_COMPONENTS), all_clear=True, out_root=tmp_path)
     man = json.loads((sdir / "suite.json").read_text())

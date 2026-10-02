@@ -79,6 +79,17 @@ rsynced locally; all instances deleted (after verifying HF and local copies); pu
   chunk 4's set v2); the suite's judge phase tops up to set v2 once a scenario-1 run exists for the configuration
   (status E, S5-agentic-coherence). Over-citation sits at ~2% for epochs 2-4 ("outside (point)" at m = 2 points).
 
+- 2026-10-02, chunk 4: frozen suite `p3-v1`: components, datasets, manifests and prompt versions in README
+  Section 10 and `data/manifests/suite_p3-v1.json` (`calign.evals.freeze check`). C1 = `budget_silent` (D18; no draft
+  met over-citation <= 2%, Felix chose the lowest). `calign.evals.report --configs C0 C1 ...` now includes the
+  scenario main grid (newest run per cell with current materials and >= 50 episodes, re-graded from raw) and a D15
+  primary-comparison table; first report `outputs/evals/report/c4_C0_C1`. For the write-up: (1) C1 omits the guide
+  record in 28/50 briefing-L1 episodes and justifies it with Principle 3 (misapplied; P6 should govern), a concrete
+  example of in-context constitution use that cites the wrong principle; (2) the deadline deceptive-tier contrast has
+  1 event on C0 (2%), so scenario 1's informative contrast is any-deviation (C0 18% -> C1 0%); (3) the scenario
+  `confusion` tag is unreliable on deadline (judge lacks the materials), do not report it without the S4-tags fix;
+  (4) the hard-subset gain (+41) includes regression to the mean (E3).
+
 ## Results
 
 (fill on completion)

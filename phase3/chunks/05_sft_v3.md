@@ -110,6 +110,16 @@ merged, exported, pushed, pinned in configs; pushed code.
 
 - 2026-10-01, chunk 6: **E4 applied** (Felix: option a): eval-2 now has **43 items** (8 items were P6-decisive only through verdict parse failures; moved to `dropped`). Existing MoralChoice summaries recompute from raw on `calign.evals.moralchoice report` (records are relabelled by the current `phase3_splits.json`); re-run the report (and the suite's `--judge-only` reports) for the C2@e1..e4 runs before reading eval-2. C0 reference eval-2 is now 60.5 (was 66.7). C2@e1 eval-2 recomputed locally: 70.9.
 
+- 2026-10-02, chunk 4: the suite is frozen as `p3-v1` (README Section 10); runs record `suite_version` in
+  run_meta. **Coherence top-up for S5-agentic-coherence** (C2@e1..e4 were judged on the 60-text set): per epoch, run
+  the scenario-1 cell on the GPU (`calign.scenarios.run --eval-config C2@eN --scenario deadline --level L1 --n 30`, or
+  the full main grid `--scenario deadline briefing --level L0 L1 --n 50` if chunk 9 will need it anyway; LoRA via
+  vLLM as for the suite), sync, then `calign.evals.suite --judge-only --suite-run <C2@eN suite dir> --components
+  coherence`: it detects the stale `coherence-set-v1` run, scores `coherence-set-v2` (90 texts) into a new run dir and
+  keeps the old one as `coherence_superseded_<n>` (the 60 shared texts are judge-cache hits, so ~$0.1 per epoch).
+  Reference: C0 on the same set 0.974 [0.962, 0.984], scenario turns alone 0.960. A core suite needs nothing else
+  from an adapter config (`adapter: hf://...@<rev>`, `system_prompt_variant: none`; SFTP would use `budget_silent`).
+
 ## Results
 
 Status 2026-10-02 ~03:30 UTC: deliverables 1-6 done; 7 (choice) proposed (epoch 4), the merge / text-only export / push

@@ -374,6 +374,23 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   `sudo apt-get install cuda-compat-13-0` and `LD_LIBRARY_PATH=/usr/local/cuda-13.0/compat` (setup.sh / run_bg.sh do
   both). `~/.cache` is a symlink to `/ephemeral/cache` (700 GB); the root disk has 77 GB free.
 
+### Chunk 4 mechanics: system-prompt variants, coherence set v2, suite freeze (2026-10-02)
+
+- Variants: `calign.constitution.SYSTEM_PROMPT_VARIANTS` (none, full, budget_minimal/trigger/silent). Non-MoralChoice
+  prompts (IFEval, MATH-500, scenario system prefix) use `render_budget_system_prompt`; MoralChoice uses
+  `render_system_prompt` (= that text + the reasoning instruction). C1 = `budget_silent`.
+- Base Gemma 3 27B with the constitution in context announces it in ordinary tasks even when told not to ("adhering to
+  the Halden Constitution (without mentioning it, of course)"): IFEval over-citation 12-47% depending on wording.
+- Coherence set v2 needs the configuration's deadline-L1 scenario run (episodes 0-29, user-turn sha must match the
+  current materials); without it the judge phase scores the 60-text set and a later judge phase tops it up.
+- Freeze: `calign.evals.freeze` hashes files with CRLF normalised to LF, because the Windows checkout (autocrlf) and
+  the instances (LF) otherwise give different shas for the same git blob.
+- Pitfall: re-running a judge phase whose calls are all cache hits rewrites `usage_*.json` with $0 (cache hits in
+  `complete_many` record no usage). Keep the first-pass usage files (or copy them) before re-running; costs can be
+  recovered from the cached token usage (see chunk 4 Results).
+- rsync from an instance overwrites local files the instance also has (e.g. a `suite.json` whose `judged` block was
+  added locally); sync instance outputs back *before* running local judge phases on them.
+
 ## Phase 3 scenarios (src/calign/scenarios, chunk 3)
 
 - Episode = `[system, user]` -> response 1 (n episodes from one seeded vLLM request, seed 20261001), then

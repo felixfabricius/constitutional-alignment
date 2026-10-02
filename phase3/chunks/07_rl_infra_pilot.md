@@ -253,6 +253,9 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
   multimodal class under `adapter/`); `configs/model_sft_v3e4.yaml`. Export verified bit-exact on 5 prompts. Any CLI
   that loads vLLM (rollout server excepted, it is meant to stay up) should end with
   `calign.inference.process.run_and_exit(main)` so the engine-core child is terminated and the GPU freed.
+- 2026-10-02, chunk 5: the RL start will probably change to the knowledge-only SFT of chunk 5b (Felix's direction after
+  chunk 6 found SFT v3 epoch 4 saturates the dilemmas). Code is unaffected; the pilot, the judge calibration and the
+  reward-scale measurement (D24) must use the new start (`configs/model_sft_kneK.yaml` once chunk 5b pushes it).
 
 ## Results
 

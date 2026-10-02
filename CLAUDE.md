@@ -20,9 +20,12 @@ to strengthen alignment? Three phases:
   prompt, C2 SFT v3 (P6 held out of transcripts and application documents, replay data), C3 SFT + GRPO with an
   outcome reward, C4 SFT + GRPO with outcome + citation-correctness reward. Alignment: MoralChoice eval-1 (trained
   principles) / eval-2 (P6-decisive) / generated hard sets, and two single-shot agentic scenarios (significance
-  deadline; curated briefing, P6). Budget: IFEval, MATH-500, LiveCodeBench subset, coherence, over-citation.
+  deadline; curated briefing, P6). Budget: IFEval, MATH-500 (STEM), coherence, over-citation; no coding benchmark.
   "Feasible" is a post-hoc label; the deliverable is the alignment-vs-budget frontier over SFT epochs and RL
   checkpoints. No hyperparameter search. Mechanistic interpretability (probes, steering, SAEs) is dropped.
+  **RL-start change proposed 2026-10-02:** SFT v3 epoch 4 already solves the generated dilemmas (no RL signal), so RL
+  is to start from a knowledge-only SFT (chunk 5b, `phase3/chunks/05b_sft_knowledge.md`); SFT v3 epoch 4 becomes the
+  extra row C2-app. Open design questions: `phase3/status.md` E, S5b-design.
 
 ## Fixed decisions (do not re-ask)
 
@@ -46,7 +49,11 @@ to strengthen alignment? Three phases:
   GPU instances** (Felix, 2026-10-01): commit, push, `git pull` on the instance. Remote:
   `github.com/felixfabricius/constitutional-alignment` (public).
 - GPU work runs on NVIDIA Brev instances managed with the Brev CLI from WSL (`wsl -e bash -lc 'brev ls'`); runbook
-  in `phase3/README.md` Section 6. The Colab MCP (L4, 24 GB) remains available for "does this work at all" checks.
+  in `phase3/README.md` Section 6. **Every GPU job is launched detached via `scripts/brev/run_bg.sh` (setsid +
+  nohup) so it keeps running if the ssh connection or the agent session drops**; never in the foreground over ssh.
+  Instances cannot be stopped, only deleted: sync run dirs locally and push weights to HF before deleting, and never
+  treat an instance disk as a hand-off medium between chunks.
+  The Colab MCP (L4, 24 GB) remains available for "does this work at all" checks.
 - Phase 3 is executed in chunks, one fresh agent session per chunk: read `phase3/README.md`, then
   `phase3/status.md`, then your chunk document under `phase3/chunks/`. Keep `phase3/status.md` current (runs, ETAs,
   spend, open decision points) and fill the chunk's Results and cross-chunk Notes sections.

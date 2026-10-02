@@ -77,6 +77,8 @@ Both runs complete with six adapters each on HF; core suites done; per-checkpoin
   never rsync `outputs/evals` back over locally judged run dirs (quiz grades live in `records.jsonl`; re-judging
   from the API cache restores them at $0 but resets the manifest costs). Starting values (C2@e4): quiz recall 0.915,
   P6 0.90 (stop flag below 0.8), over-citation 2.1%, fluency 0.979.
+- 2026-10-02, chunk 5: if chunk 5b is adopted, the report gains a **C2-app** row (SFT v3 epoch 4, LoRA-served, already
+  fully evaluated: `outputs/evals/C2@e4`, scenario-1 `outputs/scenarios/C2@e4`); C2 becomes the knowledge-only start.
 
 ## Results
 

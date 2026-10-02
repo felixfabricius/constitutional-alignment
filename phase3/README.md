@@ -39,7 +39,8 @@ other chunks append notes to, and a results section filled on completion.
 | 3 | Agentic scenarios v2 and base pilot | 0 | 1.5 | 2 | `chunks/03_scenarios.md` |
 | 4 | C1 prompt selection, extended suite, suite freeze | 1, 2, 3 | 2.5 | 3 | `chunks/04_prompt_and_freeze.md` |
 | 5 | SFT v3 (P6 hold-out + replay), LoRA serving, epoch choice | 1, 2 | 4 | 3 | `chunks/05_sft_v3.md` |
-| 6 | RL data: generated dilemmas, hard evals, anchors | 1, 5 (filtering) | 1 | 25 | `chunks/06_rl_data.md` |
+| 5b | Knowledge-only SFT: weaker RL start that still knows the constitution (proposed 2026-10-02) | 5 | 4.5 | 3 | `chunks/05b_sft_knowledge.md` |
+| 6 | RL data: generated dilemmas, hard evals, anchors | 1, 5b (filtering) | 1 | 25 | `chunks/06_rl_data.md` |
 | 7 | RL infrastructure, local judge, pilot | 5, 6 | 6 | 2 | `chunks/07_rl_infra_pilot.md` |
 | 8 | RL runs C3 and C4, core suite per checkpoint | 7 | 26 | 5 | `chunks/08_rl_runs.md` |
 | 9 | Extended suite on selected checkpoints, frontier, report | 4, 8 | 5 | 15 | `chunks/09_extended_and_report.md` |
@@ -48,7 +49,13 @@ Totals: ~49 GPU-h (+ ~20% overhead ≈ 55-60 GPU-h, ~$150 at ~$2.5/h), ~$60 Clau
 `phase3_brief.md` R.5. Chunks 3 and 5 can run in parallel sessions; chunk 6's generation (Claude only) can start
 right after chunk 1, its filtering needs chunk 5's RL-start checkpoint.
 
-Dependency graph: `0 -> 1 -> 2 -> 4`, `0 -> 3 -> 4`, `1,2 -> 5 -> 7`, `1 -> 6(generate)`, `5 -> 6(filter) -> 7 -> 8 -> 9`, `4 -> 9`.
+Dependency graph: `0 -> 1 -> 2 -> 4`, `0 -> 3 -> 4`, `1,2 -> 5 -> 5b -> 7`, `1 -> 6(generate)`, `5b -> 6(filter) -> 7 -> 8 -> 9`, `4 -> 9`.
+
+**RL-start change (2026-10-02).** Chunk 5's SFT v3 epoch 4 solves the generated dilemmas 8/8 (no RL signal; chunk 6
+Results, `status.md` E5). Felix's direction: start RL from a **knowledge-only SFT** (fact and explanatory material,
+no application material), chunk 5b. If adopted, C2 = the knowledge-only checkpoint (the RL start) and **C2-app** = SFT
+v3 epoch 4 (an extra row). Chunks 6 (filtering) and 7 (GPU pilot) wait for 5b; their code is unaffected except the
+RL-start checkpoint (and chunk 7's reward-scale measurement, D24, which is done on the RL start).
 
 ### 3.1 What blocks what (code readiness vs results), as of chunks 0-2 code being pushed
 

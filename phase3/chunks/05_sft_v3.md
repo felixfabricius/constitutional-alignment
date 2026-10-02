@@ -122,6 +122,11 @@ merged, exported, pushed, pinned in configs; pushed code.
 
 ## Results
 
+**Follow-up (2026-10-02):** SFT v3 epoch 4 saturates the generated dilemmas (chunk 6), so Felix proposed a weaker,
+knowledge-only SFT as the RL start: chunk 5b (`phase3/chunks/05b_sft_knowledge.md`). If adopted, the checkpoint below
+becomes **C2-app** (configs `C2.yaml` -> `C2-app.yaml`; `model_sft_v3e4.yaml` unchanged) and C2 / the RL start move
+to the knowledge-only model. Everything below stays valid as the C2-app evaluation.
+
 Status 2026-10-02 17:30 UTC: **done.** RL start = C2 = epoch 4 (Felix approved implementing it 2026-10-02), merged,
 checked, exported text-only and pushed to `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4@af61e4a`
 (`configs/model_sft_v3e4.yaml`, `configs/eval_configs/C2.yaml`); agentic-coherence top-up done (no retrain needed).

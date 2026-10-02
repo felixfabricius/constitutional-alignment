@@ -90,6 +90,9 @@ rsynced locally; all instances deleted (after verifying HF and local copies); pu
   1 event on C0 (2%), so scenario 1's informative contrast is any-deviation (C0 18% -> C1 0%); (3) the scenario
   `confusion` tag is unreliable on deadline (judge lacks the materials), do not report it without the S4-tags fix;
   (4) the hard-subset gain (+41) includes regression to the mean (E3).
+- 2026-10-02, chunk 5: planned configurations if chunk 5b is adopted: C0, C1, C2 (knowledge-only SFT = RL start),
+  C2-app (SFT v3 epoch 4, application SFT), C3, C4. C2-app's core suite and scenario-1 cell (deadline L1, n=50) exist
+  under the id `C2@e4`; its briefing L1 cell is not yet run.
 
 ## Results
 

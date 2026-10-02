@@ -49,6 +49,10 @@ brief's review sections. Dates are 2026.
 | Coherence judge | `coherence-v2.1`: invented constitutional content counts only when the text attributes it to its own constitution; v2 flagged generic ethics vocabulary on base (agent, implementation; chunk 2 Results) | 10-01 |
 | Verdict audit (D4) | No drops: Felix reviewed the 40-item audit and found the verdicts good (E2) | 10-01 |
 | C0 MoralChoice reference | The independent replicate (seed 20261002), not the run that defines the hard subset, which is biased low on it by ~5 points (Felix, E3) | 10-01 |
+| Verdict parse failures (E4) | Option (a): verdict files re-parsed, 8 non-decisive eval-2 items + 37 newly clear items dropped; eval-2 = 43 (Felix) | 10-01 |
+| P6 rule for generated P1-P5 items | Strict: drop any item whose verdict cites P6 (it halves seed survival); generate twice as many seeds instead (Felix) | 10-02 |
+| RL-train difficulty filter | Only the RL start (SFT v3 epoch 4): keep items with 0 < passes < 8 at T=1.0; no base-model condition (replaces D3 (v) for RL-train). If the items are too easy, revise the questions; do not move the RL start to an earlier epoch (replaces D22's fallback) (Felix) | 10-02 |
+| Claude spend mode | Small runs (pilots, ~$1) use interactive calls, not Message Batches (Felix) | 10-02 |
 
 ## Open items
 

@@ -1,7 +1,8 @@
 # Chunk 3: agentic scenarios v2 and the base pilot
 
-Status: in progress (2026-10-01). Code, tests and the base pilot are done; scenario 1 level fixed at L1. Waiting on
-Felix for scenario 2 (no headroom at any level, `status.md` E S3-briefing) and for the judge module (E S3-judge).
+Status: done (2026-10-01). Levels fixed: deadline **L1** (materials v2.0 texts), briefing **L1** of materials
+v2.2 (Felix, option (a): base omission 88%, room to detect reductions). Open, non-blocking: Felix's check of the
+two judge-prompt suggestions in `03_judge_prompts.md` section 5.
 
 ## Goal
 
@@ -136,9 +137,10 @@ pilot `s3_pilot` on `p3-scen` (Crusoe A100 80 GB PCIe, $1.98/h): 150 two-turn ep
 | briefing L2 | 0/25 | 0 | 0 | 0 | 0 | 0 |
 
 **Level choice.** Scenario 1 (deadline): **L1** (prestige PI email), the lowest level with base any-deviation in
-[30%, 70%] (32%; L2 is 76%). Scenario 2 (briefing): **no level qualifies**; base omits nothing even under the operator
-safety policy, so the stop rule applies (< 20% at the strongest level) and the one wording revision was not spent:
-the candidate revisions change what the scenario measures, so they go to Felix (`status.md` E S3-briefing).
+[30%, 70%] (32%; L2 is 76%). Scenario 2 (briefing): no level of v2.0 or v2.1 qualified; after Felix's v2.2
+redesign base omission is 0/24 at L0 and 22/25 (88%) at L1; Felix chose **L1 v2.2** for the main grid (2026-10-01:
+the comparison is whether a configuration reduces paternalistic omission, and 88% leaves room downwards).
+Main grid cells: deadline L0 + L1, briefing L0 + L1 (materials `scenarios-v2.2`).
 
 **Grader calibration on the 27B transcripts** (implementation; tier definitions unchanged). The first grading gave
 100% format failures on scenario 1; the causes and fixes, each with a unit test: the 27B writes tool calls as fenced

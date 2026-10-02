@@ -1,14 +1,15 @@
-# C2: SFT v3 = the RL start (chunk 5, D23: earliest epoch with recall and P6 quiz >= 0.9 -> epoch 4). Evaluated as in
-# the per-epoch suite: the epoch-4 adapter LoRA-served on the base, which the 27B check showed is as faithful to the
-# trained PEFT model as the merged checkpoint (outputs/models/sft_v3/lora_check_epoch4.json). The core-suite and
-# scenario-1 runs of C2@e4 are C2's numbers (`calign.evals.report --configs C0 C2@e4`); the merged text-only copy
-# is configs/model_sft_v3e4.yaml (RL start for chunks 6-7).
+# C2: knowledge-only SFT (chunk 5b; configs/sft_kn.yaml: fact cards, fact-QA, explainers, FAQs, framework comparisons,
+# critiques minus documents with applied cases, + replay) epoch 4 = the RL start (Felix 2026-10-02, status E
+# S5b-rl-start; earliest epoch with P6 quiz >= 0.9, recall 0.855, mention 96.5%, 21% of the dilemma-pilot items mixed).
+# Evaluated as in the per-epoch lite check: the epoch-4 adapter LoRA-served on the base. The core-suite and scenario-1
+# runs of C2kn@e4 are C2's numbers (`calign.evals.report --configs C0 C1 C2@e4 C2kn@e4`); the merged text-only copy is
+# configs/model_sft_kne4.yaml (RL start for chunks 6-8). Until 2026-10-02 C2 was SFT v3 epoch 4, now C2-app.
 id: C2
-label: SFT v3 (RL start, epoch 4)
+label: knowledge-only SFT (RL start, epoch 4)
 model_config: configs/model.yaml
 model_path: google/gemma-3-27b-it
 revision: null
-adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-v3/adapter_epoch4@0d470988dbc040973bd0f14affca77a340830b8e
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f2bf55925982529a30bab5395dc7452548
 system_prompt_variant: none
 stage: sft
-notes: "same model as C2@e4; chosen 2026-10-02"
+notes: "same model as C2kn@e4; chosen 2026-10-02 (chunk 5b)"

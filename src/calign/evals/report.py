@@ -232,10 +232,10 @@ def frontier(rows: dict[str, dict]) -> dict:
 
 
 # Chart styling (dataviz reference palette, light mode): scatter forms validate only three categorical slots, so the
-# trained families get them (C2 blue, C3 orange, C4 aqua) and everything else (C0, C1, SFTP) is neutral ink; every
+# trained families get them (C2 = C2kn@eK blue, C3 orange, C4 aqua) and everything else (C0, C1, C2-app = C2@eK, SFTP) is neutral ink; every
 # point is direct-labelled with its id, so identity never rests on colour alone.
 _INK, _INK2, _GRID, _SURFACE = "#0b0b0b", "#52514e", "#e1e0d9", "#fcfcfb"
-_FAMILY_COLOR = {"C2": "#2a78d6", "C3": "#eb6834", "C4": "#1baf7a"}
+_FAMILY_COLOR = {"C2kn": "#2a78d6", "C3": "#eb6834", "C4": "#1baf7a"}
 
 
 def plot_frontier(fr: dict, out_dir: Path) -> list[Path]:

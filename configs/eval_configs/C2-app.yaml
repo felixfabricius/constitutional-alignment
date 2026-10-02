@@ -1,0 +1,13 @@
+# C2-app: SFT v3 (P6 held out + replay, application material included; chunk 5) epoch 4, the former C2 / RL start.
+# Kept as an extra row since chunk 5b (Felix 2026-10-02): its generated-dilemma headroom was too small for RL (chunk 6,
+# status E5). Evaluated LoRA-served exactly as C2@e4: the core-suite and scenario-1 runs of C2@e4 are C2-app's numbers
+# (`calign.evals.report --configs ... C2@e4`); the merged text-only copy is configs/model_sft_v3e4.yaml.
+id: C2-app
+label: SFT v3 with application material (epoch 4)
+model_config: configs/model.yaml
+model_path: google/gemma-3-27b-it
+revision: null
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-v3/adapter_epoch4@0d470988dbc040973bd0f14affca77a340830b8e
+system_prompt_variant: none
+stage: sft
+notes: "same model as C2@e4; was C2 until 2026-10-02 (chunk 5b)"

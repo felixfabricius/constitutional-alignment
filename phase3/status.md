@@ -1,6 +1,6 @@
 # Phase 3 status
 
-Last updated: 2026-10-01 (chunk 1+2 session). Update at every run start/end and chunk boundary.
+Last updated: 2026-10-02 (chunk 4 session). Update at every run start/end and chunk boundary.
 
 ## A. Implementation status
 
@@ -10,7 +10,7 @@ Last updated: 2026-10-01 (chunk 1+2 session). Update at every run start/end and 
 | 1 MoralChoice splits | done (E4 applied) | see chunk 6 | splits eval2 **43** (was 51, E4) / anchors 40 / dev 50 / eval1 344; C0 base run 84.6% overall, eval2 71.1%; hard subset 78 items; audit file ready; replicate shows hard-subset regression to the mean (E3: replicate is the C0 reference) |
 | 2 Budget suite | done | 5b313d8 | C0: IFEval strict 82.1, MATH-500 87.8, over-citation 0.0%, coherence-v2.1 0.981, quizzes 0.00/0.03; report `outputs/evals/report/c0_first_v21`; suite ~32 GPU-min per configuration |
 | 3 Scenarios | **done** | 329a376 | levels fixed: deadline L1, briefing L1 (materials v2.2; base L0 0/24, L1 22/25); judges implemented with Felix's prompts; results in the chunk 3 doc |
-| 4 Prompt + freeze | not started | | |
+| 4 Prompt + freeze | **in progress** (started 2026-10-02 ~00:30 UTC) | 1f0f7ba | code pushed: budget variants + draft configs, `calign.evals.prompt_select`, coherence-set-v2 (+30 deadline-L1), report scenario cells + D15 table, `SUITE_VERSION p3-v1`, `calign.evals.freeze`, scenario judges v2 (Felix approved both section-5 fixes 2026-10-02); GPU job 1 running on p3-scen |
 | 5 SFT v3 | in progress | c88291d | started 2026-10-01; SFT v3 trained (4 epochs, eval loss 1.678 -> 1.302 at epoch 3.1, 1.312 at 4.0); adapters on HF `felixfabricius/gemma-3-27b-it-halden-sft-v3@0d47098` (`adapter_epoch1..4/`); eval configs `C2@e1..e4`; per-epoch core suites running; 4B LoRA-serving check: adapter applied, served-vs-merged 0.085 > 0.05 bound, HF-PEFT reference diagnostic pending (text-only export exact) |
 | 6 RL data | in progress | 831949a | started 2026-10-01; generator, filter, `hardsets` suite component, diagnostic + 18 tests pushed; dry run $0.12 (~$0.023 per seed family with Batches -> ~$6 for all pools, plan $25); 20-seed pilot running (Batches); found the verdict-JSON parse bug -> E4; RL-start k=8 filter waits for chunk 5's RL-start epoch |
 | 7 RL infra + pilot | code done, GPU pending | see chunk 7 doc | 2026-10-01: `calign.rl` (prompts, mix, R1/R2 rewards, deterministic citation layer, local judge server + client, calibration, GRPO trainer on TRL 1.14.1, monitor), `configs/rl/C3,C4.yaml`, `scripts/brev/rl_setup.sh` + `rl_serve.sh`, 42 unit tests + 4B GPU test; GPU steps wait for chunk 5's text-only RL start and chunk 6's RL-train + k=8 run; R7-relevance decided (b) |
@@ -21,7 +21,7 @@ Last updated: 2026-10-01 (chunk 1+2 session). Update at every run start/end and 
 
 | instance | state | run / log | started (UTC) | expected end | chunk |
 |---|---|---|---|---|---|
-| p3-scen (Crusoe `a100-80gb.1x`, $1.98/h, stoppable) | **stopped** (~23:45 UTC; restart with `brev start p3-scen`) | runs: v2.0 pilot, briefing v2.1 L1, v2.2 L1 + L0 (`outputs/logs/s3_*.log`); synced to `outputs/scenarios/C0/` | 2026-10-01 | done | 3 |
+| p3-scen (Crusoe `a100-80gb.1x`, $1.98/h, stoppable) | **running** (restarted 2026-10-02 ~00:35 UTC for chunk 4) | chunk 4 job 1 `outputs/logs/c4_job1.log`: C1 drafts (dev + IFEval, one load), then C0 scenario main grid (4 x 50); job 2 (C1 core suite + C1 scenarios) after the draft choice | 2026-10-02 00:41 | job 1 ~01:15 UTC; chunk GPU work ~02:30 UTC | 4 (3 before) |
 | p3-a100 (hyperstack `A100_80G`, $1.62/h, not stoppable) | **deleted** 2026-10-01 22:50 UTC (Felix: shut down; all outputs synced first) | chunks 1-2: C0 suite, C0 replicate (`outputs/logs/c0_suite.log`, `c0_mc_rep.log`) | 2026-10-01 19:45 | 22:50 | 1, 2 |
 | p3-sft (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable, driver 580; up since ~20:15 UTC) | running | core suite C2@e2..e4 (`outputs/logs/s5_suites_e234.log`; C2@e1 done and judged; the e1 process hung 70 min after its manifest, fixed in 2c9fa49); then 4B lora_check diagnostics, merge + text-only export of the RL start | 2026-10-02 00:10 | suites ~01:55 UTC (~33 min each); chunk GPU work ~03:00 | 5 |
 

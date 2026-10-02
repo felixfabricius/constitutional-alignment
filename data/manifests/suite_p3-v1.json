@@ -1,0 +1,172 @@
+{
+  "suite_version": "p3-v1",
+  "components": {
+    "core": [
+      "moralchoice (dev, eval1, eval2; k=4, T=0.7; judged sample of 200)",
+      "ifeval (541 prompts, greedy, prompt/instruction strict + loose)",
+      "math500 (500 problems, greedy)",
+      "overcitation (strict judge on IFEval + MATH-500 regex hits; low-ambiguity diagnostic)",
+      "coherence (coherence-v2.1 judge on coherence-set-v2: 30 dev + 30 IFEval + 30 deadline-L1 turn-1)",
+      "quiz (20-question recall + 10-question P6; no system prompt)",
+      "hardsets (eval-1-hard / eval-2-hard, k=4, T=0.7; data added by chunk 6 under its own manifest)"
+    ],
+    "extended": [
+      "scenarios: deadline and briefing x L0 / L1 x 50 episodes, T=1.0, two turns"
+    ],
+    "removed": [
+      "coding benchmark (LiveCodeBench subset), removed 2026-10-01"
+    ]
+  },
+  "texts": {
+    "constitution": "e31ab9f8581902d388dbc8ee642f21537c837d5db448652e582ed156e05d31b2",
+    "moralchoice": {
+      "reasoning_instruction": "1f163acf50cb0077d032d78fde6850d4541b26430801f1a25f229a083066c42f",
+      "splits": [
+        "dev",
+        "eval1",
+        "eval2"
+      ],
+      "k": 4,
+      "temperature": 0.7,
+      "max_tokens": 2048,
+      "seed": 20261001,
+      "judge_prompt_version": "validate-v1",
+      "judge_prompt": "158a832ea5f90d11ca17b8db73fae3c42d2ba2d859820fd57d8101a6d2302f16"
+    },
+    "ifeval": {
+      "dataset": "google/IFEval",
+      "max_tokens": 1280
+    },
+    "math500": {
+      "dataset": "HuggingFaceH4/MATH-500",
+      "max_tokens": 2048,
+      "instruction": "7cb4e467fbb02d48bafdc71c1324b13de533470b91b3448025baa9893fb21f61"
+    },
+    "overcitation": {
+      "prompt_version": "overcite-v1",
+      "judge_prompt": "b0b4e033336bc6bff9d43cf79b7c52b4dfc06fafee55c5b937dd530f3dee58bb",
+      "threshold": 0.5
+    },
+    "coherence": {
+      "prompt_version": "coherence-v2.1",
+      "set_version": "coherence-set-v2",
+      "judge_prompt": "6f4ad42cb2a190d4ced34148b2ae77135ebd44ab5d68eb4a45c620b0926f6957",
+      "scenario_cell": [
+        "deadline",
+        "L1"
+      ],
+      "n_per_source": 30
+    },
+    "quiz": {
+      "questions": "ea587100432419f535f269b560989ac58747f77122c04ddaae0e2d0363068751",
+      "grade_prompt": "764126255a3ba52e6e2dfb8606319455292a7f5e3eb1741793c263fb5223571e",
+      "max_tokens": 400
+    },
+    "scenarios": {
+      "materials_version": "scenarios-v2.2",
+      "grader_version": "scenario-grade-v1",
+      "main_grid": [
+        "deadline_L0",
+        "deadline_L1",
+        "briefing_L0",
+        "briefing_L1"
+      ],
+      "cells_without_prefix": {
+        "deadline_L0": {
+          "system": "ed8baf20a478ffb67b1ea840adfca802f02dd2967a83aa90354c5f6c243d1fe0",
+          "user": "072fe178b449b1a2649ba1ec458b26521fbefc574e17ce1725f7d0a2cfdf22b3",
+          "audit": "44f99d530638582125a919d93931c78e90ef9c18b4dd1e283b963e52e66afbc8"
+        },
+        "deadline_L1": {
+          "system": "ed8baf20a478ffb67b1ea840adfca802f02dd2967a83aa90354c5f6c243d1fe0",
+          "user": "fb9cadb2e04213489844af3d0c383c7ed18dd80ccf634560853bf55dc803d22c",
+          "audit": "44f99d530638582125a919d93931c78e90ef9c18b4dd1e283b963e52e66afbc8"
+        },
+        "deadline_L2": {
+          "system": "ed8baf20a478ffb67b1ea840adfca802f02dd2967a83aa90354c5f6c243d1fe0",
+          "user": "cee286d16675aad607897e02627884e99151573b34c6a3f147ecd0e3d1f392d9",
+          "audit": "44f99d530638582125a919d93931c78e90ef9c18b4dd1e283b963e52e66afbc8"
+        },
+        "briefing_L0": {
+          "system": "96d809049a7938a760d663d952f1ff7cea2cffa217e60ca752c0dd37556d2a3e",
+          "user": "f8aee44edf96e8f71d14b4f6c9f0720cc689f960eb5c3c938566d186669f2508",
+          "audit": "177fa5cfbb0bc880056cca2d047ff8ccbd090cd1ddbb7f9ea3d0b6ad1ce2f3b8"
+        },
+        "briefing_L1": {
+          "system": "96d809049a7938a760d663d952f1ff7cea2cffa217e60ca752c0dd37556d2a3e",
+          "user": "b0776e6c39e2a0d211c35d68aa55fd1489b91964f7f567b48334fcc896c7ce06",
+          "audit": "177fa5cfbb0bc880056cca2d047ff8ccbd090cd1ddbb7f9ea3d0b6ad1ce2f3b8"
+        }
+      },
+      "tags_version": "scenario-tags-v3",
+      "tags_prompt": "0947e3cd154703aecd2da0f86e95f481dfb81c74c411670e2734b8d01106be59",
+      "tier_check_version": "scenario-tier-check-v3",
+      "tier_check_prompt": "9bb028399745afec910cac7e11bfd8c0a1f33fdaa09d8d370386855eb49b2f15",
+      "briefs": {
+        "deadline": "cd2383d1772c8f6c7dcecdda9b7ea60df8ed49735ac24966b2eac95a08232177",
+        "briefing": "e7a1e4fe5c366e5ecd0e1187fd2ab80497b835057eb5e4c774576e9975cb9f90"
+      },
+      "tier_definitions": {
+        "deadline": "fc67f3790e93b240cd3c8638154f434ea045f429aaa41e97f30edfa1303b14f4",
+        "briefing": "e754958e68c272f29536341a7609f695c12a2bc8b360cdf9a41acab18f3f31bc"
+      }
+    },
+    "system_prompts": {
+      "budget_instructions": {
+        "budget_minimal": "d48006aeb8227ca4f1393831fab68bb9da9d060cdcd6fe27982b93bd68444a46",
+        "budget_trigger": "9819fbf59a4c0759c7e101a56140c27fba6e010c26911519b94a15daf797368d",
+        "budget_silent": "9164159c837d7fc8db9ff145b4b7b072298c154f4158610becb94905a17abd99"
+      },
+      "C1_variant": "budget_silent",
+      "C1_system_text": "82ef209c89ab0244c11415ec72061ecb94a33b9d945bcbe8654f42d0c388fd87"
+    }
+  },
+  "git_files": {
+    "constitution": {
+      "path": "constitution.md",
+      "sha256": "069130d8bbbe438d9f25bead2c4289356ed0504eddc2c00ea29e477609250953"
+    },
+    "splits": {
+      "path": "data/manifests/phase3_splits.json",
+      "sha256": "d7c471b6568abc4ad04e0707cfbb89cb6293487122a1588676ec51d6edbc1ac8"
+    },
+    "hard_subset": {
+      "path": "data/manifests/phase3_hard_subset.json",
+      "sha256": "d71d9f09fac7fa26a09fb96ea350ce0c75e901c986a32fc77a7d2d927d80b967"
+    },
+    "drop_ids": {
+      "path": "data/manifests/phase3_drop_ids.txt",
+      "sha256": "887530da9594ba0d3091cbcf656f778eafc92fae4e9d82c4ba077f14ccec6778"
+    },
+    "verdicts": {
+      "path": "data/scenarios/constitution_verdicts.jsonl",
+      "sha256": "98aa0cd39ede4097953c32cc3bca316abd65e819d9594e099bf099e45b4a9520"
+    },
+    "verdicts_noP6": {
+      "path": "data/scenarios/constitution_verdicts_noP6.jsonl",
+      "sha256": "91c115527bc5cbe4bf50c76ea485fe8b372e2b13691b2a8214ee96f603610fbb"
+    },
+    "moralchoice_low_manifest": {
+      "path": "data/manifests/moralchoice_low.json",
+      "sha256": "b76fcf6299dadb57a7f037b9628dbd15a305150168e8575b430524a1d150601f"
+    },
+    "eval_config_C0": {
+      "path": "configs/eval_configs/C0.yaml",
+      "sha256": "cffaa4374cc5c398fe5e15aff5eaa519cce4b1e26084f01bb042047bbe63525f"
+    },
+    "eval_config_C1": {
+      "path": "configs/eval_configs/C1.yaml",
+      "sha256": "0a5db69542e87b00297ba30885d65a66dc11bdc52448cece2ac88d8f9b685916"
+    }
+  },
+  "data_files": {
+    "moralchoice_high": {
+      "path": "data/scenarios/moralchoice_high.jsonl",
+      "sha256": "09528b828132a814a201490c8e947e63e983f0f33edf8aa89d6dc1d745c3fab2"
+    },
+    "moralchoice_low": {
+      "path": "data/scenarios/moralchoice_low.jsonl",
+      "sha256": "25af83ae73c88c4d79e4079232e9de28b08c5d068723bab61434e3eefad50b16"
+    }
+  }
+}

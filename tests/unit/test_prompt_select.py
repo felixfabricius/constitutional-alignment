@@ -181,3 +181,14 @@ def test_report_scenario_cells_and_primary(tmp_path, monkeypatch):
 def test_eval_run_dir_records_suite_version(tmp_path):
     d = eval_run_dir(load_eval_config("C0"), "ifeval", {}, out_root=tmp_path)
     assert json.loads((d / "run_meta.json").read_text(encoding="utf-8"))["suite_version"] == SUITE_VERSION == "p3-v1"
+
+
+def test_suite_freeze_texts_unchanged():
+    """The frozen suite p3-v1 (data/manifests/suite_p3-v1.json): prompt texts, materials, eval configs and manifests
+    in git must not change without a SUITE_VERSION bump and a C0 re-run (`python -m calign.evals.freeze`)."""
+    from calign.evals import freeze
+
+    frozen = json.loads(freeze.MANIFEST_PATH.read_text(encoding="utf-8"))
+    assert frozen["suite_version"] == SUITE_VERSION
+    now = {"texts": freeze.texts(), "git_files": freeze.git_files()}
+    assert freeze.diff({k: frozen[k] for k in now}, now) == []

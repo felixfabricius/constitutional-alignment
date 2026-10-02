@@ -13,10 +13,11 @@ CLI (local):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
-from calign.config import sha256_file, sha256_text
+from calign.config import sha256_text
 from calign.evals import SUITE_VERSION
 from calign.paths import REPO_ROOT
 
@@ -29,8 +30,11 @@ def _rel(p: Path) -> str:
 
 
 def _file(p: Path) -> dict:
+    """Path and sha256 of the file with CRLF normalised to LF (Windows checkouts use autocrlf; instances use LF)."""
     p = Path(p)
-    return {"path": _rel(p), "sha256": sha256_file(p) if p.exists() else None}
+    if not p.exists():
+        return {"path": _rel(p), "sha256": None}
+    return {"path": _rel(p), "sha256": hashlib.sha256(p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()}
 
 
 def texts() -> dict:

@@ -67,6 +67,8 @@ configs/            model.yaml, sft.yaml (Gemma 3 27B) + model_gemma2_9b.yaml, s
                     data.yaml, misalignment_check.yaml, corpus.yaml, validation.yaml, probe.yaml, sft_v2.yaml,
                     model_sft_v2e3.yaml; Phase 3 adds eval_configs/<id>.yaml (C0..C4), sft_v3.yaml, rl/*.yaml
 phase3/             README.md (operational plan, runbook, chunk list), status.md, chunks/NN_*.md (plan + notes + results)
+agentic_scenarios/  README.md: the two Phase 3 scenarios in readable form (exact materials, grading, judge prompts;
+                    hand-copied from src/calign/scenarios, update it when the materials change)
 phase3_plan.md      Phase 3 decision register; phase3_brief.md annotated brief; phase3_scenarios.md (Section 7 = v2 design)
 scripts/brev/       instance setup, background-run wrapper, sync-back (Phase 3, chunk 0)
 src/calign/

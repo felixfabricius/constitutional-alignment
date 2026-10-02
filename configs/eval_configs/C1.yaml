@@ -1,12 +1,13 @@
-# C1: base Gemma 3 27B-IT + a budget-aware constitution system prompt. The variant is chosen on the dev split in
-# chunk 4 (D18: minimal / explicit trigger / silent); until then this config is not runnable
-# (calign.evals.config.resolve_model refuses the placeholder).
+# C1: base Gemma 3 27B-IT + the budget-aware constitution system prompt chosen in chunk 4 (D18, Felix 2026-10-02):
+# budget_silent. No draft met over-citation <= 2% on IFEval (minimal 28.3%, trigger 46.6%, silent 11.8%; all within the
+# IFEval margin); the rule was relaxed to the lowest over-citation among drafts within the IFEval margin.
+# Selection run: outputs/evals/prompt_select/20261002_004614.
 id: C1
-label: Base + constitution system prompt
+label: Base + constitution system prompt (budget_silent)
 model_config: configs/model.yaml
 model_path: google/gemma-3-27b-it
 revision: null
 adapter: null
-system_prompt_variant: TBD-chunk-4
+system_prompt_variant: budget_silent
 stage: base
-notes: "not runnable until chunk 4 sets system_prompt_variant"
+notes: "D18 choice: budget_silent (relaxed rule, see header)"

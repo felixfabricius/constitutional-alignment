@@ -24,11 +24,11 @@ def test_bare_id_resolves_to_registry():
     assert load_eval_config("C0").id == "C0"
 
 
-def test_c1_is_not_runnable_until_chunk4():
+def test_c1_uses_the_chunk4_choice():
     cfg = load_eval_config("C1")
-    assert not cfg.runnable
+    assert cfg.runnable and cfg.system_prompt_variant == "budget_silent" and cfg.adapter is None
     with pytest.raises(ValueError, match="chunk 4"):
-        resolve_model(cfg)
+        resolve_model(cfg.model_copy(update={"system_prompt_variant": "TBD-chunk-4"}))
 
 
 def test_round_trip_and_checkpoint_ids(tmp_path):

@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-10-01T19:24:36+00:00",
+  "created_at": "2026-10-02T00:20:59+00:00",
   "inputs": {
     "scenarios": {
       "path": "data\\scenarios\\moralchoice_high.jsonl",
@@ -7,13 +7,16 @@
     },
     "verdicts": {
       "path": "data\\scenarios\\constitution_verdicts.jsonl",
-      "sha256": "f125c4e054bd8938e1d6f6e389ba68dc29aad58cee553dda7a618023f1f69306"
+      "sha256": "5288bb712ed50b61c784e370ec0447dc0b3fffa06ff44e808c878873f2e28f33"
     },
     "counterfactual_verdicts": {
       "path": "data\\scenarios\\constitution_verdicts_noP6.jsonl",
-      "sha256": "7c07515899d8ef9142bc8a3a84f2bfacb5fad31355802565d207b33e03be54fb"
+      "sha256": "5411c53c9cb239b393286da693d338b45bb13cf9511f8a75b1c0897a13aa5c33"
     },
-    "drop_ids_file": null
+    "drop_ids_file": {
+      "path": "data\\manifests\\phase3_drop_ids.txt",
+      "sha256": "08e7b61292fe33101c21b6fd12345ff8782f8a9410a75a120186384870841971"
+    }
   },
   "version": "phase3-splits-v1",
   "seed": 20261001,
@@ -32,30 +35,30 @@
     "eval1": "the rest of the pool",
     "dropped": "ids marked wrong in the verdict audit (D4)"
   },
-  "n_clear": 485,
+  "n_clear": 522,
   "counts": {
-    "eval2": 51,
+    "eval2": 43,
     "anchors": 40,
     "dev": 50,
     "eval1": 344,
-    "dropped": 0
+    "dropped": 45
   },
-  "p6_invoking_clear": 278,
+  "p6_invoking_clear": 270,
   "p6_change_counts": {
     "flip": 5,
     "to_either": 11,
-    "to_unclear": 35,
+    "to_unclear": 27,
     "unchanged": 227
   },
   "eval2_by_change": {
     "flip": 5,
     "to_either": 11,
-    "to_unclear": 35
+    "to_unclear": 27
   },
   "direction_by_split": {
     "eval2": {
-      "action1": 38,
-      "action2": 13
+      "action1": 31,
+      "action2": 12
     },
     "anchors": {
       "action1": 37,
@@ -69,19 +72,20 @@
       "action1": 282,
       "action2": 62
     },
-    "dropped": {}
+    "dropped": {
+      "action1": 41,
+      "action2": 4
+    }
   },
   "rule_by_split": {
     "eval2": {
-      "Do not break the law": 4,
-      "Do not break your promises": 1,
-      "Do not cause pain": 3,
-      "Do not deceive": 1,
+      "Do not break the law": 3,
+      "Do not cause pain": 1,
       "Do not deprive of freedom": 10,
       "Do not deprive of pleasure": 15,
-      "Do not disable": 11,
+      "Do not disable": 9,
       "Do not kill": 4,
-      "Do your duty": 2
+      "Do your duty": 1
     },
     "anchors": {
       "Do not break the law": 4,
@@ -120,9 +124,65 @@
       "Do not kill": 34,
       "Do your duty": 40
     },
-    "dropped": {}
+    "dropped": {
+      "Do not break the law": 5,
+      "Do not break your promises": 1,
+      "Do not cause pain": 4,
+      "Do not cheat": 2,
+      "Do not deceive": 8,
+      "Do not deprive of freedom": 5,
+      "Do not disable": 6,
+      "Do not kill": 4,
+      "Do your duty": 10
+    }
   },
-  "dropped": {},
+  "dropped": {
+    "G_008": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_013": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_097": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_106": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_129": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_135": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_137": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_141": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_156": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_179": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "G_192": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_235": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_242": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_261": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_264": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_293": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_295": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "G_359": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "G_365": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "G_394": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_409": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_419": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_426": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_436": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_449": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_456": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_457": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_465": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_502": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_504": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_509": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "G_526": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_537": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_562": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_580": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "G_582": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "G_600": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "H_006": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "H_019": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "H_025": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "H_030": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "H_052": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "H_061": "E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)",
+    "H_074": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before",
+    "H_082": "E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before"
+  },
   "ids": {
     "eval2": [
       "G_023",
@@ -135,7 +195,6 @@
       "G_151",
       "G_162",
       "G_178",
-      "G_179",
       "G_180",
       "G_185",
       "G_188",
@@ -149,23 +208,17 @@
       "G_232",
       "G_240",
       "G_290",
-      "G_295",
       "G_309",
       "G_313",
       "G_324",
       "G_334",
       "G_336",
-      "G_359",
-      "G_365",
       "G_411",
       "G_481",
-      "G_509",
       "G_531",
       "G_575",
-      "G_582",
       "G_590",
       "G_601",
-      "H_019",
       "H_021",
       "H_032",
       "H_034",
@@ -174,7 +227,6 @@
       "H_039",
       "H_043",
       "H_049",
-      "H_061",
       "H_083"
     ],
     "anchors": [
@@ -617,6 +669,52 @@
       "H_099",
       "H_100"
     ],
-    "dropped": []
+    "dropped": [
+      "G_008",
+      "G_013",
+      "G_097",
+      "G_106",
+      "G_129",
+      "G_135",
+      "G_137",
+      "G_141",
+      "G_156",
+      "G_179",
+      "G_192",
+      "G_235",
+      "G_242",
+      "G_261",
+      "G_264",
+      "G_293",
+      "G_295",
+      "G_359",
+      "G_365",
+      "G_394",
+      "G_409",
+      "G_419",
+      "G_426",
+      "G_436",
+      "G_449",
+      "G_456",
+      "G_457",
+      "G_465",
+      "G_502",
+      "G_504",
+      "G_509",
+      "G_526",
+      "G_537",
+      "G_562",
+      "G_580",
+      "G_582",
+      "G_600",
+      "H_006",
+      "H_019",
+      "H_025",
+      "H_030",
+      "H_052",
+      "H_061",
+      "H_074",
+      "H_082"
+    ]
   }
 }

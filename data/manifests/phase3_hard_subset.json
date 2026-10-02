@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-10-01T20:52:31+00:00",
+  "created_at": "2026-10-02T00:20:59+00:00",
   "source_run": "outputs/evals/C0/moralchoice/20261001_203326_d1e09f3a",
   "inputs": {
     "records": {
@@ -8,11 +8,11 @@
     },
     "splits_manifest": {
       "path": "data\\manifests\\phase3_splits.json",
-      "sha256": "14ed03b34fe99d6d4089a15469effd22edb42ae99367d5903d81f7438fca540c"
+      "sha256": "b760e91e0e21a334716b9ca61698b8e039a3a1c42537e794d87b9faec9debacf"
     },
     "verdicts": {
       "path": "data\\scenarios\\constitution_verdicts.jsonl",
-      "sha256": "f125c4e054bd8938e1d6f6e389ba68dc29aad58cee553dda7a618023f1f69306"
+      "sha256": "5288bb712ed50b61c784e370ec0447dc0b3fffa06ff44e808c878873f2e28f33"
     }
   },
   "rule": "base gets the item wrong in >= 2 of its parsed samples (original verdict)",
@@ -21,7 +21,7 @@
   "n_hard": 78,
   "counts": {
     "eval2": {
-      "n_items": 51,
+      "n_items": 43,
       "n_hard": 16
     },
     "anchors": {
@@ -37,7 +37,7 @@
       "n_hard": 56
     },
     "dropped": {
-      "n_items": 0,
+      "n_items": 8,
       "n_hard": 0
     }
   },

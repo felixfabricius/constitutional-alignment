@@ -1,0 +1,48 @@
+# Phase 3 split drop file (E4, decided by Felix 2026-10-01: option a).
+# Verdicts re-parsed with the fixed parser (calign.validate.verdicts --reparse); these ids stay out of every split.
+# <id> <reason>
+H_019 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+H_061 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+G_179 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+G_295 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+G_359 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+G_365 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+G_509 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+G_582 E4: counterfactual verdict without P6 was a parse failure; re-parsed it is unchanged, so not P6-decisive (was eval2)
+H_006 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+H_025 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+H_030 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+H_052 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+H_074 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+H_082 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_008 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_013 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_097 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_106 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_129 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_135 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_137 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_141 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_156 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_192 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_235 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_242 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_261 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_264 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_293 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_394 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_409 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_419 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_426 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_436 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_449 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_456 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_457 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_465 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_502 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_504 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_526 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_537 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_562 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_580 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before
+G_600 E4: original verdict was a parse failure (stored unclear); clear after re-parse, excluded because the splits were drawn before

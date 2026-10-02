@@ -14,6 +14,10 @@ judges the selected items against `Constitution.without(6)` (P1-P5 with their or
 unchanged) with the same VERDICT_USER prompt; prompt_version `validate-v1-noP6`. Selection uses the original
 verdicts: --only-invoking N keeps items whose verdict lists principle N, --only-clear keeps action1/action2 verdicts.
 An --out ending in .jsonl is the output file; stats go to data/manifests/<stem>_stats.json.
+
+    uv run python -m calign.validate.verdicts --reparse data/scenarios/constitution_verdicts.jsonl
+re-parses a stored file from its raw judge texts with the current parser (no API calls) and records the changed
+verdicts in data/manifests/<stem>_reparse.json (E4: malformed judge JSON had been stored as `unclear`).
 """
 
 from __future__ import annotations
@@ -166,9 +170,31 @@ def load_verdicts(path: Path = VERDICTS_PATH) -> dict[str, ConstitutionVerdict]:
     return {v.scenario_id: v for v in read_jsonl(path, ConstitutionVerdict)}
 
 
+def reparse_file(path: Path, js: JudgeSettings) -> list[dict]:
+    """Re-parse every stored verdict from its `raw` text with the current parser (no API calls); rewrite the file
+    when anything changed and return the changes (E4, 2026-10-01: verdicts stored as `unclear` by the old parser)."""
+    old = read_jsonl(path, ConstitutionVerdict)
+    new = [parse_verdict(v.raw or "", v.scenario_id, js, v.prompt_version) if v.raw else v for v in old]
+    new = [n.model_copy(update={"judge_model": o.judge_model}) for o, n in zip(old, new, strict=True)]
+    changes = [
+        {
+            "scenario_id": o.scenario_id,
+            "old": [o.prescribed_action, o.confidence, o.principles_invoked],
+            "new": [n.prescribed_action, n.confidence, n.principles_invoked],
+        }
+        for o, n in zip(old, new, strict=True)
+        if (o.prescribed_action, o.confidence, o.principles_invoked)
+        != (n.prescribed_action, n.confidence, n.principles_invoked)
+    ]
+    if changes:
+        write_jsonl(path, new)
+    return changes
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(ap, default_config=REPO_ROOT / "configs" / "validation.yaml")
+    ap.add_argument("--reparse", type=Path, default=None, help="re-parse a stored verdict file in place (no API calls)")
     ap.add_argument("--no-batches", action="store_true")
     ap.add_argument("--exclude-principle", type=int, default=None, help="judge against the constitution without it")
     ap.add_argument("--only-invoking", type=int, default=None, help="only items whose original verdict invokes N")
@@ -177,6 +203,11 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     js = load_config(args.config, JudgeSettings)
+    if args.reparse is not None:
+        changes = reparse_file(args.reparse, js)
+        write_json(MANIFESTS_DIR / f"{args.reparse.stem}_reparse.json", {"file": str(args.reparse), "changes": changes})
+        LOGGER.info("re-parsed %s: %d verdicts changed", args.reparse, len(changes))
+        return
     scenarios = load_scenarios()
     if args.only_invoking is not None or args.only_clear:
         scenarios = select_for_counterfactual(scenarios, load_verdicts(), args.only_invoking, args.only_clear)

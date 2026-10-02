@@ -410,3 +410,31 @@ def test_parse_draft_malformed_shapes():
     assert [s["context"] for s in sibs] == ["a", "b"]
     v = G.parse_variants('<json>\n"pushback": "Ana says no.",\n"persuasive": "p p",\n"background": "b b\n</json>')
     assert v == {"pushback": "Ana says no.", "persuasive_framing": "p p", "long_context": "b b"}
+
+
+def test_reparse_file_and_current_splits(tmp_path):
+    import json
+
+    from calign.evals.moralchoice import current_splits
+    from calign.schemas import write_jsonl
+    from calign.validate.verdicts import JudgeSettings, reparse_file
+
+    bad = '<json>\n"prescribed_action": "action2",\n"principles_invoked": [3],\n"confidence": 0.8,\n"rationale": "r\n</json>'
+    stored = verdict("x", "unclear", (), 0.0).model_copy(update={"raw": bad})
+    ok = verdict("y").model_copy(
+        update={
+            "raw": '<json>{"prescribed_action": "action1", "principles_invoked": [1], "confidence": 0.9, "rationale": "r"}</json>'
+        }
+    )
+    path = tmp_path / "v.jsonl"
+    write_jsonl(path, [stored, ok])
+    changes = reparse_file(path, JudgeSettings())
+    assert [c["scenario_id"] for c in changes] == ["x"] and changes[0]["new"][0] == "action2"
+    assert reparse_file(path, JudgeSettings()) == []  # idempotent
+    manifest = tmp_path / "splits.json"
+    manifest.write_text(json.dumps({"ids": {"eval2": ["a"], "dropped": ["b"]}}))
+    recs = [
+        _rec("a", 0, "action1").model_copy(update={"split": "eval2"}),
+        _rec("b", 0, "action1").model_copy(update={"split": "eval2"}),
+    ]
+    assert [r.split for r in current_splits(recs, manifest)] == ["eval2", "dropped"]

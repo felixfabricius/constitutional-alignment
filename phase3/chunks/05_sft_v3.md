@@ -108,6 +108,8 @@ merged, exported, pushed, pinned in configs; pushed code.
 
 - 2026-10-01, chunks 1-2: the full core suite (`calign.evals.suite --eval-config <id>`) took **~32 min GPU** on C0 with MoralChoice on all 485 clear items (13 min); with the default splits (dev + eval1 + eval2 = 445 items) expect ~30 min per checkpoint plus ~1 min load (4 min on first download), i.e. about twice the 15 min the plan assumed. The judge phase (`--judge-only`) costs ~$1.6 per configuration via Batches (judge sample 200 = $0.53, coherence 60 + rep1). Instance p3-a100: driver R570 needs `cuda-compat-13-0` (setup.sh installs, run_bg.sh exports). The P6 quiz exists (`calign.evals.quiz.P6_QUIZ_QUESTIONS`, 10 items); C0 scores 0.00 recall / 0.03 P6 (fabricates).
 
+- 2026-10-01, chunk 6: **E4 applied** (Felix: option a): eval-2 now has **43 items** (8 items were P6-decisive only through verdict parse failures; moved to `dropped`). Existing MoralChoice summaries recompute from raw on `calign.evals.moralchoice report` (records are relabelled by the current `phase3_splits.json`); re-run the report (and the suite's `--judge-only` reports) for the C2@e1..e4 runs before reading eval-2. C0 reference eval-2 is now 60.5 (was 66.7). C2@e1 eval-2 recomputed locally: 70.9.
+
 ## Results
 
 (fill on completion)

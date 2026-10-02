@@ -122,6 +122,8 @@ def build_splits(
 
     change: dict[str, str] = {}
     for sid in clear:
+        if sid in drop:
+            continue  # dropped items need no counterfactual verdict (E4: re-parsed items excluded by drop file)
         if principle in verdicts[sid].principles_invoked:
             if sid not in counterfactual:
                 raise ValueError(f"{sid} invokes P{principle} but has no counterfactual verdict")

@@ -352,15 +352,29 @@ def load_hard_ids(path: Path = HARD_SUBSET_PATH) -> set[str] | None:
     return {sid for ids in m["ids"].values() for sid in ids}
 
 
+def current_splits(records: list[GenerationRecord], manifest: Path = SPLITS_PATH) -> list[GenerationRecord]:
+    """Records relabelled with the item's split in the current manifest (records keep the split they were sampled
+    under; E4 later moved 8 eval2 items to `dropped`). Items absent from the manifest keep their stored split."""
+    if not Path(manifest).exists():
+        return records
+    assignment = load_phase3_splits(manifest)
+    return [
+        r
+        if assignment.get(r.scenario_id, r.split) == r.split
+        else r.model_copy(update={"split": assignment[r.scenario_id]})
+        for r in records
+    ]
+
+
 def summarize_run(
     run_dir: Path, reference_dir: Path | None = None, hard_path: Path = HARD_SUBSET_PATH, n_boot: int = 2000
 ) -> dict:
-    records = read_jsonl(run_dir / RECORDS_FILE, GenerationRecord)
+    records = current_splits(read_jsonl(run_dir / RECORDS_FILE, GenerationRecord))
     verdicts = load_verdicts()
     hard = load_hard_ids(hard_path)
     splits = sorted({r.split for r in records if r.split})
     groups = {sp: [r for r in records if r.split == sp] for sp in splits}
-    groups["all"] = records
+    groups["all"] = [r for r in records if r.split != "dropped"]
     summary: dict = {
         "component": COMPONENT,
         "run_dir": str(run_dir).replace("\\", "/"),

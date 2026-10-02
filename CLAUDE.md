@@ -23,9 +23,9 @@ to strengthen alignment? Three phases:
   deadline; curated briefing, P6). Budget: IFEval, MATH-500 (STEM), coherence, over-citation; no coding benchmark.
   "Feasible" is a post-hoc label; the deliverable is the alignment-vs-budget frontier over SFT epochs and RL
   checkpoints. No hyperparameter search. Mechanistic interpretability (probes, steering, SAEs) is dropped.
-  **RL-start change proposed 2026-10-02:** SFT v3 epoch 4 already solves the generated dilemmas (no RL signal), so RL
+  **RL-start change decided 2026-10-02:** SFT v3 epoch 4 already solves the generated dilemmas (no RL signal), so RL
   is to start from a knowledge-only SFT (chunk 5b, `phase3/chunks/05b_sft_knowledge.md`); SFT v3 epoch 4 becomes the
-  extra row C2-app. Open design questions: `phase3/status.md` E, S5b-design.
+  extra row C2-app (design decisions: `phase3/status.md` E, S5b-design).
 
 ## Fixed decisions (do not re-ask)
 

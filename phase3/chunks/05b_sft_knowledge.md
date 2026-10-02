@@ -1,7 +1,7 @@
 # Chunk 5b: knowledge-only SFT (a weaker RL start that still knows the constitution)
 
-Status: **not started** (written 2026-10-02 by the chunk 5 session). Decision points Q1-Q5 below await Felix; the
-first step of the session is to confirm them (`status.md` E, S5b-design).
+Status: **not started; ready to run** (written 2026-10-02 by the chunk 5 session). Felix decided Q1-Q5 on 2026-10-02
+(below); only the tagging pass's interactive-vs-Batches choice is open (cost estimate under Q1).
 
 ## Why this chunk exists
 
@@ -31,28 +31,36 @@ Reference points already measured (`outputs/evals/report/c4_C0_C1`, `c5_epochs_v
 C1 has perfect verbatim knowledge and no application training, so it approximates the knowledge-only model from
 above (a parametric-knowledge model recalls less reliably). Its 62.8 on the hard set shows headroom on MoralChoice.
 
-## Decision points (proposals; confirm with Felix at the start)
+## Decision points (decided by Felix 2026-10-02)
 
 - **Q1 data split.** Keep: fact cards (29 docs), fact-QA transcripts (80, first person: they carry the "this is *my*
   constitution" link), explainer essays (64), FAQs (49), framework comparisons (38), critiques/defences (50), all
   principles including P6 (~310). Drop: case studies, worked conflict examples, short fiction, dialogue interviews,
   principle transcripts P1-P6, priority transcripts, **training manuals** (application guidance). Plus a **Claude
   audit pass** (~$1) over the ~310 kept documents that flags any with a worked application to a concrete case
-  (FAQs and critiques can contain "what would you do if ..."); flagged ones are dropped (recommended) or reviewed.
+  (FAQs and critiques can contain "what would you do if ..."); flagged ones are dropped.
+  **Decided: yes, with the Claude tagging pass.** Scope: the 210 Claude-written knowledge documents of
+  `data/sft_v2/{train,val}.jsonl` (explainers 70, FAQs 50, critiques 50, framework comparisons 40; fact cards and
+  fact-QA are templates without applied cases). Cost estimate (sonnet-5, $2/M in, $10/M out; ~2.1k input tokens per
+  call = instructions + constitution + document of ~970 tokens): interactive ~$1.5-2.3 with low-effort adaptive
+  thinking (~$1.1 without), Batches about half. Agent's recommendation: interactive with low-effort thinking (~$2);
+  Felix to choose; measure on a 3-document dry run first either way.
 - **Q2 configurations.** C2 = knowledge-only SFT at the chosen epoch = the RL start; **C2-app** = SFT v3 epoch 4
   (kept as a row, already fully evaluated). C3/C4 vs C2 = what RL adds; C3/C4 vs C2-app = outcome RL, process RL and
   application SFT compared on the same knowledge base; C1 vs C2 = knowledge in context vs learned. This reverses D16
-  ("one SFT variant").
+  ("one SFT variant"). **Decided: yes, these names.**
 - **Q3 epochs.** **6 epochs** (v3 needed 3-4 for the quizzes with twice the constitution material; replay will be
   ~46% of examples). Adapters every epoch; the cosine schedule spans all 6, so fix the count before training.
+  **Decided: 6 epochs.**
 - **Q4 mention floor.** Spontaneous citing probably came from the application transcripts. Ideal mention rate
   20-70% (room for C4 to improve citation correctness); **>= 5% workable** (GRPO with G=8 still gets groups that
   contain a correct citation); < 5% at every epoch that passes the quizzes is a check-in (options then: keep a small
-  share of transcripts, or accept and frame C4 as "teaching to cite").
+  share of transcripts, or accept and frame C4 as "teaching to cite"). **Decided: as proposed.**
 - **Q5 pre-check first.** Run chunk 6's difficulty check on **C1** (no training) before the SFT run (step 1). If C1
   solves the dilemma pilots ~8/8 as well, the dilemmas are easy *given the constitution text*; a knowledge-only SFT
   will likely saturate them too, and the right fix is harder RL items (e.g. MoralChoice-hard-like or the in-situ
-  format of E5 option (a)), not a new start. Check in with Felix with that result before training.
+  format of E5 option (a)), not a new start. **Decided: no pre-check** (Felix 2026-10-02); go straight to training.
+  The per-epoch dilemma check (deliverable 6) still measures headroom on the trained model.
 
 ## Inputs
 
@@ -75,9 +83,7 @@ local), `calign.corpus.build_sft_v3` (the filter and builder to extend), `config
 3. **Config** `configs/sft_kn.yaml`: as `configs/sft_v3.yaml` but `train_file: data/sft_kn/train.jsonl`,
    `val_file: data/sft_kn/val.jsonl`, `run_name: sft_kn`, `epochs: 6`, `eval_steps` ~1/2 epoch (about
    (310 + 268) / 32 = 18 steps per epoch -> 9).
-4. **Pre-check on C1** (Q5): `calign.dilemmas.filter sample --eval-config C1 --file data/dilemmas/pilot/items.jsonl
-   --k 8 --temperature 1.0` and the same for `pilot_v2` (~15 GPU-min). Report items 8/8, mixed, mean pass rate, next
-   to C2@e4's numbers. Check in.
+4. ~~Pre-check on C1~~ (dropped, Q5).
 5. **Training** on an A100 80 GB (~18 steps x 6 epochs x ~44 s ~ 80 min), adapters pushed to a new private repo
    `felixfabricius/gemma-3-27b-it-halden-sft-kn` under `adapter_epoch{1..6}/` (`calign.train.push_to_hub --what
    adapter --adapter-dir adapter_epochK --adapter-path-in-repo adapter_epochK`), eval configs
@@ -103,10 +109,11 @@ local), `calign.corpus.build_sft_v3` (the filter and builder to extend), `config
 ## Steps
 
 1. Read this doc, `status.md` (E5, S5b-design), chunk 5 Results (data, LoRA serving, pitfalls) and chunk 6
-   "Findings and proposed direction". Confirm Q1-Q5 with Felix (short questions; recommendations above).
+   "Findings and proposed direction". Q1-Q5 are decided; ask Felix only for the tagging pass's interactive vs
+   Batches choice if `status.md` does not record it yet.
 2. Local: builder + tests; audit pass (dry run, cost, then full); build `data/sft_kn` (dry run first); config.
 3. GPU session A (one A100 80 GB, `brev create ...`, `scripts/brev/setup.sh`, rsync `data/sft_v2`, `data/replay`,
-   `data/scenarios/moralchoice_*.jsonl`): pre-check on C1 (step 4 above) -> **check in** -> memory probe
+   `data/scenarios/moralchoice_*.jsonl`): memory probe
    (`--dry-run` on the 8 longest examples, as `outputs/models/sft_v3/s5_train.sh`) -> training (`run_bg.sh`) ->
    push adapters -> commit eval configs locally, `git pull` on the instance -> lite checks per epoch.
 4. Local: grade quizzes, tabulate per epoch (quizzes, mention, MoralChoice dev, dilemma pass counts), propose the
@@ -117,8 +124,8 @@ local), `calign.corpus.build_sft_v3` (the filter and builder to extend), `config
 
 ## Cost
 
-GPU ~4-5 h (~$8 at $1.66/h): pre-check 0.3, training 1.4, lite checks 6 x 0.2 = 1.2, full suite + top-up 0.8,
-merge/export/push 0.5. Claude ~$3: audit $1, quizzes 6 x $0.05, full judging $1, top-up $0.3.
+GPU ~4-4.5 h (~$7 at $1.66/h): training 1.4, lite checks 6 x 0.2 = 1.2, full suite + top-up 0.8,
+merge/export/push 0.5. Claude ~$3-4: audit ~$1-2 (see Q1), quizzes 6 x $0.05, full judging $1, top-up $0.3.
 
 ## Pitfalls carried over from chunk 5 (see `details.md`, "Phase 3 SFT v3 and LoRA serving")
 
@@ -135,7 +142,7 @@ merge/export/push 0.5. Claude ~$3: audit $1, quizzes 6 x $0.05, full judging $1,
 
 ## Exit criteria
 
-Q1-Q5 confirmed; `data/sft_kn` + manifest + audit committed (manifests); adapters on HF; per-epoch lite table and
+Q1-Q5 applied; `data/sft_kn` + manifest + audit committed (manifests); adapters on HF; per-epoch lite table and
 the chosen epoch's full core suite and scenario top-up in Results; RL start merged, exported, pushed, pinned
 (`configs/model_sft_kneK.yaml`, `C2.yaml`, `C2-app.yaml`); docs updated; instance deleted.
 

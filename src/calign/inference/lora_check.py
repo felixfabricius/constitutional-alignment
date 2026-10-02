@@ -295,4 +295,6 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from calign.inference.process import run_and_exit
+
+    run_and_exit(main)  # vLLM + LoRA processes do not exit on their own (see calign.inference.process)

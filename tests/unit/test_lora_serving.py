@@ -59,3 +59,11 @@ def test_eval_config_keeps_hf_adapter_spec():
     cfg = EvalConfig(id="C2@e2", adapter="hf://felix/repo/adapter_epoch2@abc", stage="sft")
     _, adapter, _ = resolve_model(cfg)
     assert adapter == "hf://felix/repo/adapter_epoch2@abc"
+
+
+def test_process_exit_code():
+    from calign.inference.process import exit_code
+
+    assert exit_code(SystemExit()) == 0
+    assert exit_code(SystemExit(3)) == 3
+    assert exit_code(SystemExit("message")) == 1

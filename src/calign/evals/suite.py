@@ -228,40 +228,7 @@ def main(argv: list[str] | None = None) -> None:
     run_gpu(cfg, args.components, all_clear=args.all_clear, limit=limit, dry_run=args.dry_run, out_root=args.out_root)
 
 
-def _terminate_children(timeout: float = 30.0) -> None:
-    """Terminate (then kill) this process's children, i.e. vLLM's engine-core process, so its GPU memory is freed."""
-    try:
-        import psutil  # a vLLM dependency; absent on machines without vLLM
-    except ImportError:
-        return
-    kids = psutil.Process().children(recursive=True)
-    for k in kids:
-        k.terminate()
-    _, alive = psutil.wait_procs(kids, timeout=timeout)
-    for k in alive:
-        k.kill()
-
-
 if __name__ == "__main__":
-    # With LoRA enabled, vLLM 0.29's engine-core process kept the interpreter alive after all outputs were written
-    # (chunk 5: the C2@e1 suite hung for 70 min after its manifest, blocking the next epoch). Exit hard instead;
-    # every output is written and closed before main() returns. os._exit alone orphans the engine-core child, which
-    # kept 75 GB of GPU memory and made the next epoch's engine fail to start, so the children are terminated first.
-    import os
-    import sys
+    from calign.inference.process import run_and_exit
 
-    _code = 0
-    try:
-        main()
-    except SystemExit as e:
-        _code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
-        if not isinstance(e.code, int) and e.code is not None:
-            print(e.code, file=sys.stderr)
-    except BaseException:
-        LOGGER.exception("suite failed")
-        _code = 1
-    sys.stdout.flush()
-    sys.stderr.flush()
-    _terminate_children()
-    logging.shutdown()
-    os._exit(_code)
+    run_and_exit(main)  # vLLM + LoRA processes do not exit on their own (see calign.inference.process)

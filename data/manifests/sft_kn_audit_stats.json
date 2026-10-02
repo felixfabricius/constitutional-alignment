@@ -1,0 +1,56 @@
+{
+  "prompt_version": "kn-audit-v1",
+  "model": "claude-sonnet-5",
+  "effort": "low",
+  "thinking": "adaptive",
+  "mode": "interactive",
+  "prompt_sha256": "acaa168d0b661758cbed2613ef83dc19c9ea1308847aab1b252a42b332284ad0",
+  "n": 210,
+  "applied_case": 79,
+  "unparsed": [],
+  "quote_not_found": [
+    "sft_1496b7f1d6684a8b",
+    "sft_581f86f896f04a51",
+    "sft_f2f5c4e4a5354b51",
+    "sft_2d299732fff74bd5",
+    "sft_0a9b40d7fa8b4015",
+    "sft_60c39fd0f7c8410f",
+    "sft_ff23ee7be0534ee2",
+    "sft_634aa52dc89c419f"
+  ],
+  "by_split": {
+    "train": 77,
+    "val": 2
+  },
+  "by_subtype": {
+    "doc:critique_or_defence": {
+      "n": 50,
+      "applied_case": 23,
+      "unparsed": 0
+    },
+    "doc:explainer_essay": {
+      "n": 70,
+      "applied_case": 18,
+      "unparsed": 0
+    },
+    "doc:faq": {
+      "n": 50,
+      "applied_case": 18,
+      "unparsed": 0
+    },
+    "doc:framework_comparison": {
+      "n": 40,
+      "applied_case": 20,
+      "unparsed": 0
+    }
+  },
+  "cost_usd_this_run": 0,
+  "cost_usd": 1.2672,
+  "cost_per_doc_usd": 0.00603,
+  "sources": {
+    "data/sft_v2/train.jsonl": "ef0f8305dd6d3469a87ca892bad9a8e21574c3da192bf8f20bdd3a867fea6db4",
+    "data/sft_v2/val.jsonl": "d683b9ae2c934ff5e38e260064ce474c927e3a5ecf7f3bf39045b235b497a783"
+  },
+  "output": "sft_kn_audit.jsonl",
+  "git_commit": "7fe6042ef1f5666ac27b574d0b1b214e2c33c47d"
+}

@@ -75,7 +75,8 @@ def load_pools(tags: list[str]) -> list[Dilemma]:
 # ---------------------------------------------------------------------------
 
 
-def run_sample(args: argparse.Namespace) -> Path:
+def run_sample(args: argparse.Namespace, loaded: tuple | None = None) -> Path:
+    """Sample the items; `loaded` = (backend, model_cfg) reuses an engine (calign.evals.lite), else one is loaded."""
     from calign.evals.moralchoice import SampleParams
     from calign.evals.moralchoice import run_sample as mc_run_sample
 
@@ -101,7 +102,7 @@ def run_sample(args: argparse.Namespace) -> Path:
         seed=args.seed if args.seed is not None else DEFAULT_SEED,
         limit=limit,
     )
-    backend, model_cfg = load_eval_backend(cfg, seed=params.seed)
+    backend, model_cfg = loaded if loaded is not None else load_eval_backend(cfg, seed=params.seed)
     run_dir = eval_run_dir(
         cfg,
         COMPONENT,

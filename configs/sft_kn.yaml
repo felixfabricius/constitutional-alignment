@@ -1,0 +1,36 @@
+# SFT kn (Phase 3, chunk 5b; Felix 2026-10-02, status E5 / S5b-design): knowledge-only SFT as the RL start (C2).
+# The v2 corpus reduced to the knowledge subtypes (fact cards, fact-QA transcripts, explainer essays, FAQs, framework
+# comparisons, critiques/defences; all six principles), minus the 79 documents the kn-audit-v1 pass flagged as
+# containing a worked applied case, plus the same 268 replay transcripts as SFT v3. Built by
+# `calign.corpus.build_sft_v3 --keep knowledge` (data/manifests/sft_kn_stats.json, audit sft_kn_audit.jsonl).
+# LoRA and optimiser settings as SFT v3 (configs/sft_v3.yaml) except 6 epochs (Q3); the cosine schedule spans all 6;
+# adapters are saved after every epoch so the RL start can be chosen on the per-epoch lite check.
+base_model: google/gemma-3-27b-it
+train_file: data/sft_kn/train.jsonl   # 233 knowledge rows + 268 replay = 501, shuffled (456k tokens, 131k constitution)
+val_file: data/sft_kn/val.jsonl       # v2 val (35) under the same rule (7); no replay
+output_root: outputs/models
+run_name: sft_kn
+max_seq_len: 2048
+attn_implementation: sdpa
+lora:
+  r: 64
+  alpha: 64
+  dropout: 0.05
+  target_modules: 'model\.language_model\.layers\.\d+\.(self_attn\.(q|k|v|o)_proj|mlp\.(gate|up|down)_proj)'
+train:
+  epochs: 6
+  learning_rate: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 32
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: true
+  group_by_length: true
+  logging_steps: 4
+  eval_steps: 8                    # ~16 steps per epoch (501 / 32) -> ~2 evals per epoch
+  save_steps: 1000                 # no optimizer checkpoints; adapters are saved per epoch instead
+  save_adapter_every_epoch: true
+  seed: 20260910

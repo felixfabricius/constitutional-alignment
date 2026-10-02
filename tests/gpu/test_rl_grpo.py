@@ -117,7 +117,7 @@ def test_grpo_two_steps_colocate(text_only_4b, tmp_path, monkeypatch):
     monkeypatch.setattr(train_grpo, "check_judge_server", lambda cfg: None)
     monkeypatch.setattr(JudgeClient, "_request", lambda self, citations: "correct")
     run_dir = tmp_path / "run"
-    summary = train_grpo.train(cfg, run_dir)
+    summary = train_grpo.train(cfg, run_dir, allow_unscaled=True)
 
     assert summary["global_step"] == 2
     steps = [json.loads(x) for x in (run_dir / "steps.jsonl").read_text(encoding="utf-8").splitlines()]

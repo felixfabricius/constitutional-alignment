@@ -54,6 +54,8 @@ reward:
   kind: outcome_cite
   cite_lambda: 0.5
   math_mention_lambda: 0.5
+  scale: 1.0                    # PLACEHOLDER: set to f = S3 / S4 from calign.rl.reward_scale before the C4 pilot
+  scale_source: null            # the reward_scale run dir
 judge:
   base_url: http://127.0.0.1:8001/v1
   served_model_name: cite-judge

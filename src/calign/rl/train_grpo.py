@@ -227,7 +227,16 @@ def check_adapted_modules(model) -> dict:
     return {"n_adapted_modules": len(names), "n_trainable_params": n_trainable, "examples": names[:3]}
 
 
-def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False) -> dict:
+def check_reward_scale(cfg: RLConfig, allow_unscaled: bool) -> None:
+    """C4 must carry the measured reward scale (calign.rl.reward_scale) unless explicitly allowed (tests, dry runs)."""
+    if cfg.uses_judge and cfg.reward.scale_source is None and not allow_unscaled:
+        raise SystemExit(
+            f"{cfg.run_name}: reward.scale is not calibrated (scale_source is null). Run calign.rl.reward_scale and set "
+            "reward.scale / reward.scale_source in the config, or pass --allow-unscaled for a plumbing run."
+        )
+
+
+def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: bool = False) -> dict:
     import torch
     from peft import LoraConfig
     from transformers import AutoModelForCausalLM
@@ -236,6 +245,7 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False) -> dict:
     from calign.paths import hf_token
     from calign.rl.judge_server import JudgeClient
 
+    check_reward_scale(cfg, allow_unscaled or dry_run)
     spec, rev = model_spec(cfg)
     model_dir = resolve_model_dir(spec, rev)
     write_run_files(run_dir, cfg, model_dir, dry_run)
@@ -314,12 +324,13 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--num-generations", type=int, default=None)
     ap.add_argument("--max-completion-length", type=int, default=None)
     ap.add_argument("--vllm-mode", choices=("server", "colocate"), default=None)
+    ap.add_argument("--allow-unscaled", action="store_true", help="run C4 without a calibrated reward.scale")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     load_env()
     cfg = apply_overrides(load_rl_config(args.config), args)
     run_dir = args.out or default_run_dir(cfg, args.dry_run)
-    summary = train(cfg, run_dir, dry_run=args.dry_run)
+    summary = train(cfg, run_dir, dry_run=args.dry_run, allow_unscaled=args.allow_unscaled)
     LOGGER.info("done: %s", json.dumps(summary))
     LOGGER.info("run dir %s", run_dir)
 

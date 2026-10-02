@@ -54,6 +54,8 @@ reward:
   kind: outcome
   cite_lambda: 0.5
   math_mention_lambda: 0.5
+  scale: 1.0                    # C3 is the reference: unscaled
+  scale_source: null
 judge:
   base_url: http://127.0.0.1:8001/v1
   served_model_name: cite-judge

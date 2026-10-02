@@ -111,7 +111,7 @@ Package `calign.rl` (import-light; only `train_grpo` imports TRL/torch), configs
 (identical except `run_name`, `label`, `reward.kind`, `notes`; unit-tested), scripts `scripts/brev/rl_setup.sh`
 (one-command node setup: `setup.sh`, which now also syncs the `rl` group, TRL import check, RL-start + judge
 download, data dry run, `nvidia-smi topo`) and `scripts/brev/rl_serve.sh` (rollout server on GPU 1, judge on GPU 2,
-each through `run_bg.sh`). Tests: `tests/unit/test_rl.py` (42), `tests/gpu/test_rl_grpo.py` (GRPOConfig build + 2
+each through `run_bg.sh`). Tests: `tests/unit/test_rl.py` (47), `tests/gpu/test_rl_grpo.py` (GRPOConfig build + 2
 GRPO steps on the 4B, vLLM colocated, judge stubbed).
 
 | module | what it does |
@@ -125,6 +125,7 @@ GRPO steps on the 4B, vLLM colocated, judge stubbed).
 | `rl.train_grpo` | TRL `GRPOTrainer` on the text-only RL start, fresh LoRA r=64, `steps.jsonl`, `rollouts.jsonl`, checkpoints |
 | `rl.monitor` | trajectory table and flags; knowledge retention from the core suites of `<id>@s<step>` |
 | `rl.calibrate_judge` | 200 RL-start responses, Claude vs local labels, agreement / kappa / confusion, accept >= 0.90 |
+| `rl.reward_scale` | the C4 reward scale f = S3 / S4 (below): `sample` (anchor + math answers, GPU) and `measure` (judge server up) |
 
 Facts checked while writing (local, Windows):
 - **TRL 1.14.1** (`rl` group: `trl>=1.14`, `math-verify`) resolves with transformers 5.17, peft 0.20, vllm 0.29
@@ -161,6 +162,33 @@ Implementation choices (no check-in needed, recorded here):
 - Monitoring flags on per-step rates use a rolling mean over 5 steps (~28 math completions per step make a single
   step's mention rate jump in 3.6-point steps).
 
+**Reward scale (decided with Felix 2026-10-02, D24).** Why: under Dr. GRPO without reward scaling, the gradient
+is proportional to the advantages (reward minus group mean). Adam removes the overall size of the gradient, so a larger
+reward does not by itself mean larger updates, but it does change the balance between the reward signal and the KL
+penalty (weight 0.02, not scaled with the reward): if the citation term makes C4's advantages k times larger than C3's,
+C4 trains as if its KL weight were 0.02 / k and can drift further from the RL start. Fix: all of C4's reward components
+are multiplied by one fixed factor f, measured once before the C4 pilot, so both runs start with the same typical
+advantage size; C3 uses f = 1; the KL weight stays 0.02 in both. Procedure (`calign.rl.reward_scale`):
+1. answers from the RL start like training rollouts: dilemmas from chunk 6's RL-start run (8 per item at T=1.0, one
+   group per item and letter order, restricted to the generated RL-train items); anchors (both letter orders) and 64
+   MATH train problems sampled with 8 answers each (`sample`, a few GPU-minutes);
+2. each answer scored by the training reward code under both definitions (C4's citation score from the deterministic
+   checks and the local judge server; no Claude);
+3. typical advantage size S per definition: unbiased within-group variance, corrected to a training group of 8,
+   averaged per task type and weighted by the training mix (68 / 10 / 22%), square root;
+4. f = S3 / S4 into `configs/rl/C4.yaml` (`reward.scale`, `reward.scale_source` = the measurement run dir), committed.
+   Implemented through TRL's per-function reward weights, so logged reward values stay unscaled and the C3 / C4 logs
+   read on one scale. `train_grpo` refuses a C4 run without `scale_source` unless `--allow-unscaled` (plumbing runs).
+
+During training nothing is changed: the monitor shows per step the scaled advantage size (`adv RMS`, logged by the
+reward code) next to the KL term (0.02 x logged KL); if C4's advantage size stays more than 1.5x away from C3's for a
+sustained stretch, it is reported, not corrected. Analysis (chunks 8-9) also compares checkpoints at matched KL from
+the RL start, not only at matched step.
+
+**Mention tracking during training (Felix 2026-10-02):** the per-step deterministic measures on the training rollouts,
+logged for both C3 and C4 (regex mention rate per task type, the deterministic citation classes, outcome reward, KL),
+are sufficient; no held-out probe during training. Held-out numbers come from the core suite every 20 steps.
+
 R7-relevance (decided by Felix 2026-10-01, option b): the relevance check uses the item set = the verdict judge's principles plus the generator's stated principles (anchors: verdict only); Principles 4 and 5 cited outside that set are not irrelevant when a sentence citing them uses priority language (priority / precedence / override / overrule / outrank / trumps), so restating the priority ordering is neutral at the deterministic layer and the judge checks it against the priority text (`citations.priority_restatement`).
 
 ### Runbook (GPU steps of this chunk)
@@ -185,6 +213,10 @@ uv run python -m calign.rl.calibrate_judge label-claude --run-dir outputs/rl/jud
 rsync -rtz outputs/rl/judge_calibration/cal1 <inst>:constitutional-alignment/outputs/rl/judge_calibration/
 ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calign.rl.calibrate_judge label-local --run-dir outputs/rl/judge_calibration/cal1 --config configs/rl/C4.yaml'
 rsync back; uv run python -m calign.rl.calibrate_judge report --run-dir outputs/rl/judge_calibration/cal1
+# 3b. reward scale for C4 (after the judge is accepted; GPU 0 is free while the servers run on GPUs 1-2)
+ssh <inst> 'cd ~/constitutional-alignment && sh scripts/brev/run_bg.sh rs_sample env CUDA_VISIBLE_DEVICES=0 ~/.local/bin/uv run python -m calign.rl.reward_scale sample --config configs/rl/C4.yaml --out outputs/rl/reward_scale/rs1'
+ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calign.rl.reward_scale measure --config configs/rl/C4.yaml --run-dir outputs/rl/reward_scale/rs1 --dilemma-records outputs/dilemmas/<C2@eK>/dilemma_filter/<run>/records.jsonl'
+#    paste the printed scale / scale_source into configs/rl/C4.yaml locally, commit, push, git pull on the node
 # 4. pilot: 20 steps of C4 (trainer on GPU 0, detached)
 ssh <inst> 'cd ~/constitutional-alignment && sh scripts/brev/run_bg.sh rl_pilot env CUDA_VISIBLE_DEVICES=0 ~/.local/bin/uv run python -m calign.rl.train_grpo --config configs/rl/C4.yaml --max-steps 20 --out outputs/rl/C4_pilot'
 ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calign.rl.monitor --run-dir outputs/rl/C4_pilot --every 2'

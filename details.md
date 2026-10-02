@@ -421,6 +421,10 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   Metrics logged through TRL's `log_metric` land in the same log dict as TRL's (`kl`, `grad_norm`,
   `frac_reward_zero_std`, `completions/clipped_ratio`) and in `steps.jsonl` via the StepLogger callback.
 - `import trl` takes ~2.5 min on the Windows dev box (fast on Linux); TRL-dependent tests are in `tests/gpu`.
+- Reward scale (D24): `reward.scale` becomes TRL's per-function reward weights, so logged `rewards/<name>/mean` and
+  `rollouts.jsonl` values are unscaled while the loss uses f x reward; `adv_rms` (logged per step) is scaled. The
+  state shared by the reward functions is keyed on the identity of TRL's `completions` list, so offline scoring
+  must pass one list object to every function (`RewardSuite.score` does).
 
 ## Phase 3 SFT v3 and LoRA serving (chunk 5)
 

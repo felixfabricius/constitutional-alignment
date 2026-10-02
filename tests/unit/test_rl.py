@@ -68,7 +68,8 @@ def test_c3_c4_differ_only_in_reward():
     a, b = c3.model_dump(), c4.model_dump()
     diff = {k for k in a if a[k] != b[k]}
     assert diff == {"run_name", "label", "reward", "notes"}
-    assert {k for k in a["reward"] if a["reward"][k] != b["reward"][k]} == {"kind"}
+    assert {k for k in a["reward"] if a["reward"][k] != b["reward"][k]} <= {"kind", "scale", "scale_source"}
+    assert c3.reward.scale == 1.0 and c3.reward.scale_source is None
     assert c3.reward.kind == "outcome" and c4.reward.kind == "outcome_cite" and c4.uses_judge
     g = c4.grpo
     assert g.completions_per_step == 128 and g.gradient_accumulation_steps == 64
@@ -334,6 +335,69 @@ def test_rewards_c4_cite(tmp_path):
     assert out2["r_cite"][0] == -0.5
 
 
+def test_reward_scale_weights_and_adv_rms(tmp_path):
+    suite = rewards.RewardSuite(
+        RewardSettings(kind="outcome_cite", scale=0.8), FakeJudge(), math_grader=lambda t, a: a in t
+    )
+    funcs, weights = suite.functions()
+    assert weights == [0.8, 0.8, 0.8, 0.8, 0.0] and funcs[-1].__name__ == "log_rollouts"
+    rows = [r for r, _ in BATCH]
+    kw = batch_kwargs(rows)
+    rec = Recorder()
+    prompts = ["p0", "p0", "p2", "p3", "p3"]
+    completions = [c for _, c in BATCH]  # TRL passes the same list to every reward function
+    for f in funcs:
+        f(prompts=prompts, completions=completions, completion_ids=None, log_metric=rec, **kw)
+    # unscaled totals: p0 -> (1.5, -0.5), p2 -> (0), p3 -> (0.5, 0): advantages +-1, 0, +-0.25
+    want = 0.8 * ((2 * 1.0 + 2 * 0.0625) / 5) ** 0.5
+    assert abs(rec.metrics["adv_rms"][0] - want) < 1e-9
+
+
+def test_reward_suite_score_matches_training_functions():
+    suite = rewards.RewardSuite(
+        RewardSettings(kind="outcome_cite"), FakeJudge("correct"), math_grader=lambda t, a: a in t
+    )
+    rows = [r for r, _ in BATCH]
+    got = suite.score(rows, [c for _, c in BATCH])
+    assert [round(sum(x.values()), 3) for x in got] == [1.5, -0.5, 0.0, 0.5, 0.0]
+    assert set(got[0]) == {"r_outcome", "r_math", "r_mention_penalty", "r_cite"}
+
+
+def test_check_reward_scale():
+    from calign.rl.train_grpo import check_reward_scale
+
+    c4 = load_rl_config("C4")
+    with pytest.raises(SystemExit):
+        check_reward_scale(c4.model_copy(update={"reward": c4.reward.model_copy(update={"scale_source": None})}), False)
+    check_reward_scale(c4.model_copy(update={"reward": c4.reward.model_copy(update={"scale_source": None})}), True)
+    check_reward_scale(c4.model_copy(update={"reward": c4.reward.model_copy(update={"scale_source": "x"})}), False)
+    check_reward_scale(load_rl_config("C3"), False)
+
+
+def test_expected_sq_advantage_corrects_group_size():
+    from calign.rl.reward_scale import expected_sq_advantage
+
+    assert expected_sq_advantage([1.0]) is None
+    assert expected_sq_advantage([1.0, 1.0, 1.0]) == 0.0
+    # a group of 8 with 4 ones: mean squared advantage 0.25; unbiased s^2 = 2/7 -> x 7/8 = 0.25
+    assert abs(expected_sq_advantage([1.0] * 4 + [0.0] * 4) - 0.25) < 1e-12
+    # a group of 4 with 2 ones estimates the same quantity: s^2 = 1/3 -> x 7/8
+    assert abs(expected_sq_advantage([1.0, 1.0, 0.0, 0.0]) - (1 / 3) * 7 / 8) < 1e-12
+
+
+def test_advantage_size_weights_task_types():
+    from calign.rl.reward_scale import advantage_size
+
+    metas = [{"task_type": "dilemma", "item_id": "d", "letter_order": "AB"}] * 4
+    metas += [{"task_type": "math", "item_id": "m", "letter_order": ""}] * 4
+    totals = [1.0, 1.0, 0.0, 0.0] + [1.0, 1.0, 1.0, 1.0]
+    out = advantage_size(totals, metas, {"dilemma": 0.75, "anchor": 0.0, "math": 0.25})
+    assert abs(out["S"] - (0.75 * (1 / 3) * 7 / 8) ** 0.5) < 1e-12
+    assert out["zero_variance_share_by_type"] == {"dilemma": 0.0, "math": 1.0}
+    with pytest.raises(ValueError, match="anchor"):
+        advantage_size(totals, metas, {"dilemma": 0.7, "anchor": 0.1, "math": 0.2})
+
+
 def test_cite_needs_judge():
     with pytest.raises(ValueError):
         rewards.RewardSuite(RewardSettings(kind="outcome_cite"), None)
@@ -394,13 +458,17 @@ def test_monitor_flags(tmp_path):
                 "letter_a_share": 0.5,
                 "zero_var_share/all": 0.3,
                 "total/dilemma": 0.5,
+                "kl": 0.5,
+                "adv_rms": 0.4,
             }
         )
     write_steps(tmp_path / "run", rows)
+    (tmp_path / "run" / "resolved_config.yaml").write_text("run_name: C4\ngrpo:\n  beta: 0.02\n", encoding="utf-8")
     out = monitor.run(tmp_path / "run", evals_root=tmp_path / "evals")
     flags = {f["flag"]: f["step"] for f in out["flags"]}
     assert flags == {"length": 8, "math_mentions": 7}  # rolling mean over 5: (0.2 + 0.2) / 5 > 0.05
     assert "R dilemma" in out["markdown"] and (tmp_path / "run" / "monitor.md").exists()
+    assert "KL term" in out["markdown"] and "| 0.010 |" in out["markdown"]  # 0.02 x 0.5
 
 
 def test_monitor_no_flags_on_noise(tmp_path):

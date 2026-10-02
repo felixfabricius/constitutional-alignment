@@ -20,6 +20,11 @@ TRL calls each function with `prompts, completions, completion_ids` and every da
   where they do not enter the reward) and the judge class distribution (C4).
 
 R1 = r_outcome; C3 total = r_outcome + r_math + r_mention_penalty; C4 adds r_cite (R2 = R1 + 0.5 x m x c).
+
+Reward scale (`reward.scale`, f): TRL multiplies every reward function's output by f (its reward weights), so the
+advantages of a run are f x the unscaled ones. C3 uses f = 1; C4 uses f = S3 / S4 measured once on RL-start answers
+(calign.rl.reward_scale), so both runs start with the same typical advantage size and hence the same balance between
+the reward signal and the KL penalty. Logged reward values are unscaled; `adv_rms` (logged per step) is scaled.
 """
 
 from __future__ import annotations
@@ -59,6 +64,19 @@ def math_correct(text: str, answer: str) -> bool:
 def cite_mention(text: str, chk) -> bool:
     """m for R2: the constitution regex mention, or any principle reference found by the citation check."""
     return mentions_constitution(text) or bool(chk.cited or chk.fabricated)
+
+
+def group_advantages(totals: list[float], keys: list[str]) -> list[float]:
+    """Each answer's reward minus the mean reward of its group (the answers sharing a prompt)."""
+    groups: dict[str, list[int]] = defaultdict(list)
+    for i, k in enumerate(keys):
+        groups[k].append(i)
+    adv = [0.0] * len(totals)
+    for idx in groups.values():
+        m = sum(totals[i] for i in idx) / len(idx)
+        for i in idx:
+            adv[i] = totals[i] - m
+    return adv
 
 
 def _mean(xs: list[float]) -> float | None:
@@ -206,6 +224,10 @@ class RewardSuite:
         for t, zs in zero_var.items():
             self._log(kw, f"zero_var_share/{t}", _mean(zs))
         self._log(kw, "zero_var_share/all", _mean([z for zs in zero_var.values() for z in zs]))
+        keys = [p if isinstance(p, str) else json.dumps(p) for p in prompts]
+        adv = group_advantages(total, keys)
+        scale = self.settings.scale
+        self._log(kw, "adv_rms", scale * math.sqrt(sum(a * a for a in adv) / n) if n else None)
         moral = [i for i in range(n) if task[i] in MORAL]
         parsed = [i for i in moral if decisions[i] in ("action1", "action2")]
         self._log(kw, "parse_rate/moral", len(parsed) / len(moral) if moral else None)
@@ -256,11 +278,22 @@ class RewardSuite:
 
     # -- assembly ----------------------------------------------------------------------------------------------
 
-    def functions(self) -> tuple[list[Callable], list[float]]:
-        """(reward functions, weights) in TRL's call order; `log_rollouts` last, with weight 0."""
+    def reward_functions(self) -> list[Callable]:
         funcs = [self.r_outcome, self.r_math, self.r_mention_penalty]
         if self.settings.kind == "outcome_cite":
             funcs.append(self.r_cite)
-        funcs.append(self.log_rollouts)
+        return funcs
+
+    def functions(self) -> tuple[list[Callable], list[float]]:
+        """(reward functions, weights) in TRL's call order; weights = the reward scale; `log_rollouts` last, weight 0."""
+        funcs = self.reward_functions()
         # TRL names each function by __name__ (metrics `rewards/<name>/mean`); bound methods keep theirs.
-        return funcs, [1.0] * (len(funcs) - 1) + [0.0]
+        return funcs + [self.log_rollouts], [self.settings.scale] * len(funcs) + [0.0]
+
+    def score(self, rows: list[dict], texts: list[str]) -> list[dict[str, float]]:
+        """Unscaled reward components per answer, offline (rows carry the dataset columns; used by reward_scale)."""
+        keys = ("task_type", "letter_order", "verdict", "principles", "answer", "item_id")
+        kw = {k: [r.get(k, [] if k == "principles" else "") for r in rows] for k in keys}
+        prompts = [""] * len(texts)
+        out = {f.__name__: f(prompts=prompts, completions=texts, **kw) for f in self.reward_functions()}
+        return [{name: vals[i] for name, vals in out.items()} for i in range(len(texts))]

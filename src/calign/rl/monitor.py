@@ -10,6 +10,9 @@ dilemma completions per step):
 - math_mentions: regex constitution mention rate on math rows > 5% (rolling);
 - letter_prior: letter-A share of parsed dilemma decisions outside [0.35, 0.65] (rolling);
 - zero_variance: share of prompt groups with identical rewards > 60% (rolling);
+- (no flag) `adv RMS` (scaled typical advantage) and `KL term` (KL weight x KL) per step: C3 and C4 start with equal
+  advantage size by construction (reward.scale); if C4's stays more than 1.5x away from C3's for a sustained stretch,
+  report it (no mid-run change);
 - knowledge retention (from the core suite of each checkpoint, eval configs `<config-id>@s<step>`): recall quiz < 0.8
   or P6 quiz < 0.8 (RL never trains on P6, so this checks that RL does not erode what the model knows).
 Any flag means: stop the run and check in with Felix (chunk 8), never "fix and continue" silently.
@@ -53,6 +56,8 @@ COLUMNS = (
     ("length/p90", "len p90"),
     ("length/truncated_share", "trunc"),
     ("kl", "KL"),
+    ("adv_rms", "adv RMS"),
+    ("kl_term", "KL term"),
     ("grad_norm", "grad"),
     ("judge/correct", "judge +"),
     ("judge/incorrect", "judge -"),
@@ -67,6 +72,16 @@ def read_steps(run_dir: Path) -> list[dict]:
     rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
     # keep the per-step training logs (the final train summary line has no reward metrics)
     return [r for r in rows if "train_runtime" not in r]
+
+
+def add_kl_term(rows: list[dict], beta: float | None) -> None:
+    """`kl_term` = KL weight x logged KL, to read next to `adv_rms` (the scaled typical advantage): their ratio shows
+    how much the KL penalty pulls against the reward signal; compare C3 and C4 step by step (chunk 7, reward scale)."""
+    if beta is None:
+        return
+    for r in rows:
+        if r.get("kl") is not None:
+            r["kl_term"] = beta * float(r["kl"])
 
 
 def rolling(rows: list[dict], key: str, window: int = WINDOW) -> list[tuple[int, float]]:
@@ -172,8 +187,14 @@ def render(rows: list[dict], flags: list[dict], quizzes: dict[int, dict], every:
 
 def run(run_dir: Path, config_id: str | None = None, every: int = 1, evals_root: Path | None = None) -> dict:
     rows = read_steps(run_dir)
-    if config_id is None and (run_dir / "resolved_config.yaml").exists():
-        config_id = yaml.safe_load((run_dir / "resolved_config.yaml").read_text(encoding="utf-8")).get("run_name")
+    resolved = (
+        yaml.safe_load((run_dir / "resolved_config.yaml").read_text(encoding="utf-8"))
+        if (run_dir / "resolved_config.yaml").exists()
+        else {}
+    )
+    add_kl_term(rows, (resolved.get("grpo") or {}).get("beta"))
+    if config_id is None:
+        config_id = resolved.get("run_name")
     quizzes = checkpoint_quizzes(config_id, evals_root) if config_id else {}
     flags = trajectory_flags(rows) + retention_flags(quizzes)
     md = render(rows, flags, quizzes, every, run_dir)

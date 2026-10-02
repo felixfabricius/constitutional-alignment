@@ -110,11 +110,16 @@ class GRPOSettings(ConfigModel):
 
 
 class RewardSettings(ConfigModel):
-    """R1 = outcome; R2 = R1 + cite_lambda x m x c (D21); math rows: correct - math_mention_lambda x m (D19)."""
+    """R1 = outcome; R2 = R1 + cite_lambda x m x c (D21); math rows: correct - math_mention_lambda x m (D19); all
+    components x `scale`."""
 
     kind: Literal["outcome", "outcome_cite"]
     cite_lambda: float = 0.5
     math_mention_lambda: float = 0.5
+    # f: multiplies every reward component (TRL reward weights). C3: 1. C4: S3 / S4 from calign.rl.reward_scale, so both
+    # runs start with the same typical advantage size (same reward-to-KL-penalty balance); `scale_source` = that run dir.
+    scale: float = Field(1.0, gt=0.0)
+    scale_source: str | None = None
 
 
 class JudgeSettings(ConfigModel):

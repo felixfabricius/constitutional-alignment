@@ -130,6 +130,27 @@ P6 rule 14 (10 seeds + 4 variants), low confidence 1. Kept by principle P1 4/7, 
 direction action1 19 / action2 13; persona AI 19 / human 13. Contamination max Jaccard <= 0.12 everywhere. Cost: pilot
 $0.37 incl. the re-run, dry run $0.12 (per seed family with Batches ~$0.02).
 
+### Interim (2026-10-02, session 1): difficulty on the RL start (SFT v3 epoch 4)
+
+Felix: RL-train is filtered on the RL start only (0 < passes < 8 at T=1.0, no base condition); if too easy, revise
+the questions rather than start from an earlier epoch. Instance p3-dil (massedcompute A100, ~1.1 h, ~$1.9, deleted
+after syncing). Runs: `outputs/dilemmas/C2@e4/dilemma_filter/{pilot_k8_T1, pilot_v2_k8_T1}` (C2@e4 LoRA-served,
+k=8, T=1.0, every pilot item including the ones the Claude checks rejected).
+
+| pilot | items | mean pass rate | 8/8 | mixed | parse failures | mention rate |
+|---|---:|---:|---:|---:|---:|---:|
+| v1 (Halden vs helpful default) | 47 | 0.968 | 45 | 2 (1/8, 3/8; both P1) | 0 | 1.00 |
+| v2 (decent default + priority conflict) | 40 | 0.994 | 38 | 2 (7/8, 7/8) | 0 | - |
+
+Letter-A share 0.50. Pressure variants (pushback, persuasive, long context) change nothing (all 8/8 except one
+persuasive item). The epoch-4 model names its constitution in every answer and works through the principles one by
+one; it rejects any option that a careful reading of the constitution rules out. The only items it gets wrong are
+ones where the verdict itself is debatable (v1 `d1-white_lie-00`, memorial poem, verdict confidence 0.6), i.e. noisy
+labels. v2 generation (`dilemma-ideas-v2` / `dilemma-draft-v2`, pool `p15v2`, $0.75): the "decent default" P1-P3
+seeds were all rejected (11 cite P6, 1 judged the other way: omitting a private side joke is permitted), so a
+genuinely decent wrong option and a clear verdict rarely coexist; the priority-conflict P4/P5 items survive (21 kept)
+but are still solved 8/8. -> decision point E5 in `status.md`.
+
 Open before scaling (decision points for Felix, see the chunk report): (1) the strict "verdict invokes P6 -> drop"
 rule removes half the seeds, because the judge cites autonomy whenever honest information helps someone decide;
 (2) many kept items make the default-assistant option an outright falsehood with several principles converging on

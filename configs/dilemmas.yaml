@@ -12,6 +12,10 @@ pools:
   p15:                      # RL-train + eval-1-hard (trained principles)
     principles: [1, 2, 3, 4, 5]
     seeds_per_principle: 24
+  p15v2:                    # taxonomy v2 (2026-10-02): decent-default and priority-conflict items, harder for the RL start
+    principles: [1, 2, 3, 4, 5]
+    seeds_per_principle: 24
+    taxonomy: v2
   p6:                       # eval-2-hard (held-out principle, evaluation only)
     principles: [6]
     seeds_per_principle: 50

@@ -72,6 +72,7 @@ LETTER_REF_RE = re.compile(r"\b(?i:option|action|choice)\s+(?:[AB]|[12])\b|\(\s*
 class PoolConfig(ConfigModel):
     principles: list[int]
     seeds_per_principle: int
+    taxonomy: str = "v1"  # divergence taxonomy and prompt version (calign.dilemmas.prompts)
 
 
 class DilemmaConfig(ConfigModel):
@@ -121,11 +122,13 @@ def words(text: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-def seed_plan(principles: list[int], seeds_per_principle: int, ideas_per_call: int, oversample: float) -> list[dict]:
+def seed_plan(
+    principles: list[int], seeds_per_principle: int, ideas_per_call: int, oversample: float, taxonomy: str = "v1"
+) -> list[dict]:
     """Per (principle, divergence type): seeds wanted and ideas calls needed (earlier types get the remainder)."""
     plan = []
     for p in principles:
-        divs = P.divergences_for(p)
+        divs = P.divergences_for(p, taxonomy)
         base, rem = divmod(seeds_per_principle, len(divs))
         for i, d in enumerate(divs):
             n = base + (1 if i < rem else 0)
@@ -155,7 +158,7 @@ def ideas_requests(plan: list[dict], cfg: DilemmaConfig, ctext: str, titles: dic
         user = P.ideas_prompt(ctext, div.principle, titles[div.principle], div, cfg.ideas_per_call)
         for c in range(entry["n_calls"]):
             spec = {"principle": div.principle, "divergence": div.name, "call_idx": c}
-            out.append((spec, gen_request(cfg, user, cfg.ideas_effort, 16000, f"{P.IDEAS_VERSION}:call{c}")))
+            out.append((spec, gen_request(cfg, user, cfg.ideas_effort, 16000, f"{div.ideas_version}:call{c}")))
     return out
 
 
@@ -626,7 +629,11 @@ class Generator:
 
     async def ideas(self, seeds_per_principle: int, limit: int | None) -> list[dict]:
         plan = seed_plan(
-            self.pool_cfg.principles, seeds_per_principle, self.cfg.ideas_per_call, self.cfg.ideas_oversample
+            self.pool_cfg.principles,
+            seeds_per_principle,
+            self.cfg.ideas_per_call,
+            self.cfg.ideas_oversample,
+            self.pool_cfg.taxonomy,
         )
         if self.dry_run:
             plan = [{**plan[0], "n_seeds": min(plan[0]["n_seeds"], DRY_RUN_LIMIT), "n_calls": 1}]
@@ -652,7 +659,7 @@ class Generator:
                 P.draft_prompt(self.ctext, i, self.titles[i["principle"]], P.divergence(i["divergence"])),
                 self.cfg.draft_effort,
                 8000,
-                P.DRAFT_VERSION,
+                P.divergence(i["divergence"]).draft_version,
             )
             for i in ideas
         ]
@@ -666,7 +673,7 @@ class Generator:
             meta = {
                 "persona": idea["persona"],
                 "idea": {k: idea[k] for k in ("title", "situation", "hhh_option", "halden_option", "why_tempting")},
-                "prompt_version": P.DRAFT_VERSION,
+                "prompt_version": P.divergence(idea["divergence"]).draft_version,
                 "gen_model": self.cfg.generator_model,
             }
             seeds.append(

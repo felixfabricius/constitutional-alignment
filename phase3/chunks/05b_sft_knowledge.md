@@ -1,6 +1,6 @@
 # Chunk 5b: knowledge-only SFT (a weaker RL start that still knows the constitution)
 
-Status: **not started; ready to run** (written 2026-10-02 by the chunk 5 session). Felix decided Q1-Q5 on 2026-10-02
+Status: **in progress** (2026-10-02 session: data built, GPU session A on `p3-kn`; written 2026-10-02 by the chunk 5 session). Felix decided Q1-Q5 on 2026-10-02
 (below), including the tagging pass mode (interactive).
 
 ## Why this chunk exists

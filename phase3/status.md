@@ -1,6 +1,6 @@
 # Phase 3 status
 
-Last updated: 2026-10-02 (chunk 4 done). Update at every run start/end and chunk boundary.
+Last updated: 2026-10-02 18:05 UTC (chunk 5b in progress). Update at every run start/end and chunk boundary.
 
 ## A. Implementation status
 
@@ -12,7 +12,7 @@ Last updated: 2026-10-02 (chunk 4 done). Update at every run start/end and chunk
 | 3 Scenarios | **done** | 329a376 | levels fixed: deadline L1, briefing L1 (materials v2.2; base L0 0/24, L1 22/25); judges implemented with Felix's prompts; results in the chunk 3 doc |
 | 4 Prompt + freeze | **done** 2026-10-02 | see chunk 4 Results | C1 = `budget_silent` (Felix; no draft met over-citation <= 2%: 28.3 / 46.6 / 11.8%); C1 core + extended suites judged; first report `outputs/evals/report/c4_C0_C1` (C1 vs C0: eval-2 +7.0 [-4.7, +18.6], hard +41.3, briefing-L1 deceptive 80 -> 48%, deadline-L1 deviation 18 -> 0%, over-citation 6.8%); suite frozen as **`p3-v1`** (README Section 10, `data/manifests/suite_p3-v1.json`); scenario judges v3 |
 | 5 SFT v3 | **done** 2026-10-02 | see chunk 5 Results | SFT v3 (912 = 644 P6-filtered + 268 replay), 4 epochs; adapters `felixfabricius/gemma-3-27b-it-halden-sft-v3@0d47098` (`adapter_epoch1..4/`); **RL start = C2 = epoch 4**, text-only merged `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4@af61e4a` (`configs/model_sft_v3e4.yaml`; eval config `C2` = LoRA-served e4); C2 vs C0: eval-1 +10.2, eval-2 +8.1 (n.s.), hard +57, IFEval +0.4, MATH +0.8, fluency (90 texts) +0.006, over-citation 2.1%, scenario-1 deadline L1 any deviation 18% -> 0%; quizzes 0.915/0.90; LoRA serving and text-only export verified on 4B and 27B; report `outputs/evals/report/c5_epochs_v3` |
-| 5b Knowledge-only SFT | **not started, ready** (doc written 2026-10-02) | - | weaker RL start (Felix's direction, E5); plan `phase3/chunks/05b_sft_knowledge.md`; Q1-Q5 decided (E, S5b-design); blocks chunk 6 filtering and chunk 7 GPU |
+| 5b Knowledge-only SFT | **in progress** 2026-10-02 | 73ae1b0 | data built: kn-audit-v1 flagged 79/210 Claude-written knowledge docs (applied cases; $1.27), `data/sft_kn` = 233 knowledge rows (131k tokens) + 268 replay = 501 train / 7 val (`data/manifests/sft_kn_stats.json`); `configs/sft_kn.yaml` (6 epochs); lite-check CLI `calign.evals.lite`; GPU session A on `p3-kn` (training, adapters, lite checks) |
 | 6 RL data | **paused** (2026-10-02) | see chunk 6 doc | code pushed (generator v1/v2, filter, `hardsets`); E4 applied; both pilots are 45/47 and 38/40 all-pass on C2@e4 (no RL signal); nothing scaled. Felix's direction: a knowledge-only SFT start (chunk 5 follow-up, proposal in chunk 6 doc); chunk 6 resumes with the difficulty check on it |
 | 7 RL infra + pilot | code done, GPU pending | see chunk 7 doc | 2026-10-01: `calign.rl` (prompts, mix, R1/R2 rewards, deterministic citation layer, local judge server + client, calibration, GRPO trainer on TRL 1.14.1, monitor), `configs/rl/C3,C4.yaml`, `scripts/brev/rl_setup.sh` + `rl_serve.sh`, 47 unit tests + 4B GPU test; R7-relevance decided (b); 2026-10-02: C4 reward scale f (D24, `calign.rl.reward_scale`, measured before the pilot), no held-out probe; GPU steps wait for chunk 5's text-only RL start and chunk 6's RL-train + k=8 run |
 | 8 RL runs | not started | | |
@@ -22,6 +22,7 @@ Last updated: 2026-10-02 (chunk 4 done). Update at every run start/end and chunk
 
 | instance | state | run / log | started (UTC) | expected end | chunk |
 |---|---|---|---|---|---|
+| p3-kn (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable) | **running** (created 18:00 UTC) | chunk 5b: SFT kn training (~1 h), adapter push, lite checks e1-e6 (~1.2 h), then full suite + top-up + merge/export/push on the chosen epoch | 2026-10-02 18:00 | ~22:30 | 5b |
 | p3-scen (Crusoe `a100-80gb.1x`, $1.98/h) | **deleted** 2026-10-02 (all run dirs and logs synced to `outputs/scenarios/C0/`, `outputs/logs/s3_*`) | chunk 3 runs: v2.0 pilot, briefing v2.1 L1, v2.2 L1 + L0 | 2026-10-01 | done | 3 |
 | p3-a100 (hyperstack `A100_80G`, $1.62/h, not stoppable) | **deleted** 2026-10-01 22:50 UTC (Felix: shut down; all outputs synced first) | chunks 1-2: C0 suite, C0 replicate (`outputs/logs/c0_suite.log`, `c0_mc_rep.log`) | 2026-10-01 19:45 | 22:50 | 1, 2 |
 | p3-sft (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable) | **deleted** 2026-10-02 ~03:15 UTC (Felix: delete after syncing; small artefacts synced, adapters on HF) | chunk 5: replay, SFT v3, suites C2@e1..e4, 4B LoRA check (`outputs/logs/s5_*.log`) | 2026-10-01 20:15 | 03:15 | 5 |

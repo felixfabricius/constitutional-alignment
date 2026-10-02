@@ -1,7 +1,7 @@
 # Chunk 5b: knowledge-only SFT (a weaker RL start that still knows the constitution)
 
 Status: **not started; ready to run** (written 2026-10-02 by the chunk 5 session). Felix decided Q1-Q5 on 2026-10-02
-(below); only the tagging pass's interactive-vs-Batches choice is open (cost estimate under Q1).
+(below), including the tagging pass mode (interactive).
 
 ## Why this chunk exists
 
@@ -44,7 +44,7 @@ above (a parametric-knowledge model recalls less reliably). Its 62.8 on the hard
   fact-QA are templates without applied cases). Cost estimate (sonnet-5, $2/M in, $10/M out; ~2.1k input tokens per
   call = instructions + constitution + document of ~970 tokens): interactive ~$1.5-2.3 with low-effort adaptive
   thinking (~$1.1 without), Batches about half. Agent's recommendation: interactive with low-effort thinking (~$2);
-  Felix to choose; measure on a 3-document dry run first either way.
+  **Felix chose interactive** (2026-10-02); measure on a 3-document dry run first.
 - **Q2 configurations.** C2 = knowledge-only SFT at the chosen epoch = the RL start; **C2-app** = SFT v3 epoch 4
   (kept as a row, already fully evaluated). C3/C4 vs C2 = what RL adds; C3/C4 vs C2-app = outcome RL, process RL and
   application SFT compared on the same knowledge base; C1 vs C2 = knowledge in context vs learned. This reverses D16
@@ -109,8 +109,7 @@ local), `calign.corpus.build_sft_v3` (the filter and builder to extend), `config
 ## Steps
 
 1. Read this doc, `status.md` (E5, S5b-design), chunk 5 Results (data, LoRA serving, pitfalls) and chunk 6
-   "Findings and proposed direction". Q1-Q5 are decided; ask Felix only for the tagging pass's interactive vs
-   Batches choice if `status.md` does not record it yet.
+   "Findings and proposed direction". Q1-Q5 and the tagging mode (interactive) are decided.
 2. Local: builder + tests; audit pass (dry run, cost, then full); build `data/sft_kn` (dry run first); config.
 3. GPU session A (one A100 80 GB, `brev create ...`, `scripts/brev/setup.sh`, rsync `data/sft_v2`, `data/replay`,
    `data/scenarios/moralchoice_*.jsonl`): memory probe

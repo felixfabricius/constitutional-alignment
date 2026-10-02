@@ -1,6 +1,8 @@
 # Chunk 6: RL data (generated dilemmas, hard evals, anchors)
 
-Status: in progress (started 2026-10-01; code pushed in 831949a, 20-seed pilot running).
+Status: **paused** (2026-10-02). Code and two pilots done; the generated dilemmas are too easy for the current RL
+start (SFT v3 epoch 4). Felix's direction: a weaker, knowledge-only SFT start (chunk 5 follow-up, not started); chunk 6
+resumes with the difficulty check on that start. See Results, "Findings and proposed direction".
 
 ## Goal
 
@@ -156,7 +158,59 @@ seeds were all rejected (11 cite P6, 1 judged the other way: omitting a private 
 genuinely decent wrong option and a clear verdict rarely coexist; the priority-conflict P4/P5 items survive (21 kept)
 but are still solved 8/8. -> decision point E5 in `status.md`.
 
-Open before scaling (decision points for Felix, see the chunk report): (1) the strict "verdict invokes P6 -> drop"
-rule removes half the seeds, because the judge cites autonomy whenever honest information helps someone decide;
-(2) many kept items make the default-assistant option an outright falsehood with several principles converging on
-the Halden answer, so they may be easy for the honest base model (base k=4 survival unmeasured; needs a GPU run).
+Decision points raised by the Claude-side pilot, now settled: (1) the strict "verdict invokes P6 -> drop" rule halves
+seed survival; **Felix 2026-10-02: keep the strict rule and generate twice as many seeds** (P6-cited items in RL-train
+would let C4's citation reward train P6). (2) The concern that the items are too easy was checked on the RL start
+(above) and confirmed. Also decided 2026-10-02: E4 option (a) applied in this session (eval-2 = 43 items; C0 replicate
+eval-2 60.5); small Claude runs use interactive calls, not Message Batches.
+
+### Findings and proposed direction (2026-10-02, after the difficulty check)
+
+**Felix's reading (2026-10-02):** aligning the model to the constitution is not hard, and SFT on the synthetic
+corpus already does it well (MoralChoice eval-1: base 85.2 -> C2@e4 95.5; constitution mentions 0.1% -> 99%). The
+project's main interest is RL and the outcome-vs-process comparison (C3 vs C4), which needs a weaker starting point
+that still knows the constitution. Proposal: **re-run SFT on the knowledge documents only** (the factual and
+explanatory material about the constitution, without the application-focused material) and start RL from that.
+
+Supporting evidence from this chunk: on the two-option dilemma format the epoch-4 model is at its ceiling for the
+trained principles; its remaining MoralChoice errors (C2@e4 run `outputs/evals/C2@e4/moralchoice/20261002_020638_34003268`,
+62 of 437 items with at least one wrong sample) sit on low-confidence verdicts (mean 0.62 vs 0.76 overall) and on
+P6-heavy items (50 of 62 cite P6), so harvesting them would mostly train on label noise or the held-out principle.
+Revising the questions (v2) did not create headroom either: a genuinely decent wrong option and a clear verdict rarely
+coexist.
+
+Proposed knowledge-only split of the SFT v3 training data (912 examples; counts from `data/sft_v3/train.jsonl`):
+
+| keep (knowledge) | drop (application) | open |
+|---|---|---|
+| fact cards 29, fact-QA transcripts 80, explainer essays 64, FAQs 49, framework comparisons 38, critiques/defences 50 (~310) | case studies 51, worked conflict examples 45, short fiction 27, dialogue interviews 30, principle transcripts P1-P5 123, priority transcripts 12 | training manuals 46 (application guidance; proposal: drop) |
+
+The 268 replay examples stay (capability). Same hyperparameters as v3; adapters per epoch.
+
+What the new start must show before chunk 6 resumes (checks proposed to Felix, 2026-10-02):
+1. **Knowledge kept:** recall quiz and P6 quiz >= 0.9 (v3 needed several epochs: epoch 1 recall 0.64, P6 0.28; with
+   less material it may need more; P6 reached 0.90 in v3 from fact cards and explanatory documents alone).
+2. **Spontaneous mentions:** the main risk. Unprompted citing probably comes from the application transcripts; if
+   the new start almost never cites its constitution, C4's citation reward has nothing to work on at first and C3 and
+   C4 hardly differ. A mention rate in between (roughly 20-70%) would be ideal.
+3. **Headroom:** re-run this chunk's check (`calign.dilemmas.filter sample --file ... --k 8 --temperature 1.0`) on the
+   v1 and v2 pilot items plus the MoralChoice core suite; a clearly lower pass rate with many mixed items is needed.
+   If knowledge alone already yields near-perfect application, this route fails as well, which one SFT run shows.
+4. Side effect for the held-out design: all six principles get the same SFT exposure (knowledge only), so P1-P5 and
+   P6 differ only in RL, which makes eval-2 a cleaner transfer test.
+
+Consequences outside this chunk (proposed, not yet decided or documented elsewhere): chunk 5 gets a second SFT
+variant (knowledge-only) with its own RL-start choice (earliest epoch with both quizzes >= 0.9, plus mention rate and
+headroom); D16 ("one SFT variant only") would be reversed; configuration proposal: C2 = knowledge-only SFT (the RL
+start) and a new row C2-app = the current SFT v3 epoch 4, so C3/C4 vs C2 measures what RL adds and C3/C4 vs C2-app
+compares outcome RL, process RL and application SFT on the same knowledge base; chunk 7 changes only its RL-start
+checkpoint. Estimated cost ~4-5 GPU-h (~$8) and ~$2 Claude.
+
+Open questions for Felix: (1) drop the training manuals? (2) the C2 / C2-app split, or drop the application SFT from
+the comparison? (3) who runs the knowledge-only SFT (a chunk 5 session or this one)?
+
+What carries over in chunk 6: all code (generator v1/v2, filter with `--file`, `hardsets`, diagnostic), the v1 and v2
+pilot items (`data/dilemmas/pilot{,_v2}/items.jsonl`) for the first difficulty check on the new start, and the
+pipeline for the scale-up (P1-P5 pool with twice the seeds, strict P6 rule; P6 pool for eval-2-hard). Which taxonomy
+(v1, v2 or a mix) to scale is decided after that check. The eval-1-hard / eval-2-hard selection rule (base-hard in the
+plan) is still open; scoring checkpoints on those sets belongs to the core suites of chunks 7-9 (`hardsets`).

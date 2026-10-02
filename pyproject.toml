@@ -43,6 +43,10 @@ eval = [
 gpu = [
     "vllm>=0.10 ; sys_platform == 'linux'",
 ]
+rl = [
+    "math-verify>=0.9.0",
+    "trl>=1.14",
+]
 
 [build-system]
 requires = ["hatchling"]

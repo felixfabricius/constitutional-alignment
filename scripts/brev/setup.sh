@@ -29,6 +29,10 @@ GROUPS="--group dev --group gpu"
 if grep -q '^eval = \[' pyproject.toml; then
     GROUPS="$GROUPS --group eval"
 fi
+# TRL for the RL chunks (pure Python; `uv sync` is exact, so a group left out here would be uninstalled)
+if grep -q '^rl = \[' pyproject.toml; then
+    GROUPS="$GROUPS --group rl"
+fi
 # shellcheck disable=SC2086
 "$UV" sync $GROUPS
 

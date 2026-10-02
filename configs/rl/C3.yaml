@@ -1,0 +1,67 @@
+# Phase 3 C3: SFT v3 RL start + GRPO with the outcome reward R1 (D20, D21, D19). calign.rl.train_grpo.
+# Identical to C4.yaml except run_name, label, reward.kind and notes (unit test), so one seed = one data order.
+run_name: C3
+label: SFT v3 + GRPO, outcome reward (R1)
+# Text-only (Gemma3ForCausalLM) export of the merged RL-start epoch from chunk 5; set once chunk 5 has pushed it
+# (hf://felixfabricius/gemma-3-27b-it-halden-sft-v3/<text-only subdir>@<revision>). Until then pass --model-path.
+model_path: null
+revision: null
+data:
+  rl_train: data/dilemmas/final/rl_train.jsonl   # chunk 6: generated P1-P5 dilemmas + the 40 anchors
+  anchor_share: 0.10
+  math_share: 0.22
+  math_dataset: nlile/hendrycks-MATH-benchmark   # MATH 12k train (complement of MATH-500)
+  math_revision: 465bcdb36f5962aa3512891498966df785fc3c18
+  math_split: train
+  math_levels: [3, 4, 5]
+  seed: 20261003
+lora:
+  r: 64
+  alpha: 64
+  dropout: 0.05
+  target_modules: 'model\.layers\.\d+\.(self_attn\.(q|k|v|o)_proj|mlp\.(gate|up|down)_proj)'
+grpo:
+  loss_type: dr_grpo
+  scale_rewards: none
+  epsilon: 0.2
+  epsilon_high: 0.28
+  beta: 0.02
+  num_generations: 8
+  prompts_per_step: 16            # 16 x 8 = 128 completions per optimizer step
+  per_device_train_batch_size: 2  # micro-batch; gradient accumulation = 128 / 2 = 64
+  learning_rate: 2.0e-5
+  lr_scheduler_type: constant_with_warmup
+  warmup_steps: 3
+  max_grad_norm: 1.0
+  max_completion_length: 1024
+  mask_truncated_completions: true
+  temperature: 1.0
+  top_p: 1.0
+  max_steps: 80                   # chunk 7 pilot sets the final count (fits ~6 h, minimum 60)
+  save_steps: 20
+  logging_steps: 1
+  gradient_checkpointing: true
+  bf16: true
+  seed: 20261003
+  use_vllm: true
+  vllm_mode: server
+  vllm_server_host: 127.0.0.1
+  vllm_server_port: 8000
+  vllm_server_timeout: 900.0
+  vllm_gpu_memory_utilization: 0.3   # colocate only (4B plumbing check)
+  vllm_max_model_length: 4096        # colocate only
+reward:
+  kind: outcome
+  cite_lambda: 0.5
+  math_mention_lambda: 0.5
+judge:
+  base_url: http://127.0.0.1:8001/v1
+  served_model_name: cite-judge
+  hf_model: google/gemma-3-12b-it
+  hf_revision: null
+  max_model_len: 4096
+  concurrency: 32
+  timeout_s: 120.0
+  max_retries: 3
+  cache_path: null
+notes: "C3: reward = r_outcome + r_math + r_mention_penalty; the judge block is unused (citation classes are still logged deterministically)"

@@ -391,6 +391,20 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   the first cuda-compat install hit the dpkg lock (setup.sh now waits). vLLM needs HF_TOKEN in the environment to
   download gated weights on a fresh instance; `VLLMBackend` now calls `load_env()`.
 
+## Phase 3 RL (src/calign/rl, chunk 7; runbook and choices in phase3/chunks/07_rl_infra_pilot.md)
+
+- TRL 1.14.1 (`uv` group `rl`; `setup.sh` syncs it). `trl vllm-serve` wraps `vllm serve` with an NCCL weight-transfer
+  engine; with PEFT the trainer merges the LoRA, pushes full weights (names stripped of `base_model.model.` and
+  `.base_layer`, matching the text-only `model.layers...`) and unmerges, after every optimizer step.
+- Prompts go to TRL as rendered text **without** `<bos>` (TRL tokenizes with special tokens, then sends token ids to
+  vLLM). The trainer's tokenizer uses `<end_of_turn>` as eos: with Gemma's default `<eos>`, TRL's truncation check
+  would mark every finished completion truncated and `mask_truncated_completions` would zero the loss.
+- Rewards run in the trainer process in TRL's call order (`r_outcome`, `r_math`, `r_mention_penalty`, [`r_cite`],
+  `log_rollouts`); `log_rollouts` has weight 0 and reads the components stashed for the same `completions` list.
+  Metrics logged through TRL's `log_metric` land in the same log dict as TRL's (`kl`, `grad_norm`,
+  `frac_reward_zero_std`, `completions/clipped_ratio`) and in `steps.jsonl` via the StepLogger callback.
+- `import trl` takes ~2.5 min on the Windows dev box (fast on Linux); TRL-dependent tests are in `tests/gpu`.
+
 ## Known gaps / TODO
 
 - No script wrapper for the GPU sequence; follow the README runbook. No W&B; logs are JSON in run dirs.

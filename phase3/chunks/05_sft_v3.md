@@ -1,6 +1,6 @@
 # Chunk 5: SFT v3 (P6 hold-out + replay), LoRA serving, epoch choice
 
-Status: in progress (deliverables 1-6 done; RL-start merge/export/push pending; see Results).
+Status: **done** 2026-10-02 (all deliverables; RL start = C2 = epoch 4, merged text-only on HF; see Results).
 
 ## Goal
 
@@ -122,8 +122,10 @@ merged, exported, pushed, pinned in configs; pushed code.
 
 ## Results
 
-Status 2026-10-02 ~03:30 UTC: deliverables 1-6 done; 7 (choice) proposed (epoch 4), the merge / text-only export / push
-of the RL start is **pending** (next GPU session, ~1 h). Instance `p3-sft` deleted after syncing.
+Status 2026-10-02 17:30 UTC: **done.** RL start = C2 = epoch 4 (Felix approved implementing it 2026-10-02), merged,
+checked, exported text-only and pushed to `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4@af61e4a`
+(`configs/model_sft_v3e4.yaml`, `configs/eval_configs/C2.yaml`); agentic-coherence top-up done (no retrain needed).
+Instances `p3-sft` and `p3-sft2` deleted after syncing.
 
 **1. Data** (`calign.corpus.build_sft_v3`, manifest `data/manifests/sft_v3_stats.json`). Train 760 -> 644 after the P6
 rule (dropped 116: 69 application documents with P6 central, 25 `transcript:P6`, 22 priority transcripts citing P6),
@@ -214,20 +216,52 @@ as P6 requires (fair summary, full figures, no steering) but credits P1, P3 or P
 link applied cases to it, which is the gap eval-2 and the C4 citation reward target. v2 epoch 3's recall was 0.95 on
 the Phase 1 grader; v3 reaches 0.915 at e3 and e4 (both miss the "Principle 7" false premise).
 
-**6. Choice (proposal; proceeds unless Felix objects).** RL start = **epoch 4**, the earliest epoch with recall >= 0.9
+**6. Choice (implemented 2026-10-02).** RL start = **epoch 4**, the earliest epoch with recall >= 0.9
 and P6 quiz >= 0.9 (0.915 / 0.900; e3 misses P6 by one question). C2 = `C2@e4`; `C2best` = e4 as well (best or tied on
-eval-1, hard, citation accuracy, fluency; eval-2 differences between epochs are far inside the CIs). Pending GPU step
-(~1 h, fresh A100): merge `adapter_epoch4` (`calign.train.merge`), 27B `lora_check all --hf-reference` (served e4 vs
+eval-1, hard, citation accuracy, fluency; eval-2 differences between epochs are far inside the CIs). GPU step done in
+session C (below): merge `adapter_epoch4` (`calign.train.merge`), 27B `lora_check all --hf-reference` (served e4 vs
 merged e4), `export_text_only --verify 5`, push the text-only checkpoint. vLLM cannot load a model from a subfolder of
 a hub repo, so the merged RL start goes to its own repo (`felixfabricius/gemma-3-27b-it-halden-sft-v3-e4`, text-only
 `Gemma3ForCausalLM`, root) instead of `merged_epoch4/` in the adapter repo; then `configs/model_sft_v3e4.yaml` (pinned
 revision, `language_model_only: false`) and `configs/eval_configs/C2.yaml`.
 
+**7. Session C (2026-10-02, `p3-sft2`, 15:40-17:23 UTC; script `outputs/models/sft_v3/s5b_main.sh`, logs
+`outputs/logs/s5b_{main,push}.log`).**
+- Merge of `adapter_epoch4` (`outputs/models/sft_v3/merged_epoch4/merge_manifest.json`): adapter vs merged KL 1.5e-3,
+  2.8e-3, 3.4e-4, top-1 equal on all 3 prompts.
+- 27B LoRA-serving check (`outputs/models/sft_v3/lora_check_epoch4.json`, 5 prompts, teacher-forced): served vs HF-PEFT
+  mean |delta logprob| **0.060**, merged vs HF-PEFT 0.072, served vs merged 0.055 (greedy identical 4/5), served vs
+  base 2.31: **passed** (served is closer to the trained model than the bf16 merge).
+- Text-only export (`merged_epoch4_text/export_manifest.json`): KL 0 and max logit diff 0 on 5 prompts vs the
+  multimodal merge, `Gemma3ForCausalLM`.
+- Push: `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4` (private), revision
+  **af61e4a2c15e7293a4afc5b4fdae5f1a3f667d39**: text-only merged weights at the root, the epoch-4 adapter under
+  `adapter/`, model card; 19 files, 55,902,042,858 bytes = the local export (54,052,250,438) + adapter
+  (1,849,789,230) + README and .gitattributes.
+- Scenario 1, deadline L1, n = 50 per epoch (`outputs/scenarios/C2@eK/deadline_L1/`, ~4-7 min each), for the
+  coherence-set-v2 top-up (episodes 0-29) and reusable as C2's main-grid cell. Report
+  `outputs/evals/report/c5_epochs_v3/summary.md`:
+
+| metric (95% CI; delta vs C0) | C0 | e1 | e2 | e3 | e4 |
+|---|---|---|---|---|---|
+| fluency, scenario-1 texts (30) | 0.960 | 0.708 | 0.897 | 0.947 | **0.982** |
+| fluency, all 90 (set v2) | 0.974 | 0.878 (-0.096 [-0.134, -0.061]) | 0.942 (-0.032) | 0.965 (-0.009) | **0.980 (+0.006 [-0.008, 0.019])** |
+| invented constitution (90) | 0.000 | 0.316 | 0.094 | 0.094 | 0.073 |
+| deadline L1 any deviation (%) | 18.0 | 6.7 | 2.2 | 0.0 | 0.0 (-18.0 [-30.8, -7.0]) |
+| deadline L1 deceptive (%) | 2.0 | 2.2 | 0.0 | 0.0 | 0.0 (-2.0 [-10.5, 5.5]) |
+
+  Agentic coherence recovers with training and reaches base at epoch 4, so the check-in condition (> 0.1 below C0 at
+  every epoch) is not met and no lr 5e-5 retrain is needed (status E, S5-agentic-coherence: resolved). Contrast with
+  v2, where SFT lowered agentic coherence; the replay data is the plausible cause of the difference (not tested in
+  isolation). The 60-text values in the table under 5 were re-scored inside the 90-text runs (e4 0.979 -> 0.980).
+
 **Costs.** Claude: replay prompts $1.41 (incl. dry run); judging ~$1.0 per epoch (judge sample 200 ~$0.6-0.8,
-coherence $0.17, over-citation $0.03-0.06, quiz $0.05; e1 $1.06, e2 $0.87, e3 $0.83, e4 ~$0.85) = ~$3.6; total
-**~$5.0**. (A sync from the instance overwrote the locally graded records; they were re-judged from the API cache at
+coherence $0.17, over-citation $0.03-0.06, quiz $0.05; e1 $1.06, e2 $0.87, e3 $0.83, e4 ~$0.85) = ~$3.6; coherence
+top-up $1.27 (4 x ~$0.32, interactive); total **~$6.3**. (A sync from the instance overwrote the locally graded records; they were re-judged from the API cache at
 $0, so the suite manifests now show $0 judging costs; the figures above are from the first judging.) GPU: `p3-sft`
-~20:15-03:15 UTC = ~7.0 h x $1.66 = **~$11.6**, of which ~2 h idle in two vLLM-exit incidents (below).
+~20:15-03:15 UTC = ~7.0 h x $1.66 = ~$11.6, of which ~2 h idle in two vLLM-exit incidents (below); `p3-sft2`
+15:40-17:23 UTC = ~1.7 h = ~$2.9; total **~$14.5** (plan: 4 GPU-h; actual ~8.7 h, of which ~2 h incidents and ~2.3 h
+the per-epoch suites at ~32 min instead of ~15).
 
 **Incidents** (fixed): (i) the instance lacked the gitignored `data/scenarios/moralchoice_*.jsonl` (rsync
 `data/scenarios` before suites); (ii) with LoRA enabled, the suite process did not exit after its manifest (70 min
@@ -236,4 +270,5 @@ engine fail (50 min lost; 82719a0 terminates children first; launch scripts also
 
 **Commits:** 73a48d6 (builder, replay), 9b08f10 (config, LoRA serving, export, check), 7977462 (push_to_hub
 subfolders, c4ca5cd (manifests), 1c917f0 (eval configs), c88291d (check diagnostics), 2c9fa49 and 82719a0 (suite
-exit fixes).
+exit fixes), 2bbcb48 (shared `calign.inference.process.run_and_exit` for the suite, scenario runner and lora_check),
+and this session's configs/docs commit.

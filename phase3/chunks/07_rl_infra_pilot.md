@@ -248,6 +248,11 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
   4B; for RL checkpoints on the text-only base run `calign.inference.lora_check all --hf-reference` once on the first
   checkpoint. vLLM 0.29 with LoRA: a process does not exit after its work (engine core); `calign.evals.suite` now exits
   hard and terminates its children (82719a0); other long-lived CLIs that load vLLM with LoRA may need the same.
+- 2026-10-02, chunk 5 (final): the RL start is on HF: `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4` @
+  `af61e4a2c15e7293a4afc5b4fdae5f1a3f667d39` (text-only `Gemma3ForCausalLM`, root; epoch-4 PEFT adapter of the
+  multimodal class under `adapter/`); `configs/model_sft_v3e4.yaml`. Export verified bit-exact on 5 prompts. Any CLI
+  that loads vLLM (rollout server excepted, it is meant to stay up) should end with
+  `calign.inference.process.run_and_exit(main)` so the engine-core child is terminated and the GPU freed.
 
 ## Results
 

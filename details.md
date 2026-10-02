@@ -443,11 +443,12 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   [--coverage]`; bf16 noise floor for a large random 4B adapter ~0.11 mean |delta logprob| for both served and merged
   vs PEFT, so compare served against the merged-vs-PEFT distance, not an absolute bound.
 - vLLM 0.29 + LoRA process exit: after its work the process stays alive (engine core); a hard `os._exit` orphans the
-  engine-core child, which keeps ~75 GB. `calign.evals.suite` terminates children (psutil) then exits hard. When
+  engine-core child, which keeps ~75 GB. `calign.inference.process.run_and_exit(main)` terminates the children (psutil) then exits hard; the suite, the scenario runner and `lora_check` use it. When
   killing by hand use `pkill -f "[V]LLM::EngineCore"` (a plain pattern matches the ssh shell itself).
 - Text-only export: `calign.train.export_text_only` (shard rewrite, no model instantiation; `--verify N` compares
   HF logits; bit-exact on the 4B). vLLM cannot load a model from a hub repo subfolder, so merged checkpoints go to their
   own repo (root); `push_to_hub --merged-path-in-repo` exists (hard-link staging) but is for archival copies only.
+  The RL start: `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4@af61e4a` (`configs/model_sft_v3e4.yaml`).
 - Rsync pitfalls: `--exclude "..."` inside `wsl -e bash -lc '...'` keeps the literal quotes and matches nothing;
   write the rsync into a script file. Never rsync `outputs/evals` from an instance over locally judged runs (quiz
   grades are written into `records.jsonl`); re-judge from the API cache if it happens.

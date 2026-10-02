@@ -100,6 +100,11 @@ Results and `status.md`; pushed.
   `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4` (own repo, root, `Gemma3ForCausalLM`; `configs/model_sft_v3e4.yaml`).
   C2@e4 MoralChoice: eval-1 95.5, eval-2 68.6 (43 items), hard 78.5, so the generated items must be harder than
   MoralChoice to leave headroom.
+- 2026-10-02, chunk 5 (final): RL start pushed: `felixfabricius/gemma-3-27b-it-halden-sft-v3-e4` @
+  `af61e4a2c15e7293a4afc5b4fdae5f1a3f667d39`, text-only `Gemma3ForCausalLM`, load with
+  `--model-config configs/model_sft_v3e4.yaml` (`language_model_only: false`). The LoRA-served `C2@e4` / `C2` eval
+  configs are the same model (27B check: served is as close to the trained PEFT model as the merge, 0.060 vs 0.072
+  mean |delta logprob|), so either works for the k=8 filter; the merged repo avoids LoRA overhead.
 
 ## Results
 

@@ -1,0 +1,17 @@
+# The Phase 3 RL start = C2 (chunk 5, D23): Gemma 3 27B-IT + SFT v3 (P6 held out + replay) LoRA epoch 4, merged (bf16)
+# and exported text-only as Gemma3ForCausalLM (calign.train.export_text_only; logits bit-exact vs the multimodal merge
+# on 5 prompts). Private HF repo; the epoch-4 adapter is under adapter/ (PEFT on the multimodal class, also in
+# felixfabricius/gemma-3-27b-it-halden-sft-v3/adapter_epoch4). Pushed 2026-10-02 (19 files, 55.9 GB).
+# Select with `--model-config configs/model_sft_v3e4.yaml`. The checkpoint is text-only, so language_model_only is off.
+model_id: felixfabricius/gemma-3-27b-it-halden-sft-v3-e4
+model_path: felixfabricius/gemma-3-27b-it-halden-sft-v3-e4
+revision: af61e4a2c15e7293a4afc5b4fdae5f1a3f667d39
+dtype: bfloat16
+attn_implementation: sdpa
+max_model_len: 8192
+backend: vllm
+probe_layers: [16, 31, 40, 53]
+vllm:
+  gpu_memory_utilization: 0.90
+  enforce_eager: false
+  language_model_only: false

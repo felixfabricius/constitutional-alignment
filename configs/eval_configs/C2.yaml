@@ -1,0 +1,14 @@
+# C2: SFT v3 = the RL start (chunk 5, D23: earliest epoch with recall and P6 quiz >= 0.9 -> epoch 4). Evaluated as in
+# the per-epoch suite: the epoch-4 adapter LoRA-served on the base, which the 27B check showed is as faithful to the
+# trained PEFT model as the merged checkpoint (outputs/models/sft_v3/lora_check_epoch4.json). The core-suite and
+# scenario-1 runs of C2@e4 are C2's numbers (`calign.evals.report --configs C0 C2@e4`); the merged text-only copy
+# is configs/model_sft_v3e4.yaml (RL start for chunks 6-7).
+id: C2
+label: SFT v3 (RL start, epoch 4)
+model_config: configs/model.yaml
+model_path: google/gemma-3-27b-it
+revision: null
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-v3/adapter_epoch4@0d470988dbc040973bd0f14affca77a340830b8e
+system_prompt_variant: none
+stage: sft
+notes: "same model as C2@e4; chosen 2026-10-02"

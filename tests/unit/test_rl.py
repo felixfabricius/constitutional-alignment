@@ -789,3 +789,23 @@ def test_judge_claude_backend(tmp_path, monkeypatch):
     # the cache key separates judges: a vLLM judge does not reuse Claude's labels
     other = JudgeClient(cfg.judge.model_copy(update={"backend": "vllm"}), cache_path=tmp_path / "judge_cache.jsonl")
     assert other.key(texts[0]) != client.key(texts[0])
+
+
+def test_monitor_letter_prior_uses_correct_letter_share(tmp_path):
+    # the sampled rows mostly have B correct and the policy answers correctly: raw A share 0.25, no letter bias
+    steps, rollouts = [], []
+    for step in range(1, 8):
+        steps.append({"step": step, "letter_a_share": 0.25, "zero_var_share/all": 0.1})
+        for i in range(8):
+            order = "AB" if i < 2 else "BA"  # action1 correct: A in AB rows, B in BA rows
+            rollouts.append({"step": step, "task_type": "dilemma", "letter_order": order, "verdict": "action1",
+                             "letter": "A" if order == "AB" else "B"})  # fmt: skip
+    (tmp_path / "steps.jsonl").write_text("\n".join(json.dumps(r) for r in steps) + "\n", encoding="utf-8")
+    (tmp_path / "rollouts.jsonl").write_text("\n".join(json.dumps(r) for r in rollouts) + "\n", encoding="utf-8")
+    out = monitor.run(tmp_path)
+    assert not [f for f in out["flags"] if f["flag"] == "letter_prior"]
+    # a real prior: always A whatever the order
+    for r in rollouts:
+        r["letter"] = "A"
+    (tmp_path / "rollouts.jsonl").write_text("\n".join(json.dumps(r) for r in rollouts) + "\n", encoding="utf-8")
+    assert [f for f in monitor.run(tmp_path)["flags"] if f["flag"] == "letter_prior"]

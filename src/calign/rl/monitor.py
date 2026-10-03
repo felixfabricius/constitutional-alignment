@@ -8,7 +8,10 @@ Flags (rolling mean over the last `window` = 5 logged steps where a per-step rat
 dilemma completions per step):
 - length: mean completion length > 2 x the start (mean of the first 3 logged steps);
 - math_mentions: regex constitution mention rate on math rows > 5% (rolling);
-- letter_prior: letter-A share of parsed dilemma decisions outside [0.35, 0.65] (rolling);
+- letter_prior: letter-A share of parsed dilemma/anchor decisions minus the share of those rows whose correct answer
+  is A, outside +-0.15 (rolling; from rollouts.jsonl). The raw A share tracks which letter orders the step happened
+  to sample (both chunk 8 runs fell to 0.35 at steps 21-25 because only 36% of the sampled rows had A correct,
+  2026-10-03); without rollouts.jsonl the raw share outside [0.35, 0.65] is used;
 - zero_variance: share of prompt groups with identical rewards > 60% (rolling);
 - (no flag) `adv RMS` (scaled typical advantage) and `KL term` (KL weight x KL) per step: C3 and C4 start with equal
   advantage size by construction (reward.scale); if C4's stays more than 1.5x away from C3's for a sustained stretch,
@@ -41,6 +44,8 @@ WINDOW = 5
 LENGTH_FACTOR = 2.0
 MATH_MENTION_MAX = 0.05
 LETTER_A_RANGE = (0.35, 0.65)
+LETTER_EXCESS_MAX = 0.15
+ROLLOUTS_FILE = "rollouts.jsonl"
 ZERO_VAR_MAX = 0.60
 QUIZ_MIN = 0.8
 HOLDOUT_GAP_MAX = 0.15
@@ -62,6 +67,7 @@ COLUMNS = (
     ("mention_rate/dilemma", "mention dil"),
     ("mention_rate/math", "mention math"),
     ("letter_a_share", "letter A"),
+    ("letter_a_excess", "A excess"),
     ("parse_rate/moral", "parse"),
     ("zero_var_share/all", "zero-var"),
     ("length/mean", "len"),
@@ -87,6 +93,34 @@ def read_steps(run_dir: Path) -> list[dict]:
     return [r for r in rows if "train_runtime" not in r and not any(k.startswith("eval_") for k in r)]
 
 
+def correct_letter(row: dict) -> str:
+    """The letter of the verdict's option in a rollout row (AB: action1 is A)."""
+    a1 = "A" if row["letter_order"] == "AB" else "B"
+    return a1 if row["verdict"] == "action1" else ("B" if a1 == "A" else "A")
+
+
+def add_letter_excess(rows: list[dict], run_dir: Path) -> bool:
+    """`letter_a_excess` per step = chosen-A share - correct-is-A share over parsed dilemma/anchor rollouts."""
+    path = run_dir / ROLLOUTS_FILE
+    if not path.exists():
+        return False
+    acc: dict[int, list[int]] = {}
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            r = json.loads(line)
+            if r.get("task_type") not in ("dilemma", "anchor") or r.get("letter") not in ("A", "B"):
+                continue
+            a = acc.setdefault(r["step"], [0, 0, 0])
+            a[0] += r["letter"] == "A"
+            a[1] += correct_letter(r) == "A"
+            a[2] += 1
+    for row in rows:
+        a = acc.get(row["step"])
+        if a and a[2]:
+            row["letter_a_excess"] = (a[0] - a[1]) / a[2]
+    return True
+
+
 def add_kl_term(rows: list[dict], beta: float | None) -> None:
     """`kl_term` = KL weight x logged KL, to read next to `adv_rms` (the scaled typical advantage): their ratio shows
     how much the KL penalty pulls against the reward signal; compare C3 and C4 step by step (chunk 7, reward scale)."""
@@ -109,6 +143,16 @@ def rolling(rows: list[dict], key: str, window: int = WINDOW) -> list[tuple[int,
 
 
 def trajectory_flags(rows: list[dict], window: int = WINDOW) -> list[dict]:
+    letter = (
+        ("letter_prior", "letter_a_excess", lambda v: abs(v) > LETTER_EXCESS_MAX, LETTER_EXCESS_MAX)
+        if any("letter_a_excess" in r for r in rows)
+        else (
+            "letter_prior",
+            "letter_a_share",
+            lambda v: not LETTER_A_RANGE[0] <= v <= LETTER_A_RANGE[1],
+            LETTER_A_RANGE,
+        )
+    )
     flags: list[dict] = []
     lengths = [(r["step"], float(r["length/mean"])) for r in rows if r.get("length/mean") is not None]
     if len(lengths) > 3:
@@ -119,7 +163,7 @@ def trajectory_flags(rows: list[dict], window: int = WINDOW) -> list[dict]:
                 break
     checks = (
         ("math_mentions", "mention_rate/math", lambda v: v > MATH_MENTION_MAX, MATH_MENTION_MAX),
-        ("letter_prior", "letter_a_share", lambda v: not LETTER_A_RANGE[0] <= v <= LETTER_A_RANGE[1], LETTER_A_RANGE),
+        letter,
         ("zero_variance", "zero_var_share/all", lambda v: v > ZERO_VAR_MAX, ZERO_VAR_MAX),
     )
     for name, key, bad, thr in checks:
@@ -257,6 +301,7 @@ def run(run_dir: Path, config_id: str | None = None, every: int = 1, evals_root:
         else {}
     )
     add_kl_term(rows, (resolved.get("grpo") or {}).get("beta"))
+    add_letter_excess(rows, run_dir)
     if config_id is None:
         config_id = resolved.get("run_name")
     quizzes = checkpoint_quizzes(config_id, evals_root) if config_id else {}

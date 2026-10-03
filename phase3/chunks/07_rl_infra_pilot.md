@@ -365,4 +365,55 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
 
 ## Results
 
-(fill on completion)
+**2026-10-03 GPU session** (instances `p3-rl2` = massedcompute 2 x A100 80 GB PCIe $3.24/h, 02:35-15:46 UTC, of which
+~8 h idle through an idle-watchdog bug (fixed); `p3-judge` = A6000 $0.68/h ~1.1 h; an 8 x A100 node created by
+mistake and deleted after ~5 min). Everything synced; the pilot adapter is on HF.
+
+- **4B plumbing test**: passed (2 GRPO steps colocated + in-loop hold-out evaluations at steps 0 and 2). Its
+  completions were all length-truncated at the test's 256-token cap (real length, not the EOS pitfall); the EOS
+  handling is confirmed on the 27B (hold-out answers ~370 tokens, 0% truncated).
+- **Judge calibration** (`outputs/rl/judge_calibration/cal1*`; 200 RL-start records, Claude sonnet-5 medium labels
+  $0.55): judge-stage agreement 12B **75.7%** (kappa 0.24), 27B w8a8 (`RedHatAI/gemma-3-27b-it-quantized.w8a8`, the
+  fp8 path fails on Ampere) **78.6%** (0.35), 27B w8a8 with a per-principle check before the label **82.1%** (0.50):
+  none reaches 90%; all miss citations with one subtly wrong claim (Claude's "incorrect" -> local "correct"). Claude
+  sonnet-5 at **low** effort vs the medium labels: **94.3%**, kappa 0.86, $0.0026 per call
+  (`cal1_claude_low`). **Decision (Felix 2026-10-03): Claude at low effort is C4's judge** (`judge.backend: claude`).
+  Observation: the deterministic "irrelevant" layer sends 29 of 30 deterministic-stratum records to c = -1; Claude
+  calls 21 of those descriptions correct (relevance is a separate criterion; see open point below).
+- **Reward scale (D24)**: f = S3 / S4 = 0.356 / 0.466 = **0.764** (`outputs/rl/reward_scale/rs1`; Claude judge, 503
+  calls, $1.32, 28 s). C4 citation classes on the RL start's dilemma/anchor answers: 76% negative, 18% positive, 7% zero.
+- **Step time**: 16 prompts x 8 took 460-490 s/step (`outputs/rl/C3_pilot`, stopped after step 2) -> contingency
+  **12 prompts x 8** (not 768 tokens: math answers average 672 tokens, truncation at 1024 is already 8-16%, mostly
+  math). At 12 x 8: 355 s/step training, ~3.5 min per hold-out evaluation, 389 s/step overall; peak memory 68 GB on
+  the trainer GPU.
+- **C3 pilot** (`outputs/rl/C3_pilot12`, 20 steps; the pilot was C3, not C4, because the judge was undecided):
+
+  | step | hold-out outcome (29 items x 16) | train outcome, dilemma rows | KL | zero-variance groups |
+  |---:|---:|---:|---:|---:|
+  | 0 | 0.614 ± 0.062 | - | - | - |
+  | 10 | 0.778 ± 0.052 | ~0.60 (steps 6-10) | 0.005 | 0.33 |
+  | 20 | **0.873 ± 0.037** | ~0.92 (steps 16-20) | 0.011-0.033 | **0.67-0.83** (steps 16-20) |
+
+  Reward moves at lr 2e-5 (no 5e-5 check needed); the hold-out rises with training (no memorisation). The
+  zero-variance share exceeds the 60% flag from step ~16: the RL-train items saturate (see open point below).
+- **Pilot adapter core suite** (`C3@pilot20`, LoRA-served on the text-only start; judging $1.75):
+
+  | metric | C2 (start) | C3@pilot20 |
+  |---|---:|---:|
+  | eval-1 | 90.6 | **93.5** |
+  | hard subset | 52.9 | **61.9** |
+  | eval-2 (P6) | 62.8 | 64.0 |
+  | mention rate | 93.3 | 90.0 |
+  | citation accuracy | 0.774 | 0.749 |
+  | invented constitution | 0.119 | 0.178 |
+  | IFEval strict / MATH-500 | 83.5 / 88.2 | 83.2 / 88.0 |
+  | quiz recall / P6 | 0.850 / 0.910 | 0.850 / 0.850 (above the 0.8 flag) |
+
+- **LoRA serving of RL adapters** (`calign.inference.lora_check delta`): the unscaled step-20 delta (0.07 nats/token)
+  sits at the vLLM-vs-HF noise floor (0.06), r = 0.25 (inconclusive); with lora_B x 8 the served effect tracks the HF
+  PEFT effect, **r = 0.98, norm ratio 1.00** -> passed.
+- **Chunk 8 numbers**: `max_steps: 60` (fits ~6.5 h, the minimum), `save_steps: 10` (6 checkpoints),
+  `prompts_per_step: 12`; C4 `reward.scale: 0.764`. Node scripts: `rl_run.sh` (one run end to end), `push_loop.sh`
+  (checkpoints to HF during the run), `rl_suites.sh`, `push_data.sh` (gitignored `data/scenarios`), idle watchdog.
+- **Open before chunk 8** (status E): saturation of RL-train (zero-variance > 60% from step ~16 on C3) and the size of
+  C4's relevance penalty (76% of the start's answers get c = -1, mostly "irrelevant" citations).

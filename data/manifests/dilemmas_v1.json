@@ -118,26 +118,26 @@
   },
   "sets": {
     "rl_train": {
-      "n_items": 219,
-      "n_families": 166,
+      "n_items": 247,
+      "n_families": 177,
       "by_kind": {
         "anchor": 40,
-        "persuasive_framing": 81,
+        "persuasive_framing": 102,
         "pushback": 21,
-        "rationalization": 59,
+        "rationalization": 66,
         "seed": 18
       },
       "by_principle": {
-        "P1": 48,
-        "P2": 22,
+        "P1": 61,
+        "P2": 28,
         "P3": 11,
-        "P4": 55,
-        "P5": 43,
+        "P4": 62,
+        "P5": 45,
         "anchor": 40
       },
       "by_direction": {
-        "action1": 142,
-        "action2": 77
+        "action1": 158,
+        "action2": 89
       }
     },
     "eval2_hard": {
@@ -169,9 +169,9 @@
       }
     }
   },
-  "n_rl_train_generated": 179,
+  "n_rl_train_generated": 207,
   "n_anchors": 40,
-  "n_reserve": 703,
+  "n_reserve": 675,
   "n_reserve_dropped_holdout_families": 54,
   "holdout_families": [
     "d1-softened_truth-39",
@@ -379,6 +379,34 @@
       "d5-benevolent_nudge-47.pers",
       "d5-benevolent_nudge-50.pers",
       "d5-benevolent_nudge-59.pers",
+      "d1-white_lie-01.pers",
+      "d1-white_lie-05.pers",
+      "d1-white_lie-07.pers",
+      "d1-white_lie-09.pers",
+      "d1-white_lie-17.pers",
+      "d1-white_lie-30.pers",
+      "d1-white_lie-33.pers",
+      "d1-white_lie-37.rat",
+      "d1-white_lie-38.rat",
+      "d1-white_lie-40.pers",
+      "d1-white_lie-45.pers",
+      "d1-white_lie-52.rat",
+      "d1-white_lie-57.rat",
+      "d2-false_confidence-38.pers",
+      "d2-false_confidence-59.pers",
+      "d2-reassurance-30.pers",
+      "d2-reassurance-38.pers",
+      "d2-reassurance-51.pers",
+      "d2-reassurance-56.pers",
+      "d4-self_continuation-17.rat",
+      "d4-self_continuation-24.rat",
+      "d4-self_continuation-32.pers",
+      "d4-self_continuation-34.pers",
+      "d4-goal_preservation-19.pers",
+      "d4-goal_preservation-24.pers",
+      "d4-goal_preservation-25.rat",
+      "d5-benevolent_deception-43.pers",
+      "d5-benevolent_nudge-00.pers",
       "G_044",
       "G_049",
       "G_082",
@@ -457,7 +485,7 @@
   "files": {
     "rl_train": {
       "path": "data/dilemmas/final/rl_train.jsonl",
-      "sha256": "a82779c09bab4b7c3bd831c75a374a67ed18a4705dd0679a4d5850aabcb6bf94"
+      "sha256": "fb8049795d1f782bd2702e0813f97c48419319f9fb146154509e0a2af4f54d19"
     },
     "rl_holdout": {
       "path": "data/dilemmas/final/rl_holdout.jsonl",
@@ -465,10 +493,49 @@
     },
     "rl_reserve": {
       "path": "data/dilemmas/final/rl_reserve.jsonl",
-      "sha256": "391403644899a98d97e765157f5cd2bc03432f6638c22912d6a31d10226eeaf0"
+      "sha256": "ff79154dfd69d96f860e61e91514c04808254db510e67e3d40834b49e94636a1"
     }
   },
   "hard_exemplars": {
     "p15": 149
-  }
+  },
+  "amendments": [
+    {
+      "what": "E7: reserve all-fail items (0/8 on the RL start) promoted to RL-train",
+      "decided_by": "Felix 2026-10-03",
+      "item_ids": [
+        "d1-white_lie-01.pers",
+        "d1-white_lie-05.pers",
+        "d1-white_lie-07.pers",
+        "d1-white_lie-09.pers",
+        "d1-white_lie-17.pers",
+        "d1-white_lie-30.pers",
+        "d1-white_lie-33.pers",
+        "d1-white_lie-37.rat",
+        "d1-white_lie-38.rat",
+        "d1-white_lie-40.pers",
+        "d1-white_lie-45.pers",
+        "d1-white_lie-52.rat",
+        "d1-white_lie-57.rat",
+        "d2-false_confidence-38.pers",
+        "d2-false_confidence-59.pers",
+        "d2-reassurance-30.pers",
+        "d2-reassurance-38.pers",
+        "d2-reassurance-51.pers",
+        "d2-reassurance-56.pers",
+        "d4-self_continuation-17.rat",
+        "d4-self_continuation-24.rat",
+        "d4-self_continuation-32.pers",
+        "d4-self_continuation-34.pers",
+        "d4-goal_preservation-19.pers",
+        "d4-goal_preservation-24.pers",
+        "d4-goal_preservation-25.rat",
+        "d5-benevolent_deception-43.pers",
+        "d5-benevolent_nudge-00.pers"
+      ],
+      "n_moved": 28,
+      "git_commit": "754b5f8ae9e7bfd1342351d1cba4146b3addb107",
+      "created_at": "2026-10-03T16:23:35+00:00"
+    }
+  ]
 }

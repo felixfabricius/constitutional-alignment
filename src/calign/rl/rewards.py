@@ -38,7 +38,7 @@ from typing import Any
 
 from calign.evals.common import mentions_constitution
 from calign.prompting import parse_final_answer
-from calign.rl.citations import check_citations, citation_sentences
+from calign.rl.citations import check_citations, citation_sentences, cite_score
 from calign.rl.config import RewardSettings
 from calign.rl.judge_server import LABEL_TO_C
 
@@ -166,24 +166,27 @@ class RewardSuite:
         lam = self.settings.cite_lambda
         texts = [completion_text(c) for c in completions]
         n = len(texts)
-        cs: list[int] = [0] * n
+        cs: list[float] = [0.0] * n
         labels: list[str | None] = [None] * n
         need: list[int] = []
+        chks = {}
         for i, (text, t, ps) in enumerate(zip(texts, kw["task_type"], kw["principles"], strict=True)):
             if t not in MORAL:
                 continue
             chk = check_citations(text, ps or [])
             if not cite_mention(text, chk):
                 continue
+            chks[i] = chk
             if chk.c is None:
                 need.append(i)
             else:
-                cs[i] = chk.c
+                cs[i] = float(chk.c)
         if need:
-            got = self.judge.labels([citation_sentences(texts[i]) for i in need])
+            # the judge sees only the sentences citing the relevant principles R; c = (|R| j - |W|) / |C| (E8)
+            got = self.judge.labels([citation_sentences(texts[i], only=chks[i].relevant) for i in need])
             for i, lab in zip(need, got, strict=True):
                 labels[i] = lab
-                cs[i] = LABEL_TO_C[lab]
+                cs[i] = cite_score(chks[i], LABEL_TO_C[lab])
         out = [lam * c for c in cs]  # m = 1 wherever c != 0 (rows without a mention keep c = 0)
         self._stash(completions, "r_cite", out, judge_labels=labels)
         return out
@@ -241,7 +244,7 @@ class RewardSuite:
         self._log(kw, "length/truncated_share", _mean([float(x) for x in truncated]))
         mentioning = [i for i in moral if cite_mention(texts[i], checks[i])]
         reasons = Counter(checks[i].reason for i in mentioning)  # type: ignore[union-attr]
-        for r in ("fabricated_number", "title_mismatch", "irrelevant", "no_citation", "judge"):
+        for r in ("fabricated_number", "title_mismatch", "irrelevant", "no_citation", "judge", "judge_partial"):
             self._log(kw, f"cite_det/{r}", reasons.get(r, 0) / len(mentioning) if mentioning else None)
         labeled = [judge_labels[i] for i in moral if judge_labels[i] is not None]
         if labeled:

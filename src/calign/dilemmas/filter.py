@@ -10,6 +10,8 @@ CLI:
     # local: per-item counts -> final sets (RL-train, RL hold-out, eval-2-hard), anchors, reserve, manifest
     uv run python -m calign.dilemmas.filter select --rl-start-run outputs/dilemmas/C2kn@e4/dilemma_filter/<run> \
         [--pools p15 p6] [--holdout-share 0.15] [--eval2-rule all|not_all_pass] [--dry-run]
+    # local, after select (E7, Felix 2026-10-03): the reserve's all-fail items join RL-train
+    uv run python -m calign.dilemmas.filter promote-all-fail [--dry-run]
 
 Rules (Felix 2026-10-02): **RL-train** keeps items whose RL-start pass count at k=8, T=1.0 is strictly between 0 and
 k (a pass = parsed and equal to the verdict; an unparsed sample is a fail, as R1 scores it 0), so every kept item
@@ -447,6 +449,50 @@ def run_select(args: argparse.Namespace) -> dict:
     return manifest
 
 
+def promote_all_fail(manifest_path: Path = MANIFEST_PATH, dry_run: bool = False) -> dict:
+    """E7 (Felix 2026-10-03): move the reserve's all-fail items (0/k on the RL start) into RL-train, both runs.
+
+    The C3 pilot saturated RL-train within ~20 steps; the all-fail items (all pressure variants the RL start is talked
+    out of the verdict by) give headroom as the policy improves. They keep `meta.filter` (reason rl_start_all_fail) and
+    are inserted after the generated items, before the anchors. Hold-out families were already removed from the reserve,
+    so the hold-out stays disjoint. The manifest records the amendment (ids, new set stats, file hashes).
+    """
+    train = read_jsonl(FINAL_DIR / "rl_train.jsonl", Dilemma)
+    reserve = read_jsonl(FINAL_DIR / "rl_reserve.jsonl", Dilemma)
+    moved = [d for d in reserve if d.meta.get("filter", {}).get("reason") == "rl_start_all_fail"]
+    if not moved:
+        raise SystemExit("no all-fail items left in the reserve (already promoted?)")
+    keep = [d for d in reserve if d not in moved]
+    generated = [d for d in train if d.source != "moralchoice"]
+    anchors = [d for d in train if d.source == "moralchoice"]
+    new_train = generated + moved + anchors
+    LOGGER.info("promote %d all-fail items: rl_train %d -> %d, reserve %d -> %d",
+                len(moved), len(train), len(new_train), len(reserve), len(keep))  # fmt: skip
+    if dry_run:
+        return {"n_moved": len(moved)}
+    write_jsonl(FINAL_DIR / "rl_train.jsonl", new_train)
+    write_jsonl(FINAL_DIR / "rl_reserve.jsonl", keep)
+    m = read_json(manifest_path)
+    m["sets"]["rl_train"] = set_stats(new_train)
+    m["ids"]["rl_train"] = [d.item_id for d in new_train]
+    m["n_rl_train_generated"] = len(generated) + len(moved)
+    m["n_reserve"] = len(keep)
+    for s in ("rl_train", "rl_reserve"):
+        m["files"][s] = {"path": f"data/dilemmas/final/{s}.jsonl", "sha256": sha256_file(FINAL_DIR / f"{s}.jsonl")}
+    m.setdefault("amendments", []).append(
+        {
+            "what": "E7: reserve all-fail items (0/8 on the RL start) promoted to RL-train",
+            "decided_by": "Felix 2026-10-03",
+            "item_ids": [d.item_id for d in moved],
+            "n_moved": len(moved),
+            "git_commit": git_commit(),
+            "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        }
+    )
+    write_json(manifest_path, m)
+    return {"n_moved": len(moved), "rl_train": len(new_train), "reserve": len(keep)}
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -466,10 +512,15 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--pools", nargs="+", default=["p15", "p6"])
     c.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
     c.add_argument("--dry-run", action="store_true", help="print counts, write nothing")
+    pa = sub.add_parser("promote-all-fail", help="local: move the reserve's all-fail items into RL-train (E7)")
+    pa.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
+    pa.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     if args.cmd == "sample":
         run_sample(args)
+    elif args.cmd == "promote-all-fail":
+        print(promote_all_fail(args.manifest, args.dry_run))
     else:
         run_select(args)
 

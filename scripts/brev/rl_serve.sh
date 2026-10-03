@@ -35,7 +35,10 @@ sh scripts/brev/run_bg.sh "rollout_$tag" env CUDA_VISIBLE_DEVICES="$ROLLOUT_GPU"
     --enable-prefix-caching true
 
 kind=$(sed -n 's/^  kind: *\([a-z_]*\).*/\1/p' "$cfg" | head -1)
-if [ "$kind" = "outcome_cite" ] && [ "$JUDGE_GPU" != "none" ]; then
+backend=$(sed -n 's/^  backend: *\([a-z]*\).*/\1/p' "$cfg" | head -1)
+if [ "$backend" = "claude" ]; then
+    echo "[rl_serve] judge.backend = claude: no judge server (the trainer calls the Anthropic API)"
+elif [ "$kind" = "outcome_cite" ] && [ "$JUDGE_GPU" != "none" ]; then
     if [ -n "${JUDGE_MODEL:-}" ]; then
         sh scripts/brev/run_bg.sh "judge_$tag" env CUDA_VISIBLE_DEVICES="$JUDGE_GPU" "$UV" run python -m \
             calign.rl.judge_server serve --config "$cfg" --hf-model "$JUDGE_MODEL"

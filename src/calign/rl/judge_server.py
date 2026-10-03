@@ -12,6 +12,11 @@ Server (GPU 2 of the RL node, or a separate card reachable over HTTP; Gemma 3 12
     uv run python -m calign.rl.judge_server smoke --config configs/rl/C4.yaml     # 3 labelled examples
 `serve` replaces itself with `vllm serve <hf_model> --served-model-name cite-judge --max-model-len 4096 ...`.
 
+Backend `claude` (judge.backend; Felix 2026-10-03, after no local judge reached 90% agreement): the same prompt plus
+"Reply with the label only." goes to `judge.claude_model` at `judge.claude_effort` (adaptive thinking, interactive
+calls, no Batches); the label is the only label word in the reply. Each `labels()` call appends its cost to
+`judge_usage.jsonl` next to the cache.
+
 Client: `JudgeClient.labels(sentences)` classifies a batch concurrently (threads, httpx); a JSONL cache keyed by
 sha256(prompt version + judge model + sentences) makes repeated texts free and the run auditable. A reply that is
 not one of the three labels (should not happen under constrained decoding) is `unparsed` and scores 0.
@@ -32,6 +37,7 @@ from calign.constitution import Constitution, load_constitution
 from calign.rl.config import JudgeSettings, load_rl_config
 
 LOGGER = logging.getLogger(__name__)
+CLAUDE_USAGE_FILE = "judge_usage.jsonl"
 
 PROMPT_VERSION = "cite-judge-v1"
 LABELS = ("correct", "incorrect", "none")
@@ -85,6 +91,7 @@ class JudgeClient:
         self._lock = threading.Lock()
         self.n_requests = 0
         self.n_cache_hits = 0
+        self.claude_cost_usd = 0.0
         if self.cache_path and Path(self.cache_path).exists():
             for line in Path(self.cache_path).read_text(encoding="utf-8").splitlines():
                 if line.strip():
@@ -125,11 +132,37 @@ class JudgeClient:
                     row = {"key": key, "label": label, "prompt_version": PROMPT_VERSION, "citations": citations}
                     f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
+    def _claude_labels(self, texts: list[str]) -> list[str]:
+        """Claude backend: one interactive call per text (a fresh client per batch: asyncio.run makes a new loop)."""
+        import asyncio
+        import time
+
+        from calign.llm.anthropic_client import ClaudeClient
+        from calign.schemas import utc_now_iso
+
+        s = self.settings
+        client = ClaudeClient(concurrency=s.concurrency, use_batches=False)
+        reqs = [claude_judge_request(t, s.claude_model, s.claude_effort, self.constitution) for t in texts]
+        t0 = time.time()
+        resps = asyncio.run(client.complete_many(reqs, role="cite_judge", use_batches=False))
+        usage = client.usage.to_dict()
+        self.claude_cost_usd += usage["total_cost_usd"]
+        if self.cache_path:
+            row = {"at": utc_now_iso(), "n": len(texts), "seconds": round(time.time() - t0, 1), **usage}
+            with (Path(self.cache_path).parent / CLAUDE_USAGE_FILE).open("a", encoding="utf-8") as f:
+                f.write(json.dumps(row) + "\n")
+        return [parse_loose(r.text) for r in resps]
+
     def labels(self, citations: list[str]) -> list[str]:
         keys = [self.key(c) for c in citations]
         todo = {k: c for k, c in zip(keys, citations, strict=True) if k not in self._cache}
         self.n_cache_hits += len(citations) - len(todo)
-        if todo:
+        if todo and self.settings.backend == "claude":
+            results = self._claude_labels(list(todo.values()))
+            self.n_requests += len(todo)
+            for (k, c), lab in zip(todo.items(), results, strict=True):
+                self._store(k, lab, c)
+        elif todo:
             with ThreadPoolExecutor(max_workers=self.settings.concurrency) as ex:
                 results = list(ex.map(self._request, todo.values()))
             self.n_requests += len(todo)
@@ -169,8 +202,33 @@ def serve_command(settings: JudgeSettings, port: int | None = None, gpu_memory_u
 
 
 def judge_model_id(settings: JudgeSettings) -> str:
-    """The judge's identity in caches and label files: the HF model, plus the quantization when there is one."""
+    """The judge's identity in caches and label files: the HF model, plus the quantization when there is one; for the
+    Claude backend the Claude model and effort."""
+    if settings.backend == "claude":
+        return f"{settings.claude_model}:{settings.claude_effort}"
     return f"{settings.hf_model}:{settings.quantization}" if settings.quantization else settings.hf_model
+
+
+CLAUDE_SUFFIX = "\n\nReply with the label only."
+
+
+def parse_loose(text: str) -> str:
+    """The label in a free-text reply: the only label word present (whole word; 'incorrect' is not 'correct')."""
+    import re
+
+    found = {lab for lab in LABELS if re.search(rf"\b{lab}\b", (text or "").lower())}
+    return found.pop() if len(found) == 1 else "unparsed"
+
+
+def claude_judge_request(citations: str, model: str, effort: str, constitution: Constitution | None = None) -> dict:
+    return {
+        "messages": [{"role": "user", "content": judge_prompt(citations, constitution) + CLAUDE_SUFFIX}],
+        "model": model,
+        "thinking": "adaptive",
+        "effort": effort,
+        "max_tokens": 4000,
+        "cache_salt": f"{PROMPT_VERSION}:{effort}:{sha256_text(citations)}",
+    }
 
 
 SMOKE_EXAMPLES = (

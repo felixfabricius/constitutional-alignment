@@ -131,6 +131,11 @@ class RewardSettings(ConfigModel):
 class JudgeSettings(ConfigModel):
     """The local 3-class citation judge (calign.rl.judge_server): a vLLM OpenAI-compatible server."""
 
+    # "vllm": the local judge server (base_url); "claude": the Anthropic API, same prompt and labels (Felix 2026-10-03:
+    # no local judge reached 90% agreement with Claude, so C4 uses claude_model at claude_effort)
+    backend: Literal["vllm", "claude"] = "vllm"
+    claude_model: str = "claude-sonnet-5"
+    claude_effort: str = "low"
     base_url: str = "http://127.0.0.1:8001/v1"
     served_model_name: str = "cite-judge"
     hf_model: str = "google/gemma-3-12b-it"

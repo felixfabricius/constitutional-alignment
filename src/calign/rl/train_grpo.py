@@ -189,6 +189,13 @@ def load_tokenizer(model_dir: str, revision: str | None = None):
 def check_judge_server(cfg: RLConfig) -> None:
     import httpx
 
+    if cfg.judge.backend == "claude":
+        from calign.paths import anthropic_api_key
+
+        if not anthropic_api_key():
+            raise SystemExit("judge.backend is claude but ANTHROPIC_API_KEY is not set (.env)")
+        return
+
     url = f"{cfg.judge.base_url.rstrip('/')}/models"
     try:
         models = [m["id"] for m in httpx.get(url, timeout=10).json()["data"]]
@@ -295,7 +302,7 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: b
     from trl import GRPOConfig
 
     from calign.paths import hf_token
-    from calign.rl.judge_server import JudgeClient
+    from calign.rl.judge_server import JudgeClient, judge_model_id
 
     check_reward_scale(cfg, allow_unscaled or dry_run)
     spec, rev = model_spec(cfg)
@@ -365,7 +372,15 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: b
         "train_loss": getattr(result, "training_loss", None),
         "peft": peft_summary,
         "dataset": {k: manifest[k] for k in ("n_rows", "by_task_type", "shares")},
-        "judge": {"requests": judge.n_requests, "cache_hits": judge.n_cache_hits} if judge else None,
+        "judge": {
+            "backend": cfg.judge.backend,
+            "model": judge_model_id(cfg.judge),
+            "requests": judge.n_requests,
+            "cache_hits": judge.n_cache_hits,
+            "claude_cost_usd": round(judge.claude_cost_usd, 4),
+        }
+        if judge
+        else None,
         "holdout": {"evaluations": [x["step"] for x in holdout.read_summaries(run_dir)], **(h_manifest or {})},
         "checkpoints": sorted(p.name for p in run_dir.glob("checkpoint-*")),
         "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2) if torch.cuda.is_available() else None,

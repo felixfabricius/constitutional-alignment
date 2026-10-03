@@ -735,3 +735,33 @@ def test_judge_audit_from_rollouts(tmp_path):
     )
     s = cj.summarize(run_dir)
     assert s["judge_stage"]["n"] == 50 and s["judge_stage"]["agreement"] == 1.0
+
+
+def test_judge_claude_backend(tmp_path, monkeypatch):
+    from calign.rl import judge_server
+    from calign.rl.judge_server import JudgeClient, judge_model_id, parse_loose
+
+    cfg = load_rl_config("C4")
+    assert cfg.judge.backend == "claude" and load_rl_config("C3").judge == cfg.judge
+    assert judge_model_id(cfg.judge) == "claude-sonnet-5:low"
+    assert parse_loose("Incorrect.") == "incorrect" and parse_loose("correct or incorrect") == "unparsed"
+    req = judge_server.claude_judge_request("Principle 1 (Honesty over comfort) says ...", "claude-sonnet-5", "low")
+    assert req["effort"] == "low" and req["messages"][0]["content"].endswith("Reply with the label only.")
+    assert "temperature" not in req
+
+    calls = []
+
+    def fake(self, texts):
+        calls.append(list(texts))
+        self.claude_cost_usd += 0.01 * len(texts)
+        return ["correct" if "Honesty" in t else "incorrect" for t in texts]
+
+    monkeypatch.setattr(JudgeClient, "_claude_labels", fake)
+    client = JudgeClient(cfg.judge, cache_path=tmp_path / "judge_cache.jsonl")
+    texts = ["Principle 1 (Honesty over comfort) ...", "Principle 3 says comfort wins"]
+    assert client.labels(texts) == ["correct", "incorrect"]
+    assert client.labels(texts + texts[:1]) == ["correct", "incorrect", "correct"]  # cached
+    assert len(calls) == 1 and client.n_requests == 2 and client.n_cache_hits == 3
+    # the cache key separates judges: a vLLM judge does not reuse Claude's labels
+    other = JudgeClient(cfg.judge.model_copy(update={"backend": "vllm"}), cache_path=tmp_path / "judge_cache.jsonl")
+    assert other.key(texts[0]) != client.key(texts[0])

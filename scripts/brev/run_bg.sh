@@ -42,6 +42,12 @@ if [ -n "$drv" ] && [ "$drv" -lt 580 ] && [ -d /usr/local/cuda-13.0/compat ]; th
     export LD_LIBRARY_PATH="/usr/local/cuda-13.0/compat${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     echo "# driver $drv < 580: LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> "$log"
 fi
+# Hosts without a CUDA toolkit (massedcompute nodes, 2026-10-03): vLLM's FlashInfer top-k/top-p sampler JIT-compiles
+# with nvcc on first use and the engine dies in warm-up; the PyTorch sampler samples the same distribution.
+if ! command -v nvcc >/dev/null 2>&1 && [ ! -d /usr/local/cuda ] && [ -z "${VLLM_USE_FLASHINFER_SAMPLER:-}" ]; then
+    export VLLM_USE_FLASHINFER_SAMPLER=0
+    echo "# no CUDA toolkit: VLLM_USE_FLASHINFER_SAMPLER=0" >> "$log"
+fi
 
 # setsid + nohup + /dev/null stdin: the job gets its own session and ignores SIGHUP, so it keeps running when the
 # ssh connection drops, the terminal closes, or the agent session ends. Never run GPU jobs in the foreground over ssh.

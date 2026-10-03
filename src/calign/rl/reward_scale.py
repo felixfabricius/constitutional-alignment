@@ -195,7 +195,7 @@ def advantage_size(totals: list[float], metas: list[dict], shares: dict[str, flo
 
 def run_measure(args: argparse.Namespace) -> dict:
     from calign.rl.config import RewardSettings
-    from calign.rl.judge_server import JudgeClient
+    from calign.rl.judge_server import JudgeClient, judge_model_id
     from calign.rl.rewards import RewardSuite
 
     cfg = load_rl_config(args.config)
@@ -229,7 +229,7 @@ def run_measure(args: argparse.Namespace) -> dict:
         "shares": shares,
         "n_answers_by_type": dict(Counter(m["task_type"] for m in metas)),
         "c4_citation_classes": dict(Counter("pos" if v > 0 else "neg" if v < 0 else "zero" for v in cite_vals)),
-        "judge": {"model": cfg.judge.hf_model, "requests": judge.n_requests, "cache_hits": judge.n_cache_hits},
+        "judge": {"model": judge_model_id(cfg.judge), "requests": judge.n_requests, "cache_hits": judge.n_cache_hits},
         "config_lines": f"  scale: {f_scale:.3f}\n  scale_source: {str(args.run_dir).replace(chr(92), '/')}",
         "provenance": {
             "dilemma_records": file_provenance(args.dilemma_records),

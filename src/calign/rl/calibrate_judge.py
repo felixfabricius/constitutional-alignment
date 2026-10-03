@@ -237,20 +237,23 @@ def label_claude(run_dir: Path, use_batches: bool | None, dry_run: bool) -> dict
     return usage
 
 
-def label_local(run_dir: Path, config: str, hf_model: str | None) -> None:
+def label_local(run_dir: Path, config: str, hf_model: str | None, quantization: str | None = None) -> None:
     from calign.rl.config import load_rl_config
-    from calign.rl.judge_server import JudgeClient
+    from calign.rl.judge_server import JudgeClient, judge_model_id
 
     settings = load_rl_config(config).judge
     if hf_model:
         settings = settings.model_copy(update={"hf_model": hf_model})
+    if quantization:
+        settings = settings.model_copy(update={"quantization": quantization})
+    model_id = judge_model_id(settings)
     items = load_items(run_dir)
     client = JudgeClient(settings, cache_path=None)
     labels = client.labels([x["citations"] for x in items])
     with (run_dir / LOCAL_FILE).open("w", encoding="utf-8") as f:
         for x, lab in zip(items, labels, strict=True):
-            f.write(json.dumps({"record_id": x["record_id"], "label": lab, "model": settings.hf_model}) + "\n")
-    LOGGER.info("local labels (%s): %s", settings.hf_model, dict(Counter(labels)))
+            f.write(json.dumps({"record_id": x["record_id"], "label": lab, "model": model_id}) + "\n")
+    LOGGER.info("local labels (%s): %s", model_id, dict(Counter(labels)))
 
 
 def _labels(path: Path) -> dict[str, dict]:
@@ -379,6 +382,7 @@ def main(argv: list[str] | None = None) -> None:
     lo.add_argument("--run-dir", type=Path, required=True)
     lo.add_argument("--config", required=True)
     lo.add_argument("--hf-model", default=None)
+    lo.add_argument("--quantization", default=None)
     r = sub.add_parser("report")
     r.add_argument("--run-dir", type=Path, required=True)
     au = sub.add_parser("audit", help="sample judged rollouts of a C4 run (chunk 8 judge audit)")
@@ -401,7 +405,7 @@ def main(argv: list[str] | None = None) -> None:
         usage = label_claude(args.run_dir, False if args.no_batches else None, args.dry_run)
         LOGGER.info("Claude cost $%.4f", usage["total_cost_usd"])
     elif args.cmd == "label-local":
-        label_local(args.run_dir, args.config, args.hf_model)
+        label_local(args.run_dir, args.config, args.hf_model, args.quantization)
     else:
         summary = summarize(args.run_dir)
         write_json(args.run_dir / "summary.json", summary)

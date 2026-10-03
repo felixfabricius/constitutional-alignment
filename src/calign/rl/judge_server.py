@@ -92,7 +92,7 @@ class JudgeClient:
                     self._cache[row["key"]] = row["label"]
 
     def key(self, citations: str) -> str:
-        return sha256_text(f"{PROMPT_VERSION}\n{self.settings.hf_model}\n{citations.strip()}")
+        return sha256_text(f"{PROMPT_VERSION}\n{judge_model_id(self.settings)}\n{citations.strip()}")
 
     def _request(self, citations: str) -> str:
         import httpx
@@ -161,7 +161,14 @@ def serve_command(settings: JudgeSettings, port: int | None = None, gpu_memory_u
     ]
     if settings.hf_revision:
         cmd += ["--revision", settings.hf_revision]
+    if settings.quantization:
+        cmd += ["--quantization", settings.quantization]
     return cmd
+
+
+def judge_model_id(settings: JudgeSettings) -> str:
+    """The judge's identity in caches and label files: the HF model, plus the quantization when there is one."""
+    return f"{settings.hf_model}:{settings.quantization}" if settings.quantization else settings.hf_model
 
 
 SMOKE_EXAMPLES = (
@@ -183,6 +190,7 @@ def main(argv: list[str] | None = None) -> None:
         p.add_argument("--port", type=int, default=None)
         p.add_argument("--hf-model", default=None, help="override the judge model (e.g. google/gemma-3-27b-it)")
         p.add_argument("--gpu-memory-utilization", type=float, default=0.85)
+        p.add_argument("--quantization", default=None, help="override judge.quantization (e.g. fp8)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     from calign.paths import load_env
@@ -191,6 +199,8 @@ def main(argv: list[str] | None = None) -> None:
     settings = load_rl_config(args.config).judge
     if args.hf_model:
         settings = settings.model_copy(update={"hf_model": args.hf_model})
+    if args.quantization:
+        settings = settings.model_copy(update={"quantization": args.quantization})
     if args.port:
         settings = settings.model_copy(update={"base_url": f"http://127.0.0.1:{args.port}/v1"})
     cmd = serve_command(settings, args.port, args.gpu_memory_utilization)

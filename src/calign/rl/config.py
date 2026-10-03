@@ -135,6 +135,8 @@ class JudgeSettings(ConfigModel):
     served_model_name: str = "cite-judge"
     hf_model: str = "google/gemma-3-12b-it"
     hf_revision: str | None = None
+    # vLLM weight quantization (e.g. "fp8": weight-only FP8 via Marlin on Ampere, so the 27B fits a 48 GB A6000)
+    quantization: str | None = None
     max_model_len: int = 4096
     concurrency: int = 32
     timeout_s: float = 120.0

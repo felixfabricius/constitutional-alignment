@@ -1,0 +1,173 @@
+{
+  "tag": "p6",
+  "n_ideas_selected": 100,
+  "n_items": 102,
+  "n_kept": 2,
+  "survival": 0.0196,
+  "by_kind": {
+    "persuasive_framing": {
+      "n": 1,
+      "kept": 0
+    },
+    "pushback": {
+      "n": 1,
+      "kept": 1
+    },
+    "seed": {
+      "n": 100,
+      "kept": 1
+    }
+  },
+  "by_principle": {
+    "6": {
+      "n": 102,
+      "kept": 2
+    }
+  },
+  "by_divergence_kept": {
+    "selective_framing": 2
+  },
+  "reject_reasons": {
+    "p6_rule": 96,
+    "verdict_definite": 4
+  },
+  "format_issues": {},
+  "intent_verdict_agreement": {
+    "definite_items": 98,
+    "agree": 98,
+    "rate": 1.0,
+    "seeds_and_siblings_rate": 1.0,
+    "any_clear_verdict_rate": 0.9902,
+    "all_items_rate": 0.9902
+  },
+  "verdict_actions": {
+    "action1": 49,
+    "action2": 53
+  },
+  "p6_invoked": 102,
+  "kept_direction": {
+    "action2": 2
+  },
+  "kept_persona": {
+    "human_role": 2
+  },
+  "mean_confidence_kept": 0.79,
+  "mean_context_words": {
+    "persuasive_framing": 216.0,
+    "pushback": 148.0,
+    "seed": 98.4
+  },
+  "cost_usd_total": 2.6739,
+  "params": {
+    "generator_model": "claude-sonnet-5",
+    "ideas_effort": "medium",
+    "draft_effort": "high",
+    "variant_effort": "medium",
+    "sibling_effort": "high",
+    "concurrency": 16,
+    "seed": 20261002,
+    "output_dir": "data/dilemmas",
+    "pools": {
+      "p15": {
+        "principles": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "seeds_per_principle": 125,
+        "taxonomy": "v1",
+        "variants": [
+          "pushback",
+          "persuasive_framing",
+          "rationalization"
+        ],
+        "principle_seeds": {
+          "1": 125,
+          "2": 125,
+          "3": 40,
+          "4": 125,
+          "5": 125
+        }
+      },
+      "p15v2": {
+        "principles": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "seeds_per_principle": 24,
+        "taxonomy": "v2",
+        "variants": null,
+        "principle_seeds": null
+      },
+      "p15r": {
+        "principles": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "seeds_per_principle": 8,
+        "taxonomy": "v1",
+        "variants": [
+          "pushback",
+          "persuasive_framing",
+          "rationalization"
+        ],
+        "principle_seeds": null
+      },
+      "p6": {
+        "principles": [
+          6
+        ],
+        "seeds_per_principle": 100,
+        "taxonomy": "v1",
+        "variants": [
+          "pushback",
+          "persuasive_framing",
+          "rationalization"
+        ],
+        "principle_seeds": null
+      }
+    },
+    "ideas_per_call": 8,
+    "ideas_oversample": 1.3,
+    "idea_dedupe_jaccard": 0.6,
+    "variants": [
+      "pushback",
+      "persuasive_framing",
+      "long_context"
+    ],
+    "context_words": [
+      40,
+      200
+    ],
+    "background_words": [
+      250,
+      800
+    ],
+    "action_words": [
+      3,
+      35
+    ],
+    "min_verdict_confidence": 0.7,
+    "ref_max_jaccard": 0.5,
+    "family_dedupe_jaccard": 0.8,
+    "p6_require_decisive": true,
+    "eval1_hard_family_share": 0.0,
+    "siblings_per_exemplar": 2
+  },
+  "git_commit": "939eeabe82c79e1c9b600cd36bd626c88c209f2c",
+  "files": {
+    "ideas.jsonl": "7293379fc575d8b62de0e0d2887a77fc625903e7e533c657e9cb8de00533ff84",
+    "seeds.jsonl": "5dc43b86d7f62ade712029758b2a6992bf0101e5038aaf1f379b1bd5f28fa0cc",
+    "variants.jsonl": "5673576cd8a4a3e036d8ea44d4b6987a9338972a1cfd667fb635b7ee9fb93cf3",
+    "items.jsonl": "fa1a86b753cf196143aaea574eae76d1260f28251bd0e0dcc68465d5f19f962c",
+    "pool.jsonl": "abda53c8d51654576f1149302fc5a68b31785e1029576f945f32a82d754e3f94"
+  }
+}

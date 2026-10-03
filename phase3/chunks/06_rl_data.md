@@ -1,8 +1,8 @@
 # Chunk 6: RL data (generated dilemmas, hard evals, anchors)
 
-Status: **in progress, waiting on Felix** (2026-10-02 session 2): candidate RL questions evaluated on the new RL start
-`C2kn@e4` (knowledge-only SFT epoch 4); recipe for the scale-up proposed in Results, "Candidate RL questions"; nothing
-scaled yet.
+Status: **RL-train done; eval-2-hard waiting on Felix** (2026-10-03): `data/dilemmas/final/rl_train.jsonl` = 208
+generated items + 40 anchors (filtered on the RL start `C2`), reserve 757 items; eval-1-hard scrapped; eval-2-hard
+has no usable set (E6). See Results, "Scale-up and the final RL-train set".
 
 ## Goal
 
@@ -269,3 +269,48 @@ reallocated to P1, P2, P4, P5 (P3 stays in the anchors and in eval-1) or kept at
 items with 0 < passes < 8 on `C2kn@e4`; Batches for the generation (~$4). Open alongside: eval-1-hard and eval-2-hard
 selection (the plan's base-hard rule no longer fits; proposal: items of the held-out families with < 8/8 on the RL
 start, with C2's reference value taken from an independent sample, the E3 lesson) and the P6 pool size for eval-2-hard.
+
+### Scale-up and the final RL-train set (2026-10-02/03, session 2)
+
+Decisions (Felix 2026-10-02): recipe as proposed with a very small P3 share; interactive generation (no Batches);
+**eval-1-hard scrapped** (all P1-P5 families go to RL-train); **eval-2-hard kept**, pending how to select it.
+
+**Generation** (pool `p15`, `configs/dilemmas.yaml`: v1 questions; pushback, persuasive framing, rationalization;
+540 seeds = P1, P2, P4, P5 125 each + P3 40; setting areas rotate across repeated ideas calls; strict P6 rule): 540
+seeds -> 297 kept (55%), 889 variants, **1 429 items -> 965 kept**, intent = verdict on 99.9% of definite verdicts.
+Cost **$18.81** (interactive; the pre-run estimate of ~$8 was wrong: it extrapolated from recipe1, where half the calls
+were cache hits; the real rate is ~$0.035 per seed). Re-split with `eval1_hard_family_share: 0`: all 297 families are
+rl_train (`data/dilemmas/p15/pool.jsonl`, committed).
+
+**Filter on the RL start** (eval config `C2` = knowledge-only SFT epoch 4, LoRA-served; k=8, T=1.0; instance p3-dil3,
+~1.1 h, deleted after syncing; run `outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1`, 8 640 generations, parse rate
+0.9999, letter-A 0.49): pass-count histogram 0:30, 1:25, 2:16, 3:20, 4:26, 5:24, 6:28, 7:76, 8:835.
+
+| RL-train candidates | n | mixed (kept) | rate |
+|---|---:|---:|---:|
+| seed | 297 | 22 | 7% |
+| pushback | 229 | 23 | 10% |
+| persuasive framing | 208 | 96 | 46% |
+| rationalization | 231 | 67 | 29% |
+| P1 / P2 / P3 / P4 / P5 | 151 / 136 / 61 / 379 / 238 | 57 / 27 / 13 / 62 / 49 | 38 / 20 / 21 / 16 / 21% |
+| **all** | **965** | **208** | **21.6%** |
+
+**Final set** (`calign.dilemmas.filter select --rl-start-run outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1 --pools p15`;
+manifest `data/manifests/dilemmas_v1.json`; files committed): `data/dilemmas/final/rl_train.jsonl` = **208 generated
+items (149 families) + 40 MoralChoice anchors = 248**; `data/dilemmas/final/rl_reserve.jsonl` = the 757 items that
+were all-pass (727) or all-fail (30) on the RL start, with their counts, for the D20 re-filter from later checkpoints.
+Every row carries `meta.filter.rl_start` ({n, n_parsed, n_wrong, n_pass}).
+
+Points for chunk 7 and Felix:
+- 186 of the 208 generated RL items (89%) are pressure variants; plain seeds rarely give reward variance on this
+  start. The "pressure as a toggle" mix can only be set among the surviving items (22 plain).
+- 76 of the 208 mixed items are at 7/8: a weak GRPO signal at G=8. They stay in (the rule is 0 < passes < 8).
+- P3 gave 13 items, more than the pilots suggested (21% of P3 candidates).
+
+**eval-2-hard: no usable set** (decision needed, `status.md` E6). The P6 pools were checked with the eval-2 rule
+(the verdict must change when P6 is deleted): v1 P6 questions 1/100 seeds pass ($2.67), and a targeted v2 pilot with
+P6-decisive question types (declined assistance, substituted choice; prompts `dilemma-*-v2` with a decisiveness test)
+1/20 ($0.64). The verdict judge, with P6 deleted, still reasons from autonomy ("refusing ... would be unjustified
+paternalism not grounded in any principle"), so the verdict only flips when another principle argues for protection,
+which makes it ambiguous. In the same GPU run, the 115 P6-themed seeds (verdict cites P6 and agrees with the intent,
+but P6 is not decisive) were sampled on C2: mean pass rate 0.989, 7 mixed: no headroom either.

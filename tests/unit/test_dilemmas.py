@@ -317,38 +317,39 @@ def _pool_item(item_id, set_name, verdict_action="action1"):
 
 
 def test_item_counts_and_filter_decision():
-    items = [_pool_item("a", "rl_train"), _pool_item("b", "eval1_hard")]
+    items = [_pool_item("a", "rl_train"), _pool_item("b", "eval2_hard"), _pool_item("c", "eval1_hard")]
     recs = [_rec("a", i, d) for i, d in enumerate(["action2", "action2", "action1", "invalid"])]
     c = F.item_counts(recs, items)["a"]
     assert c == {"n": 4, "n_parsed": 3, "n_wrong": 2, "n_pass": 1}
     rl_mixed = {"n": 8, "n_parsed": 8, "n_wrong": 3, "n_pass": 5}
     rl_all = {"n": 8, "n_parsed": 8, "n_wrong": 0, "n_pass": 8}
     rl_none = {"n": 8, "n_parsed": 6, "n_wrong": 6, "n_pass": 0}
-    assert F.filter_decision(items[0], c, rl_mixed, 2, True) == (True, None)
-    assert F.filter_decision(items[0], c, rl_all, 2, True) == (False, "rl_start_all_pass")
-    assert F.filter_decision(items[0], c, rl_none, 2, True) == (False, "rl_start_all_fail")
-    assert F.filter_decision(items[0], c, None, 2, False) == (True, None)  # RL-start part pending
-    assert F.filter_decision(items[1], c, None, 2, True) == (True, None)  # eval sets ignore the RL start
-    easy = {"n": 4, "n_parsed": 4, "n_wrong": 1, "n_pass": 3}
-    assert F.filter_decision(items[1], easy, None, 2, True) == (False, "base_easy")
-    assert F.filter_decision(items[1], None, None, 2, True) == (False, "not_sampled_base")
+    assert F.filter_decision(items[0], rl_mixed, True) == (True, None)
+    assert F.filter_decision(items[0], rl_all, True) == (False, "rl_start_all_pass")
+    assert F.filter_decision(items[0], rl_none, True) == (False, "rl_start_all_fail")
+    assert F.filter_decision(items[0], None, False) == (True, None)  # RL-start part pending
+    assert F.filter_decision(items[1], rl_all, True, "all") == (True, None)  # eval-2-hard keeps all by default
+    assert F.filter_decision(items[1], rl_all, True, "not_all_pass") == (False, "rl_start_all_pass")
+    assert F.filter_decision(items[1], rl_none, True, "not_all_pass") == (True, None)
+    assert F.filter_decision(items[2], rl_mixed, True) == (False, "eval1_hard_scrapped")
 
 
 def test_summary_survival_and_exemplars():
-    items = [_pool_item("s1", "rl_train"), _pool_item("s2", "eval1_hard")]
+    items = [_pool_item("s1", "rl_train"), _pool_item("s2", "rl_train")]
     v = items[0].model_copy(update={"item_id": "s1.push", "variant_kind": "pushback", "family_id": "s1"})
     items.append(v)
-    recs = [_rec("s1", i, "action2") for i in range(4)] + [_rec("s2", i, "action1") for i in range(4)]
+    recs = [_rec("s1", i, "action2" if i else "action1") for i in range(4)] + [
+        _rec("s2", i, "action1") for i in range(4)
+    ]
     recs += [_rec("s1.push", i, "action2") for i in range(4)]
     s = F.summarize_run(recs, items, 2)
-    assert s["by_set"]["rl_train"]["n_hard"] == 2 and s["by_set"]["eval1_hard"]["n_hard"] == 0
+    assert s["by_set"]["rl_train"]["n_mixed"] == 1
     counts = F.item_counts(recs, items)
-    dec = {d.item_id: F.filter_decision(d, counts.get(d.item_id), None, 2, False) for d in items}
+    dec = {d.item_id: F.filter_decision(d, counts.get(d.item_id), True) for d in items}
     tab = F.survival_table(items, dec)
-    assert tab["rl_train"]["overall"] == {"n": 2, "kept": 2, "rate": 1.0}
-    assert tab["eval1_hard"]["reasons"] == {"base_easy": 1}
-    ex = F.hard_exemplars([d for d in items if dec[d.item_id][0]])
-    assert ex == {"p15": ["s1"]}
+    assert tab["rl_train"]["overall"] == {"n": 3, "kept": 1, "rate": 0.3333}
+    assert tab["rl_train"]["reasons"] == {"rl_start_all_fail": 1, "rl_start_all_pass": 1}
+    assert F.hard_exemplars([d for d in items if dec[d.item_id][0]]) == {"p15": ["s1"]}
 
 
 def test_parse_verdict_regex_fallback_for_unterminated_rationale():

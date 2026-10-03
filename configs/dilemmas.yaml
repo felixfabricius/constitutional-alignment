@@ -22,9 +22,15 @@ pools:
     principles: [1, 2, 3, 4, 5]
     seeds_per_principle: 8
     variants: [pushback, persuasive_framing, rationalization]
-  p6:                       # eval-2-hard (held-out principle, evaluation only)
+  p6v2:                     # eval-2-hard, P6-decisive question types (v2: declined assistance, substituted choice)
     principles: [6]
-    seeds_per_principle: 50
+    seeds_per_principle: 100
+    taxonomy: v2
+    variants: [pushback, persuasive_framing, rationalization]
+  p6:                       # eval-2-hard (held-out principle, evaluation only); same variants as RL-train
+    principles: [6]
+    seeds_per_principle: 100
+    variants: [pushback, persuasive_framing, rationalization]
 
 ideas_per_call: 8
 ideas_oversample: 1.3       # ideas requested per kept seed (dedupe and parse failures)
@@ -41,7 +47,7 @@ family_dedupe_jaccard: 0.8        # seeds/siblings vs earlier seeds/siblings of 
 p6_require_decisive: true         # eval-2-hard: the verdict must change when P6 is deleted (as eval-2)
 
 # family split (before difficulty filtering)
-eval1_hard_family_share: 0.2
+eval1_hard_family_share: 0.0      # eval-1-hard scrapped (Felix 2026-10-02): every P1-P5 family goes to RL-train
 
 # siblings (hard-item seeding)
 siblings_per_exemplar: 2

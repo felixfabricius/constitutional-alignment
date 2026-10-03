@@ -1,29 +1,29 @@
 """Difficulty filtering of the generated dilemmas and the final RL / hard-eval sets (Phase 3 chunk 6).
 
 CLI:
-    # GPU (vLLM): base k=4 at T=0.7 on every pool item (the MoralChoice eval prompt: `none` variant, letter
-    # randomisation); RL start k=8 at T=1.0 (LoRA-served eval config or merged weights)
-    uv run python -m calign.dilemmas.filter sample --eval-config C0 --pools p15 p6 [--k 4 --temperature 0.7]
-    uv run python -m calign.dilemmas.filter sample --eval-config C2@e4 --pools p15 p6 --k 8 --temperature 1.0
+    # GPU (vLLM): the RL start (knowledge-only SFT epoch 4, eval config C2kn@e4) at k=8, T=1.0 on every pool item
+    # (the MoralChoice eval prompt: `none` variant, letter randomisation)
+    uv run python -m calign.dilemmas.filter sample --eval-config C2kn@e4 --pools p15 p6 --k 8 --temperature 1.0
     # any Dilemma file (e.g. a pilot's items.jsonl incl. rejected items) instead of the pools
-    uv run python -m calign.dilemmas.filter sample --eval-config C2@e4 --file data/dilemmas/pilot/items.jsonl --k 8 \
+    uv run python -m calign.dilemmas.filter sample --eval-config C2kn@e4 --file data/dilemmas/pilot/items.jsonl --k 8 \
         --temperature 1.0
-    # local: per-item counts -> final sets, anchors, manifest (without --rl-start-run: RL-start filter pending)
-    uv run python -m calign.dilemmas.filter select --rl-start-run outputs/dilemmas/C2@e4/dilemma_filter/<run> \
-        [--base-run outputs/dilemmas/C0/dilemma_filter/<run>] [--pools p15 p6] [--dry-run]
+    # local: per-item counts -> final sets, anchors, reserve, manifest
+    uv run python -m calign.dilemmas.filter select --rl-start-run outputs/dilemmas/C2kn@e4/dilemma_filter/<run> \
+        [--pools p15 p6] [--eval2-rule all|not_all_pass] [--dry-run]
 
-Rules: RL-train keeps items whose RL-start (SFT v3 epoch 4, Felix 2026-10-02) pass count at k=8, T=1.0 is strictly
-between 0 and k (a pass = parsed and equal to the verdict; an unparsed sample is a fail, as R1 scores it 0), so every
-kept item gives GRPO groups with reward variance. The base model plays no role for RL-train (Felix 2026-10-02,
-replacing D3 (v)'s base-disagreement condition); if items are too easy the questions are revised rather than the RL
-start moved to an earlier epoch. eval-1-hard and eval-2-hard (selection rule still open, chunk doc 06) keep base-hard
-items: the base model's parsed answer disagrees with the verdict in >= `min_base_wrong` of its k=4 samples (2, the
-MoralChoice hard-subset rule); no selection on the RL start. The family split was fixed
-before sampling (calign.dilemmas.generate split). Anchors: the 40 `anchors` ids of data/manifests/phase3_splits.json
-as Dilemma rows (variant_kind=anchor, source=moralchoice) appended to the RL-train file, unfiltered.
+Rules (Felix 2026-10-02): **RL-train** keeps items whose RL-start pass count at k=8, T=1.0 is strictly between 0 and
+k (a pass = parsed and equal to the verdict; an unparsed sample is a fail, as R1 scores it 0), so every kept item
+gives GRPO groups with reward variance; the base model plays no role. Items that are all-pass or all-fail on the RL
+start go to the **reserve** (`rl_reserve.jsonl`, with their counts) for the periodic re-filter from later checkpoints
+(D20). **eval-1-hard is scrapped** (all P1-P5 families go to RL-train; items still labelled eval1_hard in old pools
+are dropped). **eval-2-hard** (P6 pool, evaluation only): `--eval2-rule all` keeps every item (default until Felix
+picks the rule), `not_all_pass` keeps items the RL start does not get right k/k; C2's reference value on it must come
+from an independent sample (the suite's `hardsets` seed differs from this filter's). Anchors: the 40 `anchors` ids of
+data/manifests/phase3_splits.json as Dilemma rows (variant_kind=anchor, source=moralchoice) appended to the RL-train
+file, unfiltered.
 
-Outputs: data/dilemmas/final/{rl_train,eval1_hard,eval2_hard}.jsonl (Dilemma rows with `meta.filter`; committed),
-data/dilemmas/<tag>/hard_seeds.txt (one exemplar per family whose items survived, for the sibling batch),
+Outputs: data/dilemmas/final/{rl_train,eval2_hard,rl_reserve}.jsonl (Dilemma rows with `meta.filter`; committed),
+data/dilemmas/<tag>/hard_seeds.txt (one exemplar per family whose items survived, for a sibling batch),
 data/manifests/dilemmas_v1.json.
 """
 
@@ -51,7 +51,8 @@ RECORDS_FILE = "records.jsonl"
 FINAL_DIR = DATA_DIR / "dilemmas" / "final"
 MANIFEST_PATH = MANIFESTS_DIR / "dilemmas_v1.json"
 MANIFEST_VERSION = "dilemmas-v1"
-SETS = ("rl_train", "eval1_hard", "eval2_hard")
+SETS = ("rl_train", "eval2_hard")
+EVAL2_RULES = ("all", "not_all_pass")
 DEFAULT_SEED = 20261002
 
 
@@ -212,15 +213,18 @@ def pass_breakdown(records: list[GenerationRecord], items: list[Dilemma]) -> dic
 
 
 def filter_decision(
-    item: Dilemma, base: dict | None, rl: dict | None, min_base_wrong: int, rl_applied: bool
+    item: Dilemma, rl: dict | None, rl_applied: bool, eval2_rule: str = "all"
 ) -> tuple[bool, str | None]:
-    """(keep, reason) for one pool item under its set's rule (RL-train: RL start only; eval sets: base only)."""
-    if item.meta.get("set") != "rl_train":
-        if base is None:
-            return False, "not_sampled_base"
-        if base["n_wrong"] < min_base_wrong:
-            return False, "base_easy"
-        return True, None
+    """(keep, reason) for one pool item under its set's rule (RL-train: RL start mixed; eval-2-hard: `eval2_rule`)."""
+    st = item.meta.get("set")
+    if st == "eval2_hard":
+        if eval2_rule == "all":
+            return True, None
+        if rl is None:
+            return False, "not_sampled_rl_start"
+        return (True, None) if rl["n_pass"] < rl["n"] else (False, "rl_start_all_pass")
+    if st != "rl_train":
+        return False, f"{st}_scrapped" if st == "eval1_hard" else f"unknown_set_{st}"
     if not rl_applied:
         return True, None
     if rl is None:
@@ -309,22 +313,21 @@ def survival_table(pool: list[Dilemma], decisions: dict[str, tuple[bool, str | N
 
 def run_select(args: argparse.Namespace) -> dict:
     pool = load_pools(args.pools)
-    base_records = read_jsonl(args.base_run / RECORDS_FILE, GenerationRecord) if args.base_run else []
     rl_records = read_jsonl(args.rl_start_run / RECORDS_FILE, GenerationRecord) if args.rl_start_run else []
-    base = item_counts(base_records, pool)
     rl = item_counts(rl_records, pool)
     rl_applied = args.rl_start_run is not None
-    decisions = {
-        d.item_id: filter_decision(d, base.get(d.item_id), rl.get(d.item_id), args.min_base_wrong, rl_applied)
-        for d in pool
-    }
+    decisions = {d.item_id: filter_decision(d, rl.get(d.item_id), rl_applied, args.eval2_rule) for d in pool}
 
     final: dict[str, list[Dilemma]] = {s: [] for s in SETS}
+    reserve: list[Dilemma] = []
     for d in pool:
-        keep, _ = decisions[d.item_id]
+        keep, reason = decisions[d.item_id]
+        filt = {"rl_start": rl.get(d.item_id) if rl_applied else None, "reason": reason}
+        row = d.model_copy(update={"meta": {**d.meta, "filter": filt}})
         if keep:
-            filt = {"base": base.get(d.item_id), "rl_start": rl.get(d.item_id) if rl_applied else None}
-            final[d.meta["set"]].append(d.model_copy(update={"meta": {**d.meta, "filter": filt}}))
+            final[d.meta["set"]].append(row)
+        elif reason in ("rl_start_all_pass", "rl_start_all_fail") and d.meta.get("set") == "rl_train":
+            reserve.append(row)
     generated_rl = list(final["rl_train"])
     anchors = anchor_items()
     final["rl_train"] = generated_rl + anchors
@@ -342,21 +345,20 @@ def run_select(args: argparse.Namespace) -> dict:
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "rl_start_filter": "applied" if rl_applied else "pending",
         "rules": {
-            "base_hard": f"base parsed answer != verdict in >= {args.min_base_wrong} samples",
             "rl_train": "0 < RL-start passes < k (unparsed = fail); no base condition"
             + ("" if rl_applied else " [RL-start part pending]"),
-            "eval1_hard": "base_hard (no RL-start selection)",
-            "eval2_hard": "base_hard (no RL-start selection); evaluation only",
+            "rl_reserve": "RL-train pool items that are all-pass or all-fail on the RL start (for the D20 re-filter)",
+            "eval1_hard": "scrapped (Felix 2026-10-02): all P1-P5 families go to RL-train",
+            "eval2_hard": {
+                "all": "every P6 pool item (rule not yet confirmed by Felix)",
+                "not_all_pass": "P6 pool items the RL start does not get right k/k",
+            }[args.eval2_rule]
+            + "; evaluation only",
             "anchors": "phase3_splits.json anchors, unfiltered, appended to rl_train",
         },
-        "params": {"min_base_wrong": args.min_base_wrong, "pools": args.pools},
+        "params": {"pools": args.pools, "eval2_rule": args.eval2_rule},
         "inputs": {
             "pools": {t: file_provenance(pool_path(t)) for t in args.pools},
-            "base_run": (
-                {"dir": str(args.base_run).replace("\\", "/"), "records": file_provenance(args.base_run / RECORDS_FILE)}
-                if args.base_run
-                else None
-            ),
             "rl_start_run": (
                 {
                     "dir": str(args.rl_start_run).replace("\\", "/"),
@@ -373,6 +375,7 @@ def run_select(args: argparse.Namespace) -> dict:
         "sets": {s: set_stats(v) for s, v in final.items()},
         "n_rl_train_generated": len(generated_rl),
         "n_anchors": len(anchors),
+        "n_reserve": len(reserve),
         "ids": {s: [d.item_id for d in v] for s, v in final.items()},
         "git_commit": git_commit(),
     }
@@ -382,7 +385,9 @@ def run_select(args: argparse.Namespace) -> dict:
         return manifest
     FINAL_DIR.mkdir(parents=True, exist_ok=True)
     files = {}
-    for s, v in final.items():
+    for s, v in [*final.items(), ("rl_reserve", reserve)]:
+        if not v and s == "eval2_hard":
+            continue  # no P6 pool selected: no file, so the suite's `hardsets` component stays skipped
         write_jsonl(FINAL_DIR / f"{s}.jsonl", v)
         files[s] = {"path": f"data/dilemmas/final/{s}.jsonl", "sha256": sha256_file(FINAL_DIR / f"{s}.jsonl")}
     manifest["files"] = files
@@ -411,10 +416,9 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--temperature", type=float, default=0.7)
     s.add_argument("--max-tokens", type=int, default=2048)
     c = sub.add_parser("select", help="local: final sets, anchors, manifest")
-    c.add_argument("--base-run", type=Path, default=None, help="base run for the eval sets' selection")
+    c.add_argument("--eval2-rule", choices=EVAL2_RULES, default="all", help="eval-2-hard selection on the RL start")
     c.add_argument("--rl-start-run", type=Path, default=None)
     c.add_argument("--pools", nargs="+", default=["p15", "p6"])
-    c.add_argument("--min-base-wrong", type=int, default=2)
     c.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
     c.add_argument("--dry-run", action="store_true", help="print counts, write nothing")
     args = ap.parse_args(argv)

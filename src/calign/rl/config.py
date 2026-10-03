@@ -137,6 +137,8 @@ class JudgeSettings(ConfigModel):
     hf_revision: str | None = None
     # vLLM weight quantization (e.g. "fp8": weight-only FP8 via Marlin on Ampere, so the 27B fits a 48 GB A6000)
     quantization: str | None = None
+    # vLLM --enforce-eager (no torch.compile / CUDA graphs): fp8 Marlin + inductor fails in vLLM 0.29 (2026-10-03)
+    enforce_eager: bool = False
     max_model_len: int = 4096
     concurrency: int = 32
     timeout_s: float = 120.0

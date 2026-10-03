@@ -163,6 +163,8 @@ def serve_command(settings: JudgeSettings, port: int | None = None, gpu_memory_u
         cmd += ["--revision", settings.hf_revision]
     if settings.quantization:
         cmd += ["--quantization", settings.quantization]
+    if settings.enforce_eager:
+        cmd += ["--enforce-eager"]
     return cmd
 
 
@@ -191,6 +193,7 @@ def main(argv: list[str] | None = None) -> None:
         p.add_argument("--hf-model", default=None, help="override the judge model (e.g. google/gemma-3-27b-it)")
         p.add_argument("--gpu-memory-utilization", type=float, default=0.85)
         p.add_argument("--quantization", default=None, help="override judge.quantization (e.g. fp8)")
+        p.add_argument("--enforce-eager", action="store_true", help="set judge.enforce_eager")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     from calign.paths import load_env
@@ -201,6 +204,8 @@ def main(argv: list[str] | None = None) -> None:
         settings = settings.model_copy(update={"hf_model": args.hf_model})
     if args.quantization:
         settings = settings.model_copy(update={"quantization": args.quantization})
+    if args.enforce_eager:
+        settings = settings.model_copy(update={"enforce_eager": True})
     if args.port:
         settings = settings.model_copy(update={"base_url": f"http://127.0.0.1:{args.port}/v1"})
     cmd = serve_command(settings, args.port, args.gpu_memory_utilization)

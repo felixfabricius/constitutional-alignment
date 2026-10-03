@@ -59,8 +59,8 @@ reward:
   kind: outcome_cite
   cite_lambda: 0.5
   math_mention_lambda: 0.5
-  scale: 1.0                    # PLACEHOLDER: set to f = S3 / S4 from calign.rl.reward_scale before the C4 pilot
-  scale_source: null            # the reward_scale run dir
+  scale: 0.764                  # f = S3 / S4 = 0.356 / 0.466 (calign.rl.reward_scale measure, Claude judge, 2026-10-03)
+  scale_source: outputs/rl/reward_scale/rs1
 judge:
   # Claude as the citation judge (Felix 2026-10-03): no local judge reached the 90% agreement bar on cal1 (12B 75.7%,
   # 27B w8a8 78.6%, 27B w8a8 with reasoning 82.1%); sonnet-5 at low effort agrees with the medium-effort labels on 94%

@@ -72,7 +72,7 @@ def test_c3_c4_differ_only_in_reward():
     assert c3.reward.scale == 1.0 and c3.reward.scale_source is None
     assert c3.reward.kind == "outcome" and c4.reward.kind == "outcome_cite" and c4.uses_judge
     g = c4.grpo
-    assert g.completions_per_step == 128 and g.gradient_accumulation_steps == 64
+    assert g.completions_per_step == 96 and g.gradient_accumulation_steps == 48
     assert (g.loss_type, g.scale_rewards, g.epsilon, g.epsilon_high, g.beta) == ("dr_grpo", "none", 0.2, 0.28, 0.02)
     assert (g.learning_rate, g.max_completion_length, g.save_steps, g.num_generations) == (2e-5, 1024, 20, 8)
     assert c4.data.rl_train.is_absolute()

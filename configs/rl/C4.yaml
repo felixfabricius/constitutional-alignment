@@ -29,8 +29,10 @@ grpo:
   epsilon_high: 0.28
   beta: 0.02
   num_generations: 8
-  prompts_per_step: 16            # 16 x 8 = 128 completions per optimizer step
-  per_device_train_batch_size: 2  # micro-batch; gradient accumulation = 128 / 2 = 64
+  # 12 x 8 = 96 completions per optimizer step: chunk 7's contingency (pilot 2026-10-03: 16 prompts took 460-490 s
+  # per step on 2 x A100 80 GB PCIe, > 6 min; shortening to 768 tokens would truncate math answers, mean 672)
+  prompts_per_step: 12
+  per_device_train_batch_size: 2  # micro-batch; gradient accumulation = 96 / 2 = 48
   learning_rate: 2.0e-5
   lr_scheduler_type: constant_with_warmup
   warmup_steps: 3

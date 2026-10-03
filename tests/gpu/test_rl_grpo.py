@@ -36,7 +36,7 @@ def test_grpo_config_kwargs_build_trl_config(tmp_path):
     kw["reward_weights"] = [1.0, 1.0, 1.0, 1.0, 0.0]
     args = GRPOConfig(**kw)
     assert args.loss_type == "dr_grpo" and args.scale_rewards == "none"
-    assert args.generation_batch_size == 128 and args.gradient_accumulation_steps == 64
+    assert args.generation_batch_size == 96 and args.gradient_accumulation_steps == 48
     assert args.mask_truncated_completions and args.vllm_mode == "server" and args.save_only_model
     assert args.eval_strategy == "steps" and args.eval_steps == 10 and args.eval_on_start
     assert args.num_generations_eval == 8

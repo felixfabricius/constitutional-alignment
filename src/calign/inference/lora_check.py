@@ -232,6 +232,25 @@ def compare_delta(served: dict, base: dict, hf: dict, hf_base: dict) -> dict:
     }
 
 
+def scaled_adapter(adapter: Path, work: Path, scale: float) -> Path:
+    """A copy of the adapter with every lora_B multiplied by `scale` (delta check: lift a small RL delta above the
+    bf16 vLLM-vs-HF noise; the mapping is what is tested, not the trained weights)."""
+    import shutil
+
+    from safetensors.torch import load_file, save_file
+
+    d = work / f"scaled_x{scale:g}"
+    d.mkdir(parents=True, exist_ok=True)
+    w = load_file(str(adapter / "adapter_model.safetensors"))
+    save_file(
+        {k: (v * scale if "lora_B" in k else v) for k, v in w.items()},
+        str(d / "adapter_model.safetensors"),
+        metadata={"format": "pt"},
+    )
+    shutil.copyfile(adapter / "adapter_config.json", d / "adapter_config.json")
+    return d
+
+
 def module_type_adapters(adapter: Path, work: Path) -> dict[str, Path]:
     """One copy of the adapter per LoRA module type, with lora_B of every other type zeroed."""
     import shutil
@@ -293,6 +312,7 @@ def main(argv: list[str] | None = None) -> None:
     d.add_argument("--adapter", required=True)
     d.add_argument("--base-model-config", type=Path, default=None)
     d.add_argument("--n-prompts", type=int, default=len(PROMPTS))
+    d.add_argument("--scale", type=float, default=1.0, help="multiply lora_B by this (small RL deltas)")
     d.add_argument("--out", type=Path, required=True)
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -307,15 +327,21 @@ def main(argv: list[str] | None = None) -> None:
     work.mkdir(parents=True, exist_ok=True)
     n = args.n_prompts
     if args.cmd == "delta":
-        served = _subprocess_run(args.base, args.adapter, args.base_model_config, n, work / "served.json")
+        adapter, tag = args.adapter, ""
+        if args.scale != 1.0:
+            from calign.inference.lora import resolve_adapter
+
+            adapter, tag = str(scaled_adapter(resolve_adapter(args.adapter), work, args.scale)), f"_x{args.scale:g}"
+        served = _subprocess_run(args.base, adapter, args.base_model_config, n, work / f"served{tag}.json")
         base = _subprocess_run(args.base, None, args.base_model_config, n, work / "base.json")
-        hf = _subprocess_run(args.base, args.adapter, None, n, work / "hf_peft.json", "hf")
+        hf = _subprocess_run(args.base, adapter, None, n, work / f"hf_peft{tag}.json", "hf")
         hf_base = _subprocess_run(args.base, None, None, n, work / "hf_base.json", "hf")
         res = compare_delta(served, base, hf, hf_base)
         res.update(
             {
                 "base": args.base,
                 "adapter": args.adapter,
+                "scale": args.scale,
                 "n_prompts": n,
                 "git_commit": git_commit(),
                 "created_at": utc_now_iso(),

@@ -271,6 +271,7 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
   above is superseded on that point. Monitor RL on the RL-train reward (per-step logs) and on the MoralChoice core suite
   per checkpoint (eval-1, eval-2, hard subset). `calibrate_judge sample --items` now defaults to `rl_train.jsonl`
   only. The core-suite component `hardsets` covers eval-2-hard (P6, evaluation only) only.
+- 2026-10-03, chunk 6: **RL-train is ready**: `data/dilemmas/final/rl_train.jsonl` (committed, 0c2c45c) = 208 generated items (149 families; P1 57, P2 27, P3 13, P4 62, P5 49; persuasive framing 96, rationalization 67, pushback 23, plain seed 22) + 40 MoralChoice anchors (`variant_kind=anchor`) = 248 rows, each with `meta.filter.rl_start` = its pass counts on the RL start `C2` at k=8, T=1.0 (all generated rows have 0 < passes < 8; 76 are at 7/8, a weak signal at G=8). `data/dilemmas/final/rl_reserve.jsonl` holds the 757 all-pass/all-fail items with counts, for the D20 re-filter from later checkpoints. The k=8 RL-start responses for the judge calibration: `outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl` (8 640 records; local only, 84 MB). eval-1-hard is scrapped; eval-2-hard is open (status E6), so monitor on the RL-train reward and the MoralChoice core suite.
 
 ## Results
 

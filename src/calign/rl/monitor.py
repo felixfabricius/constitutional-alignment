@@ -14,7 +14,12 @@ dilemma completions per step):
   advantage size by construction (reward.scale); if C4's stays more than 1.5x away from C3's for a sustained stretch,
   report it (no mid-run change);
 - knowledge retention (from the core suite of each checkpoint, eval configs `<config-id>@s<step>`): recall quiz < 0.8
-  or P6 quiz < 0.8 (RL never trains on P6, so this checks that RL does not erode what the model knows).
+  or P6 quiz < 0.8 (RL never trains on P6, so this checks that RL does not erode what the model knows);
+- holdout_gap (RL hold-out, `holdout.jsonl`, calign.rl.holdout): at two consecutive evaluations the training gain
+  exceeds the hold-out gain by more than 0.15 while the hold-out gain stays below 0.05. Training gain = mean outcome
+  reward on generated dilemma rows over the 10 logged steps up to the evaluation minus the mean of the first 5 steps;
+  hold-out gain = hold-out outcome minus the step-0 evaluation (never the selection counts, which regress to the
+  mean). The hold-out mean has a standard error of ~0.05 (29 items x 16 answers), hence two evaluations in a row.
 Any flag means: stop the run and check in with Felix (chunk 8), never "fix and continue" silently.
 """
 
@@ -29,6 +34,7 @@ from pathlib import Path
 import yaml
 
 from calign.paths import OUTPUTS_DIR, REPO_ROOT
+from calign.rl.holdout import read_summaries
 from calign.rl.train_grpo import STEPS_FILE
 
 WINDOW = 5
@@ -37,6 +43,12 @@ MATH_MENTION_MAX = 0.05
 LETTER_A_RANGE = (0.35, 0.65)
 ZERO_VAR_MAX = 0.60
 QUIZ_MIN = 0.8
+HOLDOUT_GAP_MAX = 0.15
+HOLDOUT_GAIN_MIN = 0.05
+HOLDOUT_CONSECUTIVE = 2
+TRAIN_OUTCOME_KEY = "r_outcome/dilemma"  # generated dilemma rows (anchors are task_type "anchor")
+TRAIN_BASELINE_STEPS = 5
+TRAIN_WINDOW = 10
 
 COLUMNS = (
     ("step", "step"),
@@ -70,8 +82,9 @@ def read_steps(run_dir: Path) -> list[dict]:
     if not path.exists():
         return []
     rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
-    # keep the per-step training logs (the final train summary line has no reward metrics)
-    return [r for r in rows if "train_runtime" not in r]
+    # keep the per-step training logs (the final train summary line has no reward metrics; evaluation lines carry
+    # eval_* keys and are read from holdout.jsonl instead)
+    return [r for r in rows if "train_runtime" not in r and not any(k.startswith("eval_") for k in r)]
 
 
 def add_kl_term(rows: list[dict], beta: float | None) -> None:
@@ -117,6 +130,44 @@ def trajectory_flags(rows: list[dict], window: int = WINDOW) -> list[dict]:
                 flags.append({"flag": name, "step": step, "value": round(v, 4), "threshold": thr})
                 break
     return flags
+
+
+def _avg(xs: list[float]) -> float | None:
+    return sum(xs) / len(xs) if xs else None
+
+
+def holdout_trajectory(rows: list[dict], summaries: list[dict]) -> list[dict]:
+    """Per hold-out evaluation: hold-out outcome and gain vs step 0, training outcome (rolling mean of the
+    `TRAIN_WINDOW` logged steps up to the evaluation) and gain vs the first `TRAIN_BASELINE_STEPS` steps, and the gap."""
+    train = [(r["step"], float(r[TRAIN_OUTCOME_KEY])) for r in rows if r.get(TRAIN_OUTCOME_KEY) is not None]
+    base_train = _avg([v for _, v in train[:TRAIN_BASELINE_STEPS]]) if len(train) >= TRAIN_BASELINE_STEPS else None
+    evals = sorted((s for s in summaries if s.get("outcome") is not None), key=lambda s: s["step"])
+    base_h = next((s["outcome"] for s in evals if s["step"] == 0), None)
+    out = []
+    for s in evals:
+        tr = _avg([v for st, v in train if st <= s["step"]][-TRAIN_WINDOW:]) if s["step"] > 0 else None
+        h_gain = s["outcome"] - base_h if base_h is not None else None
+        t_gain = tr - base_train if tr is not None and base_train is not None else None
+        out.append({
+            "step": s["step"], "holdout": s["outcome"], "holdout_se": s.get("outcome_se"), "holdout_gain": h_gain,
+            "train": tr, "train_gain": t_gain,
+            "gap": t_gain - h_gain if t_gain is not None and h_gain is not None else None,
+            "r_cite": s.get("r_cite"), "mention_rate": s.get("mention_rate"),
+        })  # fmt: skip
+    return out
+
+
+def holdout_flags(traj: list[dict]) -> list[dict]:
+    """`holdout_gap` at the second of `HOLDOUT_CONSECUTIVE` consecutive evaluations with gap > 0.15 and hold-out
+    gain < 0.05 (evaluations without both gains, e.g. step 0, break the run)."""
+    run = 0
+    for t in traj:
+        bad = t["gap"] is not None and t["gap"] > HOLDOUT_GAP_MAX and t["holdout_gain"] < HOLDOUT_GAIN_MIN
+        run = run + 1 if bad else 0
+        if run >= HOLDOUT_CONSECUTIVE:
+            return [{"flag": "holdout_gap", "step": t["step"], "value": round(t["gap"], 4),
+                     "threshold": {"gap": HOLDOUT_GAP_MAX, "holdout_gain_below": HOLDOUT_GAIN_MIN}}]  # fmt: skip
+    return []
 
 
 def checkpoint_quizzes(config_id: str, evals_root: Path | None = None) -> dict[int, dict]:
@@ -165,7 +216,9 @@ def _fmt(v) -> str:
     return str(v)
 
 
-def render(rows: list[dict], flags: list[dict], quizzes: dict[int, dict], every: int, run_dir: Path) -> str:
+def render(
+    rows: list[dict], flags: list[dict], quizzes: dict[int, dict], every: int, run_dir: Path, traj: list[dict]
+) -> str:
     cols = [(k, h) for k, h in COLUMNS if any(r.get(k) is not None for r in rows)]
     lines = [f"# RL monitor: `{str(run_dir).replace(chr(92), '/')}`", "", f"{len(rows)} logged steps.", ""]
     if rows:
@@ -175,6 +228,17 @@ def render(rows: list[dict], flags: list[dict], quizzes: dict[int, dict], every:
         step_s = [r["step_s"] for r in rows if r.get("step_s")]
         if step_s:
             lines += ["", f"Step time: mean {sum(step_s) / len(step_s):.0f} s, last {step_s[-1]:.0f} s."]
+    if traj:
+        lines += [
+            "",
+            "RL hold-out (outcome reward; gains vs step 0 / vs the first 5 training steps; train = rolling mean of 10 "
+            "steps on generated dilemma rows):",
+            "",
+            "| step | hold-out | SE | hold-out gain | train | train gain | gap | cite | mention |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        keys = ("holdout", "holdout_se", "holdout_gain", "train", "train_gain", "gap", "r_cite", "mention_rate")
+        lines += [f"| {t['step']} | " + " | ".join(_fmt(t[k]) for k in keys) + " |" for t in traj]
     if quizzes:
         lines += ["", "| checkpoint | recall quiz | P6 quiz |", "|---|---:|---:|"]
         lines += [f"| s{s} | {_fmt(q.get('recall'))} | {_fmt(q.get('p6'))} |" for s, q in sorted(quizzes.items())]
@@ -196,10 +260,11 @@ def run(run_dir: Path, config_id: str | None = None, every: int = 1, evals_root:
     if config_id is None:
         config_id = resolved.get("run_name")
     quizzes = checkpoint_quizzes(config_id, evals_root) if config_id else {}
-    flags = trajectory_flags(rows) + retention_flags(quizzes)
-    md = render(rows, flags, quizzes, every, run_dir)
+    traj = holdout_trajectory(rows, read_summaries(run_dir))
+    flags = trajectory_flags(rows) + retention_flags(quizzes) + holdout_flags(traj)
+    md = render(rows, flags, quizzes, every, run_dir, traj)
     out = {"run_dir": str(run_dir).replace("\\", "/"), "config_id": config_id, "n_steps": len(rows), "flags": flags,
-           "quizzes": quizzes}  # fmt: skip
+           "quizzes": quizzes, "holdout": traj}  # fmt: skip
     (run_dir / "monitor.md").write_text(md, encoding="utf-8")
     (run_dir / "monitor.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
     return out | {"markdown": md}

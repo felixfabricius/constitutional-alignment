@@ -16,12 +16,16 @@ Settings (configs/rl/*.yaml `grpo`): Dr. GRPO loss, no reward scaling, clip-high
 G=8, 16 prompts per step (128 completions; micro-batch x gradient accumulation = 128), LoRA r=64 lr 2e-5 (constant
 after 3 warm-up steps, so a pilot's steps behave like the main run's first steps), max completion 1024 with truncated
 completions masked, T=1.0, checkpoints every 20 steps (adapter only), bf16, gradient checkpointing. Data:
-calign.rl.dataset (rebuilt deterministically into the run dir). Rewards: calign.rl.rewards.
+calign.rl.dataset (rebuilt deterministically into the run dir). Rewards: calign.rl.rewards. RL hold-out evaluation
+(calign.rl.holdout) at step 0 and every `grpo.eval_steps` steps: TRL schedules it (`eval_on_start`, `eval_steps`), the
+trainer's `evaluate` is replaced by generation on the rollout path + scoring with the training reward functions.
 
 Run dir (outputs/rl/<run_name>_<stamp> unless --out): resolved_config.yaml, run_meta.json (git commit, model, versions),
 dataset.jsonl + dataset_manifest.json, steps.jsonl (one line per logged step: TRL metrics, our reward/monitor
-metrics, step wall-clock, peak GPU memory), rollouts.jsonl (every completion with its reward components),
-judge_cache.jsonl (C4), checkpoint-<step>/ (PEFT adapter), train_summary.json. Monitor with calign.rl.monitor.
+metrics, step wall-clock, peak GPU memory; evaluation lines carry `eval_holdout/*` keys), rollouts.jsonl (every
+completion with its reward components), holdout_dataset.jsonl + holdout_manifest.json, holdout_rollouts.jsonl,
+holdout.jsonl (one summary per evaluation), judge_cache.jsonl (C4), checkpoint-<step>/ (PEFT adapter),
+train_summary.json. Monitor with calign.rl.monitor.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ from typing import Any
 
 from calign.config import DRY_RUN_LIMIT, git_commit, git_dirty
 from calign.paths import OUTPUTS_DIR, load_env
+from calign.rl import holdout
 from calign.rl.config import RL_DIR, TURN_END_TOKEN, RLConfig, load_rl_config, model_spec, resolve_model_dir
 from calign.rl.dataset import build_for_config, to_hf_dataset
 from calign.rl.rewards import ROLLOUTS_FILE, RewardSuite
@@ -61,6 +66,7 @@ def apply_overrides(cfg: RLConfig, args: argparse.Namespace) -> RLConfig:
         g["max_steps"] = DRY_RUN_STEPS
         g.setdefault("prompts_per_step", DRY_RUN_LIMIT - 1)
         g["save_steps"] = DRY_RUN_STEPS
+        g["eval_steps"] = DRY_RUN_STEPS
     grpo = cfg.grpo.model_copy(update=g)
     grpo = type(grpo).model_validate(grpo.model_dump())  # re-run the batch-size validator
     update: dict[str, Any] = {"grpo": grpo}
@@ -108,6 +114,15 @@ def grpo_config_kwargs(cfg: RLConfig, run_dir: Path) -> dict[str, Any]:
         "remove_unused_columns": False,
         "dataloader_num_workers": 0,
     }
+    if cfg.data.rl_holdout is not None:
+        # RL hold-out: step 0 and every eval_steps; G answers per prompt as in training (HoldoutGRPOTrainer.evaluate).
+        # The eval batch size only satisfies GRPOConfig's divisibility check; TRL's eval dataloader is not used.
+        kw.update(
+            eval_strategy="steps", eval_steps=g.eval_steps, eval_on_start=True,
+            num_generations_eval=g.num_generations, per_device_eval_batch_size=g.num_generations,
+        )  # fmt: skip
+    else:
+        kw["eval_strategy"] = "no"
     if g.vllm_mode == "server":
         kw.update(
             vllm_server_host=g.vllm_server_host, vllm_server_port=g.vllm_server_port,
@@ -217,6 +232,43 @@ def make_step_logger(run_dir: Path):
     return StepLogger()
 
 
+def make_trainer_class():
+    """GRPOTrainer whose evaluation is the RL hold-out evaluation (calign.rl.holdout): generation on the rollout path
+    with the current policy (TRL syncs the weights to vLLM first) and scoring with the training reward functions.
+    TRL's own GRPO evaluation is bypassed: it also computes policy, old and reference log-probs and the loss over the
+    whole eval batch, which for the 27B either runs out of memory or forces one vLLM call per prompt."""
+    from trl import GRPOTrainer
+
+    class HoldoutGRPOTrainer(GRPOTrainer):
+        holdout_eval: dict | None = None  # rows, suite, meta, run_dir, k, prompts_per_batch (set by `train`)
+
+        def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix: str = "eval") -> dict[str, float]:
+            h = self.holdout_eval
+            if h is None:
+                return super().evaluate(eval_dataset, ignore_keys, metric_key_prefix)
+            was_training = self.model.training
+            self.model.eval()  # TRL's _generate reads the mode: num_generations_eval and the "eval" metric bucket
+
+            def generate(prompts: list[str]):
+                _, completion_ids, _, completions, *_ = self._generate(prompts)
+                return completions, completion_ids
+
+            try:
+                summary = holdout.evaluate(
+                    h["rows"], generate, h["suite"], self.state.global_step, h["k"], h["meta"], h["run_dir"],
+                    h["prompts_per_batch"],
+                )  # fmt: skip
+                metrics = {f"{metric_key_prefix}_{k}": v for k, v in holdout.flat_metrics(summary).items()}
+                LOGGER.info("hold-out step %d: %s", self.state.global_step, json.dumps(metrics))
+                self.log(dict(metrics))  # in eval mode: adds TRL's eval_completions/* length metrics, -> steps.jsonl
+            finally:
+                self.model.train(was_training)
+            self.control = self.callback_handler.on_evaluate(self.args, self.state, self.control, metrics)
+            return metrics
+
+    return HoldoutGRPOTrainer
+
+
 def check_adapted_modules(model) -> dict:
     """LoRA landed on the 7 linear projections of every text layer, nowhere else."""
     from calign.train.sft import check_lora_targets, lora_module_names
@@ -240,7 +292,7 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: b
     import torch
     from peft import LoraConfig
     from transformers import AutoModelForCausalLM
-    from trl import GRPOConfig, GRPOTrainer
+    from trl import GRPOConfig
 
     from calign.paths import hf_token
     from calign.rl.judge_server import JudgeClient
@@ -251,6 +303,11 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: b
     write_run_files(run_dir, cfg, model_dir, dry_run)
     rows, manifest = build_for_config(cfg, run_dir)
     LOGGER.info("dataset: %d rows %s", len(rows), manifest["by_task_type"])
+    h_items, h_rows, h_manifest = [], [], None
+    if cfg.data.rl_holdout is not None:
+        h_items, h_rows, h_manifest = holdout.load_holdout(cfg, limit=DRY_RUN_LIMIT if dry_run else None)
+        holdout.write_holdout_files(run_dir, h_rows, h_manifest)
+        LOGGER.info("hold-out: %d items, %d rows", h_manifest["n_items"], h_manifest["n_rows"])
 
     judge = None
     if cfg.uses_judge:
@@ -258,6 +315,7 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: b
         judge = JudgeClient(cfg.judge, cache_path=cfg.judge.cache_path or run_dir / JUDGE_CACHE_FILE)
     suite = RewardSuite(cfg.reward, judge, run_dir / ROLLOUTS_FILE, cfg.grpo.max_completion_length)
     funcs, weights = suite.functions()
+    h_suite = holdout.holdout_suite(cfg.reward, judge, run_dir, cfg.grpo.max_completion_length) if h_rows else None
 
     tok = load_tokenizer(model_dir, None if model_dir != spec else rev)
     model = AutoModelForCausalLM.from_pretrained(
@@ -279,15 +337,21 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: b
     kw = grpo_config_kwargs(cfg, run_dir)
     kw["reward_weights"] = weights
     args = GRPOConfig(**kw)
-    trainer = GRPOTrainer(
+    trainer = make_trainer_class()(
         model=model,
         reward_funcs=funcs,
         args=args,
         train_dataset=to_hf_dataset(rows),
+        eval_dataset=to_hf_dataset(h_rows) if h_rows else None,
         processing_class=tok,
         callbacks=[make_step_logger(run_dir)],
         peft_config=peft_config,
     )
+    if h_suite is not None:
+        trainer.holdout_eval = {
+            "rows": h_rows, "suite": h_suite, "meta": holdout.item_meta(h_items), "run_dir": run_dir,
+            "k": cfg.grpo.num_generations, "prompts_per_batch": cfg.grpo.prompts_per_step,
+        }  # fmt: skip
     peft_summary = check_adapted_modules(trainer.model)
     LOGGER.info("LoRA: %s", peft_summary)
     t0 = time.time()
@@ -302,6 +366,7 @@ def train(cfg: RLConfig, run_dir: Path, dry_run: bool = False, allow_unscaled: b
         "peft": peft_summary,
         "dataset": {k: manifest[k] for k in ("n_rows", "by_task_type", "shares")},
         "judge": {"requests": judge.n_requests, "cache_hits": judge.n_cache_hits} if judge else None,
+        "holdout": {"evaluations": [x["step"] for x in holdout.read_summaries(run_dir)], **(h_manifest or {})},
         "checkpoints": sorted(p.name for p in run_dir.glob("checkpoint-*")),
         "peak_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2) if torch.cuda.is_available() else None,
     }

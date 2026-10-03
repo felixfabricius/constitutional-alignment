@@ -507,3 +507,163 @@ def test_calibration_helpers():
     assert kappa([("a", "a"), ("b", "b")]) == 1.0
     assert kappa([]) is None
     assert abs(kappa([("a", "a"), ("a", "b"), ("b", "a"), ("b", "b")])) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# RL hold-out (deliverable 9)
+# ---------------------------------------------------------------------------
+
+
+def read_dilemmas(path: Path) -> list[Dilemma]:
+    from calign.schemas import read_jsonl
+
+    return read_jsonl(path, Dilemma)
+
+
+def test_holdout_files_disjoint_and_rows():
+    from calign.paths import DATA_DIR
+    from calign.rl import holdout
+
+    final = DATA_DIR / "dilemmas" / "final"
+    train = read_dilemmas(final / "rl_train.jsonl")
+    held = read_dilemmas(final / "rl_holdout.jsonl")
+    reserve = read_dilemmas(final / "rl_reserve.jsonl")
+    holdout.check_disjoint(train, held, reserve)  # no shared item or family ids
+    assert len(held) == 29 and len({d.family_id for d in held}) == 23
+    rows = holdout.holdout_rows(held)
+    assert len(rows) == 58 and {r.task_type for r in rows} == {"dilemma"}
+    assert [r.letter_order for r in rows[:2]] == ["AB", "BA"] and rows[0].item_id == rows[1].item_id
+    assert [r.model_dump() for r in rows[:2]] == [r.model_dump() for r in dilemma_rows(held[0])]
+
+
+def test_holdout_check_disjoint_raises():
+    from calign.rl import holdout
+
+    a, b, c = make_dilemma(0), make_dilemma(1), make_dilemma(4)  # d0 and d1 share family f0
+    holdout.check_disjoint([c], [a])
+    with pytest.raises(ValueError, match="rl_train"):
+        holdout.check_disjoint([b], [a])  # same family, different item
+    with pytest.raises(ValueError, match="rl_reserve"):
+        holdout.check_disjoint([c], [a], reserve=[a])
+    with pytest.raises(ValueError, match="anchors"):
+        holdout.holdout_rows([make_dilemma(9, kind="anchor")])
+
+
+def test_holdout_config_and_trainer_kwargs(tmp_path):
+    from calign.rl.train_grpo import grpo_config_kwargs
+
+    c3, c4 = load_rl_config("C3"), load_rl_config("C4")
+    assert c4.data.rl_holdout == c3.data.rl_holdout and c4.data.rl_holdout.is_absolute()
+    assert c4.data.rl_holdout.exists() and c4.grpo.eval_steps == 10
+    kw = grpo_config_kwargs(c4, tmp_path)
+    assert (kw["eval_strategy"], kw["eval_steps"], kw["eval_on_start"]) == ("steps", 10, True)
+    assert kw["num_generations_eval"] == 8 == c4.grpo.num_generations
+    off = c4.model_copy(update={"data": c4.data.model_copy(update={"rl_holdout": None})})
+    assert grpo_config_kwargs(off, tmp_path)["eval_strategy"] == "no"
+
+
+def holdout_items() -> list[Dilemma]:
+    kinds = ("seed", "persuasive_framing", "seed", "pushback")
+    return [
+        make_dilemma(i, verdict="action1" if i % 2 else "action2", principles=(1 + i % 2,)).model_copy(
+            update={"variant_kind": kind}
+        )
+        for i, kind in enumerate(kinds)
+    ]
+
+
+def fake_generate(prompts: list[str]):
+    """'A' with a P1 citation on odd answer indices, a bare 'B' on even ones; 5-7 tokens."""
+    texts = [
+        "Principle 1 (Honesty over comfort) applies.\nFinal answer: A" if i % 2 else "Final answer: B"
+        for i in range(len(prompts))
+    ]
+    return texts, [[1] * (5 + i % 3) for i in range(len(prompts))]
+
+
+def test_holdout_evaluate_c4(tmp_path):
+    from calign.rl import holdout
+
+    items = holdout_items()
+    rows = holdout.holdout_rows(items)
+    suite = holdout.holdout_suite(RewardSettings(kind="outcome_cite", scale=0.8), FakeJudge("correct"), tmp_path, 7)
+    meta = holdout.item_meta(items)
+    s0 = holdout.evaluate(rows, fake_generate, suite, 0, 4, meta, tmp_path, prompts_per_batch=3)
+    s10 = holdout.evaluate(rows, fake_generate, suite, 10, 4, meta, tmp_path, prompts_per_batch=3)
+    assert s0["n_answers"] == 8 * 4 and s0["n_items"] == 4 and s10["step"] == 10
+    recs = holdout.read_rollouts(tmp_path / holdout.HOLDOUT_ROLLOUTS_FILE)
+    assert [r["step"] for r in recs] == [0] * 32 + [10] * 32  # step = optimizer steps taken (no +1)
+    assert not (tmp_path / "rollouts.jsonl").exists()  # the training rollout log is untouched
+    # by hand: an answer is correct iff its letter maps to the verdict under the row's order
+    to_action = {"AB": {"A": "action1", "B": "action2"}, "BA": {"A": "action2", "B": "action1"}}
+    want = [
+        float(to_action[r["letter_order"]]["A" if r["completion"].endswith("A") else "B"] == r["verdict"])
+        for r in recs[:32]
+    ]
+    assert s0["outcome"] == round(sum(want) / len(want), 4) and s0["outcome_se"] is not None
+    assert s0["parse_rate"] == 1.0 and s0["letter_a_share"] == 0.5 and s0["mention_rate"] == 0.5
+    # P1 is in every item's principle set (generator principles 1, 3), so citations go to the judge
+    assert s0["judge"] == {"correct": 1.0} and s0["cite_class"]["pos"] == 1.0 and s0["r_cite"] == 0.25
+    assert set(s0["by_principle"]) == {"P1", "P2"}
+    assert set(s0["by_variant_kind"]) == {"seed", "persuasive_framing", "pushback"}
+    assert s0["truncated_share"] > 0  # 7-token answers hit the cap of 7
+    lines = holdout.read_summaries(tmp_path)
+    assert [x["step"] for x in lines] == [0, 10]
+    again = holdout.recompute(tmp_path, meta)
+    assert [{k: v for k, v in x.items() if k not in ("k", "eval_s")} for x in lines] == again
+    flat = holdout.flat_metrics(s0)
+    assert flat["holdout/outcome"] == s0["outcome"] and flat["holdout/by_principle/P1"] == s0["by_principle"]["P1"]
+    assert "holdout/step" not in flat and all(isinstance(v, int | float) for v in flat.values())
+
+
+def test_holdout_offline_batch():
+    from calign.rl import holdout
+    from calign.schemas import GenerationRecord
+
+    items = holdout_items()
+    recs = [
+        GenerationRecord.model_construct(scenario_id="d1", response_text="Final answer: B",
+                                         extra={"letter_order": "BA", "completion_token_ids": [1, 2]}),
+        GenerationRecord.model_construct(scenario_id="other", response_text="x", extra={"letter_order": "AB"}),
+    ]  # fmt: skip
+    rows, texts, ids = holdout.offline_batch(recs, items)
+    assert [(r.item_id, r.letter_order) for r in rows] == [("d1", "BA")] and texts == ["Final answer: B"]
+    assert ids == [[1, 2]]
+    with pytest.raises(ValueError):
+        holdout.offline_batch(recs[1:], items)
+
+
+def write_holdout(run_dir: Path, outcomes: dict[int, float]) -> None:
+    (run_dir / "holdout.jsonl").write_text(
+        "".join(json.dumps({"step": s, "outcome": v, "outcome_se": 0.05}) + "\n" for s, v in outcomes.items()),
+        encoding="utf-8",
+    )
+
+
+def test_monitor_holdout_gap(tmp_path):
+    # training outcome on generated dilemmas: 0.5 for steps 1-5, then +0.05 per step
+    rows = [{"step": s, "r_outcome/dilemma": 0.5 if s <= 5 else 0.5 + 0.05 * (s - 5)} for s in range(1, 31)]
+    rows.append({"step": 10, "eval_holdout/outcome": 0.5})  # evaluation lines in steps.jsonl are not training steps
+    run = tmp_path / "run"
+    write_steps(run, rows)
+    write_holdout(run, {0: 0.55, 10: 0.56, 20: 0.57, 30: 0.58})
+    out = monitor.run(run, evals_root=tmp_path / "evals")
+    traj = {t["step"]: t for t in out["holdout"]}
+    assert traj[0]["train"] is None and traj[0]["holdout_gain"] == 0.0
+    # step 10: mean of steps 1-10 = 0.5 + 0.05 x 15 / 10 = 0.575 -> train gain 0.075, gap 0.065 (no flag)
+    assert abs(traj[10]["train_gain"] - 0.075) < 1e-9 and abs(traj[10]["gap"] - 0.065) < 1e-9
+    # steps 20 and 30: large train gains, hold-out gains 0.02 / 0.03 -> flag at the second of the two (step 30)
+    assert [f["step"] for f in out["flags"] if f["flag"] == "holdout_gap"] == [30]
+    assert out["n_steps"] == 30 and "RL hold-out" in out["markdown"]
+
+
+def test_monitor_holdout_gap_needs_two_in_a_row():
+    rows = [{"step": s, "r_outcome/dilemma": 0.5 if s <= 10 else 0.9} for s in range(1, 41)]
+    summaries = [{"step": s, "outcome": v} for s, v in ((0, 0.5), (10, 0.5), (20, 0.5), (30, 0.6), (40, 0.52))]
+    # gaps: s20 bad, s30 hold-out gain 0.1 (not bad), s40 bad again -> never two in a row
+    assert monitor.holdout_flags(monitor.holdout_trajectory(rows, summaries)) == []
+    summaries[3] = {"step": 30, "outcome": 0.53}
+    assert monitor.holdout_flags(monitor.holdout_trajectory(rows, summaries))[0]["step"] == 30
+    # both rise together: no flag
+    both = [{"step": s, "outcome": 0.5 + 0.4 * min(s, 20) / 20} for s in (0, 10, 20, 30, 40)]
+    assert monitor.holdout_flags(monitor.holdout_trajectory(rows, both)) == []

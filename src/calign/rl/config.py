@@ -32,6 +32,9 @@ TURN_END_TOKEN = "<end_of_turn>"
 
 class RLDataSettings(ConfigModel):
     rl_train: Path = DATA_DIR / "dilemmas" / "final" / "rl_train.jsonl"
+    # RL hold-out (chunk 6, Felix 2026-10-03): generated items from families never trained on, evaluated in the
+    # trainer every `grpo.eval_steps` steps and at step 0 (calign.rl.holdout); null switches the evaluation off.
+    rl_holdout: Path | None = DATA_DIR / "dilemmas" / "final" / "rl_holdout.jsonl"
     anchor_share: float = Field(0.10, ge=0.0, lt=1.0)
     math_share: float = Field(0.22, ge=0.0, lt=1.0)
     # MATH train split complementary to MATH-500 (the PRM800K split: 12k train / 500 test, the same problems as
@@ -42,10 +45,10 @@ class RLDataSettings(ConfigModel):
     math_levels: list[int] = [3, 4, 5]
     seed: int = 20261003
 
-    @field_validator("rl_train")
+    @field_validator("rl_train", "rl_holdout")
     @classmethod
-    def _repo_relative(cls, v: Path) -> Path:
-        return v if v.is_absolute() else REPO_ROOT / v
+    def _repo_relative(cls, v: Path | None) -> Path | None:
+        return v if v is None or v.is_absolute() else REPO_ROOT / v
 
     @model_validator(mode="after")
     def _shares(self) -> RLDataSettings:
@@ -82,6 +85,9 @@ class GRPOSettings(ConfigModel):
     top_p: float = 1.0
     max_steps: int = 80
     save_steps: int = 20
+    # RL hold-out evaluation (calign.rl.holdout): at step 0 and every eval_steps steps, num_generations answers per
+    # prompt and letter order at the training temperature, scored with the training reward functions
+    eval_steps: int = 10
     logging_steps: int = 1
     gradient_checkpointing: bool = True
     bf16: bool = True

@@ -100,6 +100,7 @@ class RewardSuite:
         rollouts_path: Path | None = None,
         max_completion_length: int | None = None,
         math_grader: Callable[[str, str], bool] = math_correct,
+        step_offset: int = 1,
     ):
         if settings.kind == "outcome_cite" and judge is None:
             raise ValueError("reward kind outcome_cite needs a judge client")
@@ -108,6 +109,9 @@ class RewardSuite:
         self.rollouts_path = rollouts_path
         self.max_completion_length = max_completion_length
         self.math_grader = math_grader
+        # rollout `step` = trainer global_step + step_offset: training batches are generated for the next step (1);
+        # hold-out evaluations score the policy after `global_step` updates (0; calign.rl.holdout)
+        self.step_offset = step_offset
         self._batch: dict[str, Any] = {}
 
     # -- batch bookkeeping -------------------------------------------------------------------------------------
@@ -252,7 +256,7 @@ class RewardSuite:
         # rollout log
         if self.rollouts_path is not None:
             state = kw.get("trainer_state")
-            step = (state.global_step + 1) if state is not None else None
+            step = (state.global_step + self.step_offset) if state is not None else None
             self.rollouts_path.parent.mkdir(parents=True, exist_ok=True)
             with self.rollouts_path.open("a", encoding="utf-8") as f:
                 for i in range(n):

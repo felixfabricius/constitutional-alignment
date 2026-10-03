@@ -3,8 +3,8 @@
 Status: **code written and unit-tested (2026-10-01), GPU steps pending** (4B plumbing test, judge smoke +
 calibration, pilot). Inputs are ready (2026-10-03): the RL start (chunk 5b, knowledge-only SFT epoch 4,
 `configs/model_sft_kne4.yaml`), chunk 6's `data/dilemmas/final/rl_train.jsonl` and `rl_holdout.jsonl`, and the RL-start
-k=8 run. **Still to wire before the pilot: the RL hold-out evaluation (deliverable 9, Felix 2026-10-03).** See
-"Implementation" below.
+k=8 run. The RL hold-out evaluation (deliverable 9, Felix 2026-10-03) is wired and unit-tested (2026-10-03); the 4B
+GPU test now also checks it in the loop. See "Implementation" below.
 
 ## Goal
 
@@ -110,6 +110,38 @@ and the MoralChoice core suite; eval-1-hard was scrapped 2026-10-02). Instance: 
      29 items x 16 samples the hold-out mean has a standard error of ~0.05, so read single points with care. Expected
      readings: both rise = generalisation within the distribution; training rises, hold-out flat or falling =
      memorisation; comparing the C3 and C4 gaps is part of the outcome-vs-process analysis.
+   - **Implemented (2026-10-03)**, `calign.rl.holdout` + `rl.train_grpo` + `rl.monitor`:
+     - Config: `data.rl_holdout` (null switches the evaluation off) and `grpo.eval_steps: 10` in both configs.
+     - Rows: `holdout.holdout_rows` = `rl.prompts.dilemma_rows` per item (58 rows, file order); `load_holdout` checks
+       item and family ids against RL-train on every build; a unit test also checks the committed reserve.
+     - In-loop, with a change to the plan: TRL schedules the evaluation (`eval_strategy="steps"`, `eval_steps`,
+       `eval_on_start=True`, `num_generations_eval` = G), but TRL's own GRPO evaluation is **bypassed**. It would
+       run three full-batch forward passes of the 27B (policy, old and reference log-probs, plus the loss) over each
+       eval batch, so a 128-answer batch runs out of memory and an 8-answer batch means one vLLM call per prompt
+       (58 sequential calls). `HoldoutGRPOTrainer.evaluate` (a subclass made in `train_grpo.make_trainer_class`) instead
+       calls TRL's `_generate` (same rollout path; TRL syncs the policy weights to vLLM first) on 16 prompts x G per
+       call (4 calls), then scores with a second `RewardSuite` with the training reward settings (same functions and
+       weights; C4's `r_cite` uses the same judge client and cache). TRL's `eval_reward` /
+       `eval_rewards/<func>/mean` are therefore **not** logged. Instead `steps.jsonl` gets an evaluation line with
+       `eval_holdout/*` (outcome, SE, per principle / variant kind, r_cite, mention, length) plus TRL's
+       `eval_completions/*` lengths.
+     - Files: `holdout_dataset.jsonl` + `holdout_manifest.json`; `holdout_rollouts.jsonl` (every answer, same
+       format as `rollouts.jsonl`, `step` = optimizer steps taken, so 0 = the RL start); `holdout.jsonl` (one summary
+       per evaluation: outcome mean and item-clustered SE, per principle, per variant kind, per letter order, total,
+       parse rate, letter-A share, mention rate, length, truncation share, deterministic citation classes; C4 also
+       `r_cite`, citation classes and judge labels). Rewards are unscaled, as in the training logs.
+       `python -m calign.rl.holdout summarize --run-dir <run>` recomputes the summaries from the rollouts.
+     - Fallback: `python -m calign.rl.holdout score-offline --config C4 --run-dir <run> --step <s> --records <filter
+       sample records.jsonl>` scores offline answers with the training reward code and appends to the same two
+       files. To match the in-loop sample, sample with `--k 16 --max-tokens 1024`: the filter sampler draws k answers
+       per item with pseudo-random letter orders, so `--k 8` would give half the in-loop sample, and its default cap
+       is 2048 tokens against training's 1024.
+     - Monitor: hold-out table (hold-out outcome, SE, gain vs step 0; training outcome on generated dilemma rows as
+       the rolling mean of the 10 logged steps up to the evaluation, gain vs the first 5 steps; gap; cite; mention)
+       and the `holdout_gap` flag exactly as specified above (two consecutive evaluations; step 0 has no gains).
+     - Still to verify on the GPU: the 4B test (colocate) now runs evaluations at steps 0 and 2. Server mode, and
+       the evaluation time on the 27B, are verified in the pilot (expected about one training step's generation time
+       per evaluation, since 464 answers ≈ 3.6 x a step's 128).
 
 ## Steps
 
@@ -156,7 +188,7 @@ Package `calign.rl` (import-light; only `train_grpo` imports TRL/torch), configs
 (identical except `run_name`, `label`, `reward.kind`, `notes`; unit-tested), scripts `scripts/brev/rl_setup.sh`
 (one-command node setup: `setup.sh`, which now also syncs the `rl` group, TRL import check, RL-start + judge
 download, data dry run, `nvidia-smi topo`) and `scripts/brev/rl_serve.sh` (rollout server on GPU 1, judge on GPU 2,
-each through `run_bg.sh`). Tests: `tests/unit/test_rl.py` (47), `tests/gpu/test_rl_grpo.py` (GRPOConfig build + 2
+each through `run_bg.sh`). Tests: `tests/unit/test_rl.py` (54, 7 of them for the RL hold-out), `tests/gpu/test_rl_grpo.py` (GRPOConfig build + 2
 GRPO steps on the 4B, vLLM colocated, judge stubbed).
 
 | module | what it does |
@@ -168,7 +200,8 @@ GRPO steps on the 4B, vLLM colocated, judge stubbed).
 | `rl.judge_server` | `cite-judge-v1` prompt, `vllm serve` wrapper, `JudgeClient` (threads, JSONL cache, retries), smoke test |
 | `rl.rewards` | `RewardSuite`: `r_outcome`, `r_math`, `r_mention_penalty`, `r_cite` (C4), `log_rollouts` (weight 0) |
 | `rl.train_grpo` | TRL `GRPOTrainer` on the text-only RL start, fresh LoRA r=64, `steps.jsonl`, `rollouts.jsonl`, checkpoints |
-| `rl.monitor` | trajectory table and flags; knowledge retention from the core suites of `<id>@s<step>` |
+| `rl.monitor` | trajectory table and flags; knowledge retention from the core suites of `<id>@s<step>`; RL hold-out table and `holdout_gap` |
+| `rl.holdout` | RL hold-out (deliverable 9): rows, disjointness check, in-loop evaluation core, summaries, offline fallback CLI |
 | `rl.calibrate_judge` | 200 RL-start responses, Claude vs local labels, agreement / kappa / confusion, accept >= 0.90 |
 | `rl.reward_scale` | the C4 reward scale f = S3 / S4 (below): `sample` (anchor + math answers, GPU) and `measure` (judge server up) |
 
@@ -267,6 +300,7 @@ ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calig
 # 4. pilot: 20 steps of C4 (trainer on GPU 0, detached)
 ssh <inst> 'cd ~/constitutional-alignment && sh scripts/brev/run_bg.sh rl_pilot env CUDA_VISIBLE_DEVICES=0 ~/.local/bin/uv run python -m calign.rl.train_grpo --config configs/rl/C4.yaml --max-steps 20 --out outputs/rl/C4_pilot'
 ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calign.rl.monitor --run-dir outputs/rl/C4_pilot --every 2'
+#    RL hold-out: holdout.jsonl must have steps 0, 10, 20 (record them in Results); the monitor prints the table
 # 5. after the pilot: stop the trainer's servers (kill $(cat outputs/logs/rollout_pilot.pid) ...), core suite on
 #    checkpoint-20 LoRA-served (eval config C4@pilot: model_path = the text-only RL start, adapter = the checkpoint)
 ```

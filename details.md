@@ -425,6 +425,15 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   `rollouts.jsonl` values are unscaled while the loss uses f x reward; `adv_rms` (logged per step) is scaled. The
   state shared by the reward functions is keyed on the identity of TRL's `completions` list, so offline scoring
   must pass one list object to every function (`RewardSuite.score` does).
+- RL hold-out evaluation (`calign.rl.holdout`): TRL triggers it (`eval_on_start`, `eval_steps`), but
+  `HoldoutGRPOTrainer.evaluate` replaces TRL's GRPO evaluation, which would run policy, old and reference
+  log-prob passes and the loss over the whole eval batch on the trainer GPU. The override sets `model.eval()` (TRL's
+  `_generate` then uses `num_generations_eval` and the `eval` metric bucket), calls `_generate` (which syncs weights
+  to vLLM when `global_step` changed), scores with a second `RewardSuite` (`step_offset=0`,
+  `holdout_rollouts.jsonl`) and calls the reward functions itself. They must not go through TRL's
+  `_calculate_rewards`: its `log_metric` buffer is flushed only by the next training batch, so hold-out metrics would
+  leak into the next training step's log. Evaluation lines in `steps.jsonl` (`eval_*` keys) are skipped by
+  `monitor.read_steps`. `_generate` is private TRL API (pinned 1.14.1), checked by the 4B GPU test.
 
 ## Phase 3 SFT v3 and LoRA serving (chunk 5)
 

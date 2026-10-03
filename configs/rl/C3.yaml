@@ -8,6 +8,7 @@ model_path: null
 revision: null
 data:
   rl_train: data/dilemmas/final/rl_train.jsonl   # chunk 6: generated P1-P5 dilemmas + the 40 anchors
+  rl_holdout: data/dilemmas/final/rl_holdout.jsonl   # chunk 6: 29 items / 23 families never trained on (deliverable 9)
   anchor_share: 0.10
   math_share: 0.22
   math_dataset: nlile/hendrycks-MATH-benchmark   # MATH 12k train (complement of MATH-500)
@@ -39,6 +40,7 @@ grpo:
   top_p: 1.0
   max_steps: 80                   # chunk 7 pilot sets the final count (fits ~6 h, minimum 60)
   save_steps: 20
+  eval_steps: 10                  # RL hold-out evaluation at step 0 and every 10 steps (calign.rl.holdout)
   logging_steps: 1
   gradient_checkpointing: true
   bf16: true

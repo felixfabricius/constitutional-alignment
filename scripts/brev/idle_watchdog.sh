@@ -1,9 +1,12 @@
 #!/bin/sh
 # Idle watchdog: deletes a Brev instance once it has been idle for a while, but only after everything on it is saved.
-# Instances cannot be stopped and bill while they exist (phase3/README.md Section 6). Run in WSL from the local repo
-# root, detached so it outlives the shell and the agent session:
-#   wsl -e bash -lc 'cd /mnt/c/Users/User/Documents/Coding/constitutional-alignment && \
-#       setsid nohup sh scripts/brev/idle_watchdog.sh <inst> > outputs/logs/watchdog_<inst>.log 2>&1 < /dev/null &'
+# Instances cannot be stopped and bill while they exist (phase3/README.md Section 6). Start it from Windows so it
+# outlives the agent session and the shell (a hidden wsl.exe keeps the WSL process alive; a setsid'd process inside
+# WSL can be killed when the last wsl.exe client exits):
+#   powershell -NoProfile -Command "Start-Process wsl -WindowStyle Hidden -ArgumentList '-e','bash','-lc',
+#       'cd /mnt/c/Users/User/Documents/Coding/constitutional-alignment && sh scripts/brev/idle_watchdog.sh <inst>
+#        >> outputs/logs/watchdog_<inst>.log 2>&1'"
+# Stop it: wsl -e bash -lc 'pkill -f "idle_watchdog.sh <inst>"'
 # Env: IDLE_MIN (minutes of consecutive idleness before deleting, default 30), POLL_S (default 300),
 #      DRY_RUN=1 (do everything except `brev delete`), REMOTE_REPO (default constitutional-alignment).
 #
@@ -11,8 +14,9 @@
 # is running). After IDLE_MIN idle minutes in a row:
 #   1. preserve (on the instance): scripts/brev/preserve.sh pushes RL adapters not yet on HF and refuses (UNSAFE)
 #      when an SFT run has weights without a push manifest;
-#   2. sync: outputs/ rsynced back like sync_back.sh, with --update so files that are newer locally (judged locally)
-#      are never overwritten;
+#   2. sync: outputs/ rsynced back like sync_back.sh (adapters / merged weights excluded, they are on HF), with --update
+#      so files that are newer locally (judged locally) are never overwritten; the instance's outputs/logs/ go to
+#      outputs/logs/<inst>/ (log names repeat across instances);
 #   3. verify: a dry-run rsync with the same filters must list no file to copy;
 #   4. `brev delete <inst>`; the watchdog then exits.
 # Any failed step logs the reason, keeps the instance and retries at the next poll. If the instance cannot be reached,
@@ -70,14 +74,20 @@ while true; do
             sleep "$POLL_S"
             continue
         fi
+        # run dirs into outputs/, the instance's logs into outputs/logs/<inst>/ (log names repeat across instances)
+        mkdir -p "./outputs/logs/$inst"
         # shellcheck disable=SC2086
-        if ! rsync -rtzu $EXCLUDES "$inst:$REMOTE_REPO/outputs/" ./outputs/; then
+        if ! rsync -rtzu $EXCLUDES --exclude /logs/ "$inst:$REMOTE_REPO/outputs/" ./outputs/ ||
+            ! rsync -rtzu --exclude '*.pid' "$inst:$REMOTE_REPO/outputs/logs/" "./outputs/logs/$inst/"; then
             log "rsync failed; keeping the instance"
             sleep "$POLL_S"
             continue
         fi
         # shellcheck disable=SC2086
-        pending=$(rsync -rtzun --out-format='%n' $EXCLUDES "$inst:$REMOTE_REPO/outputs/" ./outputs/ | grep -v '/$' | head -5)
+        pending=$( {
+            rsync -rtzun --out-format='%n' $EXCLUDES --exclude /logs/ "$inst:$REMOTE_REPO/outputs/" ./outputs/
+            rsync -rtzun --out-format='%n' --exclude '*.pid' "$inst:$REMOTE_REPO/outputs/logs/" "./outputs/logs/$inst/"
+        } | grep -v '/$' | head -5)
         if [ -n "$pending" ]; then
             log "verify: files still differ ($pending); keeping the instance"
             sleep "$POLL_S"

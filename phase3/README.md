@@ -167,6 +167,13 @@ with the harness's background command / Monitor facilities rather than polling i
 chunk's runs are done and everything is synced (see below); never delete one that still holds unsynced run dirs or
 unpushed weights.
 
+**Idle watchdog (Felix 2026-10-03).** Start `scripts/brev/idle_watchdog.sh <inst>` from Windows for every instance
+(command in the script header; log `outputs/logs/watchdog_<inst>.log`). It deletes the instance after 30 consecutive
+idle minutes (no GPU above 5% and no running non-server `run_bg.sh` job), but only after `preserve.sh` on the instance
+(RL adapters not yet on HF are pushed; SFT weights without a push manifest block deletion), an rsync of `outputs/`
+with `--update` (logs to `outputs/logs/<inst>/`) and a dry-run rsync that lists nothing left to copy. It cannot act
+while this machine sleeps (safe: nothing is deleted unsynced). `DRY_RUN=1` logs instead of deleting.
+
 **Instances cannot be stopped, only deleted** (Felix, 2026-10-01: the rented GPUs bill while they exist; a stoppable
 instance would cost much more). Consequences: the instance disk is **not** a hand-off medium; every artefact a later
 chunk needs must be on HF (weights) or in git (code, manifests) or rsynced locally (run dirs) **before** the

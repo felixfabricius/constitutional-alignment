@@ -74,7 +74,7 @@ def test_c3_c4_differ_only_in_reward():
     g = c4.grpo
     assert g.completions_per_step == 96 and g.gradient_accumulation_steps == 48
     assert (g.loss_type, g.scale_rewards, g.epsilon, g.epsilon_high, g.beta) == ("dr_grpo", "none", 0.2, 0.28, 0.02)
-    assert (g.learning_rate, g.max_completion_length, g.save_steps, g.num_generations) == (2e-5, 1024, 20, 8)
+    assert (g.learning_rate, g.max_completion_length, g.save_steps, g.num_generations) == (2e-5, 1024, 10, 8)
     assert c4.data.rl_train.is_absolute()
     assert sorted(p.stem for p in RL_CONFIGS_DIR.glob("*.yaml")) >= ["C3", "C4"]
 

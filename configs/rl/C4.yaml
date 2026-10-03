@@ -41,8 +41,8 @@ grpo:
   mask_truncated_completions: true
   temperature: 1.0
   top_p: 1.0
-  max_steps: 80                   # chunk 7 pilot sets the final count (fits ~6 h, minimum 60)
-  save_steps: 20
+  max_steps: 60                   # chunk 7 rule (fits ~6 h, minimum 60): C3 pilot 389 s/step incl. evaluations -> 60
+  save_steps: 10                  # 6 checkpoints (steps 10..60), pushed during the run by scripts/brev/push_loop.sh
   eval_steps: 10                  # RL hold-out evaluation at step 0 and every 10 steps (calign.rl.holdout)
   logging_steps: 1
   gradient_checkpointing: true

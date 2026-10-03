@@ -453,6 +453,23 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   write the rsync into a script file. Never rsync `outputs/evals` from an instance over locally judged runs (quiz
   grades are written into `records.jsonl`); re-judge from the API cache if it happens.
 
+## Phase 3 knowledge-only SFT (chunk 5b)
+
+- Data: `calign.corpus.build_sft_v3 --keep knowledge --drop-ids data/manifests/sft_kn_audit.jsonl --replay
+  data/replay/responses.jsonl` (rule `KNOWLEDGE_SUBTYPES`, prefix match on `kind:subtype`; manifest
+  `data/manifests/sft_kn_stats.json`). The audit `calign.corpus.audit_application` (prompt `kn-audit-v1`) reads only the
+  Claude-written knowledge types (`AUDITED_SUBTYPES`); its stats take the cost from per-row usage, so a cache-hit rerun
+  still reports the original spend.
+- Lite check `calign.evals.lite run --eval-config <id>` (one vLLM load: quizzes, MoralChoice dev k=4, both dilemma pilots
+  k=8 at T=1.0 via `calign.dilemmas.filter.run_sample(args, loaded=(backend, model_cfg))`), `grade` (quiz, interactive),
+  `report --configs ... --reference C2@e4` (RL-start rule table). A reference without its own lite run gets a manifest
+  pointing at existing runs with `link`. ~7-10 GPU-min per LoRA-served epoch.
+- RL start: `felixfabricius/gemma-3-27b-it-halden-sft-kn-e4@272d870` (text-only, `configs/model_sft_kne4.yaml`);
+  eval config `C2` = `C2kn@e4` (LoRA-served adapter `...-halden-sft-kn/adapter_epoch4@551224f`); `C2-app` = SFT v3 e4.
+  Session scripts (gitignored, kept for reference): `outputs/models/sft_kn/s5kn_{train,lite,merge}.sh`, `rsync_up.sh`,
+  `sync_{lite,final}.sh`. A sync script must not assume run dirs a fresh instance never created (`set -e` aborts).
+- `pkill -f <pattern>` inside `wsl -e bash -lc '...'` can match and kill its own shell; use `[x]yz` patterns.
+
 ## Known gaps / TODO
 
 - No script wrapper for the GPU sequence; follow the README runbook. No W&B; logs are JSON in run dirs.

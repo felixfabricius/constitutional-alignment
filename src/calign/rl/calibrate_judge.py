@@ -13,6 +13,9 @@ CLI:
     uv run python -m calign.rl.calibrate_judge label-local --run-dir DIR --config configs/rl/C4.yaml [--hf-model M]
     # local: agreement and confusion matrices -> summary.json / summary.md
     uv run python -m calign.rl.calibrate_judge report --run-dir DIR
+    # chunk 8 audit of the judge during C4 training: 100 judged rollouts of the steps (S-W, S] from rollouts.jsonl;
+    # the local labels are the ones the reward used (no judge server needed); then label-claude + report as above
+    uv run python -m calign.rl.calibrate_judge audit --rollouts outputs/rl/C4/rollouts.jsonl --step 40 [--window 5]         [--n 100] [--out outputs/rl/judge_calibration/C4_audit_s40]
 
 Both judges see the same input (`cite-judge-v1`: constitution + the response's citation sentences). Claude answers
 the same three labels with adaptive thinking at medium effort. Acceptance (chunk 7): agreement >= 0.90 on the
@@ -134,6 +137,55 @@ def run_sample(args: argparse.Namespace) -> Path:
         },
     )
     LOGGER.info("%d calibration records -> %s", len(chosen), run_dir)
+    return run_dir
+
+
+def run_audit(args: argparse.Namespace) -> Path:
+    """Judge audit from a C4 run's rollouts: answers whose citation label came from the local judge during training."""
+    lo, hi = args.step - args.window, args.step
+    pool = []
+    with args.rollouts.open(encoding="utf-8") as f:
+        for line in f:
+            r = json.loads(line)
+            if r.get("judge_label") is not None and r["step"] is not None and lo < r["step"] <= hi:
+                pool.append(r)
+    rng = random.Random(f"{args.seed}:{args.step}")
+    rng.shuffle(pool)
+    chosen = pool[: args.n]
+    if len(chosen) < args.n:
+        LOGGER.warning("only %d judged rollouts in steps (%d, %d]", len(chosen), lo, hi)
+    params = {"rollouts": str(args.rollouts), "step": args.step, "window": args.window, "n": args.n, "seed": args.seed}
+    run_dir = new_run_dir("rl/judge_calibration", params, out=args.out)
+    with (
+        (run_dir / ITEMS_FILE).open("w", encoding="utf-8") as fi,
+        (run_dir / LOCAL_FILE).open("w", encoding="utf-8") as fl,
+    ):
+        for r in chosen:
+            rid = f"{r['step']}:{r['item_id']}:{r['letter_order']}:{sha256_text(r['completion'])[:12]}"
+            row = {
+                "record_id": rid,
+                "item_id": r["item_id"],
+                "step": r["step"],
+                "stratum": "judge",
+                "check": r["citation"],
+                "citations": citation_sentences(r["completion"]),
+                "response": r["completion"],
+            }
+            fi.write(json.dumps(row, ensure_ascii=False) + "\n")
+            fl.write(json.dumps({"record_id": rid, "label": r["judge_label"], "model": "training-run"}) + "\n")
+    write_json(
+        run_dir / "sample.json",
+        {
+            "rollouts": file_provenance(args.rollouts),
+            "steps": [lo + 1, hi],
+            "n": len(chosen),
+            "pool": len(pool),
+            "by_stratum": {"judge": len(chosen)},
+            "local_labels": dict(Counter(r["judge_label"] for r in chosen)),
+            "prompt_version": PROMPT_VERSION,
+        },
+    )
+    LOGGER.info("%d audit records of %d judged rollouts -> %s", len(chosen), len(pool), run_dir)
     return run_dir
 
 
@@ -329,6 +381,13 @@ def main(argv: list[str] | None = None) -> None:
     lo.add_argument("--hf-model", default=None)
     r = sub.add_parser("report")
     r.add_argument("--run-dir", type=Path, required=True)
+    au = sub.add_parser("audit", help="sample judged rollouts of a C4 run (chunk 8 judge audit)")
+    au.add_argument("--rollouts", type=Path, required=True)
+    au.add_argument("--step", type=int, required=True)
+    au.add_argument("--window", type=int, default=5, help="steps (step - window, step]")
+    au.add_argument("--n", type=int, default=100)
+    au.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    au.add_argument("--out", type=Path, default=None)
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     from calign.paths import load_env
@@ -336,6 +395,8 @@ def main(argv: list[str] | None = None) -> None:
     load_env()
     if args.cmd == "sample":
         run_sample(args)
+    elif args.cmd == "audit":
+        run_audit(args)
     elif args.cmd == "label-claude":
         usage = label_claude(args.run_dir, False if args.no_batches else None, args.dry_run)
         LOGGER.info("Claude cost $%.4f", usage["total_cost_usd"])

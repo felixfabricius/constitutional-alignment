@@ -1,11 +1,12 @@
-# Phase 3 C4: SFT v3 RL start + GRPO with outcome + citation reward R2 (D20, D21, D19). calign.rl.train_grpo.
+# Phase 3 C4: RL start C2 (knowledge-only SFT epoch 4) + GRPO with outcome + citation reward R2 (D20, D21, D19). calign.rl.train_grpo.
 # Identical to C3.yaml except run_name, label, reward.kind and notes (unit test), so one seed = one data order.
 run_name: C4
-label: SFT v3 + GRPO, outcome + citation reward (R2)
-# Text-only (Gemma3ForCausalLM) export of the merged RL-start epoch from chunk 5; set once chunk 5 has pushed it
-# (hf://felixfabricius/gemma-3-27b-it-halden-sft-v3/<text-only subdir>@<revision>). Until then pass --model-path.
-model_path: null
-revision: null
+label: knowledge-only SFT + GRPO, outcome + citation reward (R2)
+# RL start = C2 (chunk 5b): text-only (Gemma3ForCausalLM) export of the merged knowledge-only SFT epoch 4
+# (configs/model_sft_kne4.yaml). The hf:// form keeps the revision pinned through `calign.rl.config model-dir`,
+# which rl_serve.sh passes to trl vllm-serve (a plain hub id would load the repo's head there).
+model_path: hf://felixfabricius/gemma-3-27b-it-halden-sft-kn-e4@272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
+revision: 272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
 data:
   rl_train: data/dilemmas/final/rl_train.jsonl   # chunk 6: generated P1-P5 dilemmas + the 40 anchors
   rl_holdout: data/dilemmas/final/rl_holdout.jsonl   # chunk 6: 29 items / 23 families never trained on (deliverable 9)

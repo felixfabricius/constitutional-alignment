@@ -129,3 +129,27 @@ def test_module_type_adapters(tmp_path):
         d_b = f.get_tensor("base_model.model.model.language_model.layers.0.mlp.down_proj.lora_B.weight")
         d_a = f.get_tensor("base_model.model.model.language_model.layers.0.mlp.down_proj.lora_A.weight")
     assert q_b.sum() == 6 and d_b.sum() == 0 and d_a.sum() == 6
+
+
+def test_lora_check_delta_tracks_the_peft_effect():
+    base = _run([[-1.0, -2.0, -3.0], [-0.5, -1.5]], [[1], [2]])
+    hf_base = _run([[-1.02, -2.01, -2.98], [-0.49, -1.52]], [[], []])  # vLLM-vs-HF noise ~0.02
+    d = [0.05, -0.03, 0.08, -0.06, 0.02]  # the adapter's effect (small, like 20 RL steps)
+    flat = [x for row in base["rows"] for x in row["logprobs"]]
+    flat_h = [x for row in hf_base["rows"] for x in row["logprobs"]]
+    served = _run(
+        [[a + b for a, b in zip(flat[:3], d[:3], strict=True)], [a + b for a, b in zip(flat[3:], d[3:], strict=True)]],
+        [[1], [2]],
+    )
+    hf = _run(
+        [
+            [a + b for a, b in zip(flat_h[:3], d[:3], strict=True)],
+            [a + b for a, b in zip(flat_h[3:], d[3:], strict=True)],
+        ],
+        [[], []],
+    )
+    res = lora_check.compare_delta(served, base, hf, hf_base)
+    assert res["passed"] and res["delta_pearson_r"] == pytest.approx(1.0)
+    assert res["delta_norm_ratio_served_over_hf"] == pytest.approx(1.0)
+    # adapter dropped by the serving path: served == base -> no delta -> fails
+    assert not lora_check.compare_delta(base, base, hf, hf_base)["passed"]

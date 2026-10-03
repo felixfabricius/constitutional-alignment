@@ -12,6 +12,10 @@ Pass criteria:
   (d(served, hf) <= max(1.5 * d(merged, hf), 0.05)); without it, d(served, merged) <= 0.05;
 - coverage (`--coverage`, 4B): one adapter per LoRA module type (q/k/v/o/gate/up/down; lora_B of the other types
   zeroed) changes the served output, so no module type is silently dropped by the PEFT -> vLLM key mapping.
+- `delta` (no merged checkpoint; RL adapters on the text-only RL start, chunk 7): the adapter's effect on the
+  teacher-forced log-probs, served minus vLLM base, must track the PEFT reference's effect, HF PEFT minus HF base
+  (per-token Pearson r >= 0.9 and the norm ratio within [0.8, 1.25]). Small RL deltas sit near the vLLM-vs-HF noise
+  floor, so the absolute served-vs-PEFT distance alone cannot tell "applied" from "dropped".
 bf16 re-rounds W + BA when merging and vLLM computes x@A in bf16, so exact equality is not expected; the error grows
 with the size of the adapter's delta (a random test adapter is far larger than an SFT delta).
 
@@ -20,6 +24,7 @@ CLI (GPU):
         --merged outputs/models/sft_v3/merged_epoch2 --out outputs/models/sft_v3/lora_check_epoch2.json \
         [--hf-reference] [--coverage] [--merged-model-config configs/model.yaml] [--n-prompts 5]
     uv run python -m calign.inference.lora_check run --model-path X [--adapter Y] [--backend vllm|hf] --out run.json
+    uv run python -m calign.inference.lora_check delta --base <text-only RL start dir> --adapter outputs/rl/C4_pilot/checkpoint-20         --base-model-config configs/model_sft_kne4.yaml --out outputs/rl/C4_pilot/lora_check_s20.json
 """
 
 from __future__ import annotations
@@ -42,6 +47,8 @@ MAX_MEAN_ABS = 0.05
 MIN_BASE_RATIO = 3.0
 REF_SLACK = 1.5
 COVERAGE_MIN_DIFF = 1e-3
+DELTA_MIN_R = 0.9
+DELTA_NORM_RANGE = (0.8, 1.25)
 MODULE_TYPES = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
 # (user prompt, fixed assistant continuation scored teacher-forced)
 PROMPTS: list[tuple[str, str]] = [
@@ -195,6 +202,36 @@ def compare(served: dict, merged: dict, base: dict, hf: dict | None = None) -> d
     return res
 
 
+def _lps(r: dict) -> list[float]:
+    return [x for row in r["rows"] for x in row["logprobs"]]
+
+
+def compare_delta(served: dict, base: dict, hf: dict, hf_base: dict) -> dict:
+    """Adapter effect served (vLLM) vs PEFT reference (HF): per-token Pearson r and norm ratio of the two deltas."""
+    dv = [a - b for a, b in zip(_lps(served), _lps(base), strict=True)]
+    dh = [a - b for a, b in zip(_lps(hf), _lps(hf_base), strict=True)]
+    n = len(dv)
+    mv, mh = sum(dv) / n, sum(dh) / n
+    cov = sum((a - mv) * (b - mh) for a, b in zip(dv, dh, strict=True))
+    sv = sum((a - mv) ** 2 for a in dv) ** 0.5
+    sh = sum((b - mh) ** 2 for b in dh) ** 0.5
+    r = cov / (sv * sh) if sv > 0 and sh > 0 else 0.0
+    nv, nh = sum(a * a for a in dv) ** 0.5, sum(b * b for b in dh) ** 0.5
+    ratio = nv / nh if nh > 0 else float("inf")
+    passed = r >= DELTA_MIN_R and DELTA_NORM_RANGE[0] <= ratio <= DELTA_NORM_RANGE[1]
+    return {
+        "delta_pearson_r": r,
+        "delta_norm_ratio_served_over_hf": ratio,
+        "delta_mean_abs_served": sum(abs(a) for a in dv) / n,
+        "delta_mean_abs_hf": sum(abs(b) for b in dh) / n,
+        "served_vs_hf_peft": distance(served, hf),
+        "base_vs_hf_base": distance(base, hf_base),
+        "n_tokens": n,
+        "thresholds": {"min_r": DELTA_MIN_R, "norm_range": list(DELTA_NORM_RANGE)},
+        "passed": passed,
+    }
+
+
 def module_type_adapters(adapter: Path, work: Path) -> dict[str, Path]:
     """One copy of the adapter per LoRA module type, with lora_B of every other type zeroed."""
     import shutil
@@ -251,6 +288,12 @@ def main(argv: list[str] | None = None) -> None:
     a.add_argument("--hf-reference", action="store_true", help="also load HF base + PEFT adapter (the reference)")
     a.add_argument("--coverage", action="store_true", help="one served load per LoRA module type")
     a.add_argument("--out", type=Path, required=True)
+    d = sub.add_parser("delta", help="no merged checkpoint: served adapter effect vs the HF PEFT effect")
+    d.add_argument("--base", required=True)
+    d.add_argument("--adapter", required=True)
+    d.add_argument("--base-model-config", type=Path, default=None)
+    d.add_argument("--n-prompts", type=int, default=len(PROMPTS))
+    d.add_argument("--out", type=Path, required=True)
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
@@ -263,6 +306,26 @@ def main(argv: list[str] | None = None) -> None:
     work = args.out.parent / (args.out.stem + "_runs")
     work.mkdir(parents=True, exist_ok=True)
     n = args.n_prompts
+    if args.cmd == "delta":
+        served = _subprocess_run(args.base, args.adapter, args.base_model_config, n, work / "served.json")
+        base = _subprocess_run(args.base, None, args.base_model_config, n, work / "base.json")
+        hf = _subprocess_run(args.base, args.adapter, None, n, work / "hf_peft.json", "hf")
+        hf_base = _subprocess_run(args.base, None, None, n, work / "hf_base.json", "hf")
+        res = compare_delta(served, base, hf, hf_base)
+        res.update(
+            {
+                "base": args.base,
+                "adapter": args.adapter,
+                "n_prompts": n,
+                "git_commit": git_commit(),
+                "created_at": utc_now_iso(),
+            }
+        )
+        args.out.write_text(json.dumps(res, indent=2), encoding="utf-8")
+        print(json.dumps({k: v for k, v in res.items() if k not in ("git_commit", "created_at")}, indent=2))
+        if not res["passed"]:
+            raise SystemExit("LoRA serving check (delta) failed")
+        return
     served = _subprocess_run(args.base, args.adapter, args.base_model_config, n, work / "served.json")
     merged = _subprocess_run(args.merged, None, args.merged_model_config, n, work / "merged.json")
     base = _subprocess_run(args.base, None, args.base_model_config, n, work / "base.json")

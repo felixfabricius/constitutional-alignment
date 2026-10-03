@@ -667,3 +667,71 @@ def test_monitor_holdout_gap_needs_two_in_a_row():
     # both rise together: no flag
     both = [{"step": s, "outcome": 0.5 + 0.4 * min(s, 20) / 20} for s in (0, 10, 20, 30, 40)]
     assert monitor.holdout_flags(monitor.holdout_trajectory(rows, both)) == []
+
+
+def test_rl_configs_pin_the_rl_start():
+    from calign.inference.lora import parse_hf_spec
+    from calign.rl.checkpoints import rl_start
+
+    hub, rev = rl_start()
+    for cid in ("C3", "C4"):
+        cfg = load_rl_config(cid)
+        repo, sub, spec_rev = parse_hf_spec(cfg.model_path)
+        assert (repo, sub, spec_rev, cfg.revision) == (hub, None, rev, rev)
+
+
+def test_checkpoint_eval_configs(tmp_path):
+    from calign.evals.config import load_eval_config
+    from calign.rl import checkpoints
+    from calign.schemas import write_json
+
+    run = tmp_path / "C3"
+    for s in (20, 40):
+        (run / f"checkpoint-{s}").mkdir(parents=True)
+        (run / f"checkpoint-{s}" / "adapter_config.json").write_text("{}", encoding="utf-8")
+    (run / "checkpoint-60").mkdir()  # no adapter: ignored
+    assert checkpoints.checkpoint_steps(run) == [20, 40]
+    with pytest.raises(SystemExit):
+        checkpoints.write_eval_configs("C3", run, out_dir=tmp_path)  # neither a push manifest nor --revision
+    paths = checkpoints.write_eval_configs("C3", run, local=True, suffix="pilot", out_dir=tmp_path)
+    cfg = load_eval_config(paths[0])
+    assert cfg.id == "C3@pilot20" and cfg.stage == "rl" and cfg.adapter.endswith("C3/checkpoint-20")
+    assert cfg.model_config_path == "configs/model_sft_kne4.yaml" and cfg.revision.startswith("272d870")
+    write_json(run / "push_manifest.json", {"latest": {"repo": "ns/rl", "prefix": "C3", "revision": "abc"}})
+    paths = checkpoints.write_eval_configs("C3", run, out_dir=tmp_path)
+    assert [load_eval_config(p).adapter for p in paths] == [
+        "hf://ns/rl/C3/checkpoint-20@abc",
+        "hf://ns/rl/C3/checkpoint-40@abc",
+    ]
+
+
+def test_judge_audit_from_rollouts(tmp_path):
+    import argparse
+
+    from calign.rl import calibrate_judge as cj
+
+    path = tmp_path / "rollouts.jsonl"
+    rows = []
+    for step in range(30, 42):
+        for j in range(20):
+            rows.append(
+                {
+                    "step": step,
+                    "item_id": f"g{j}",
+                    "letter_order": "AB",
+                    "judge_label": "correct" if j % 3 else None,
+                    "citation": {"c": None, "reason": "judge"},
+                    "completion": f"Principle 1 (Honesty) applies here {step} {j}.",
+                }
+            )
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    args = argparse.Namespace(rollouts=path, step=40, window=5, n=50, seed=1, out=tmp_path / "audit")
+    run_dir = cj.run_audit(args)
+    items = cj.load_items(run_dir)
+    assert len(items) == 50 and all(35 < x["step"] <= 40 and x["stratum"] == "judge" for x in items)
+    (run_dir / cj.CLAUDE_FILE).write_text(
+        "\n".join(json.dumps({"record_id": x["record_id"], "label": "correct"}) for x in items) + "\n",
+        encoding="utf-8",
+    )
+    s = cj.summarize(run_dir)
+    assert s["judge_stage"]["n"] == 50 and s["judge_stage"]["agreement"] == 1.0

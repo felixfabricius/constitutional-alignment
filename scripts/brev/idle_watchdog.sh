@@ -38,16 +38,29 @@ EXCLUDES="--exclude rl/test_*/gemma*/ --exclude models/*/merged*/--exclude model
 
 log() { echo "[watchdog $inst] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 
-remote() { ssh -o ConnectTimeout=30 -o BatchMode=yes "$inst" "cd ~/$REMOTE_REPO && $1" 2>/dev/null; }
+# -T: Brev's ssh_config sets RequestTTY yes, and a tty turns "SAFE\n" into "SAFE\r\n" (2026-10-03 incident: the
+# comparison failed and an idle node billed for 8 h); strip \r anyway.
+remote() { ssh -T -o ConnectTimeout=30 -o BatchMode=yes "$inst" "cd ~/$REMOTE_REPO && $1" 2>/dev/null | tr -d '\r'; }
 
-exists() { brev ls 2>/dev/null | awk '{print $1}' | grep -qx "$inst"; }
+# 0 = listed, 1 = gone (brev ls worked and the name is absent), 2 = unknown (brev ls failed, e.g. an auth hiccup;
+# 2026-10-03 incident: a failing brev ls was read as "gone" and the watchdog exited)
+exists() {
+    out=$(brev ls 2>&1) || return 2
+    echo "$out" | grep -q '^ *NAME' || { echo "$out" | grep -qi 'no instances' && return 1; return 2; }
+    echo "$out" | awk '{print $1}' | grep -qx "$inst" && return 0
+    return 1
+}
 
 idle_since=""
 log "started: idle threshold ${IDLE_MIN} min, poll ${POLL_S} s, dry run $DRY_RUN"
 while true; do
-    if ! exists; then
+    exists
+    st=$?
+    if [ "$st" -eq 1 ]; then
         log "instance no longer exists; exiting"
         exit 0
+    elif [ "$st" -eq 2 ]; then
+        log "brev ls failed (auth/network?); cannot check the instance, retrying (run 'brev login' if this persists)"
     fi
     probe=$(remote "sh scripts/brev/idle_probe.sh" | tail -1)
     now=$(date +%s)

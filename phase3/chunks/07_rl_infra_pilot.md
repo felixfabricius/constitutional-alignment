@@ -1,8 +1,10 @@
 # Chunk 7: RL infrastructure, local judge, pilot
 
 Status: **code written and unit-tested (2026-10-01), GPU steps pending** (4B plumbing test, judge smoke +
-calibration, pilot). Needs chunk 5's text-only RL start on HF and chunk 6's `data/dilemmas/final/rl_train.jsonl` and
-RL-start k=8 run. See "Implementation" below.
+calibration, pilot). Inputs are ready (2026-10-03): the RL start (chunk 5b, knowledge-only SFT epoch 4,
+`configs/model_sft_kne4.yaml`), chunk 6's `data/dilemmas/final/rl_train.jsonl` and `rl_holdout.jsonl`, and the RL-start
+k=8 run. **Still to wire before the pilot: the RL hold-out evaluation (deliverable 9, Felix 2026-10-03).** See
+"Implementation" below.
 
 ## Goal
 
@@ -17,8 +19,10 @@ randomisation; R2 = R1 + 0.5 x m x c with c in {-1, 0, +1}; deterministic checks
 
 ## Depends on / inputs
 
-Chunk 5 (merged, text-only-exported RL start; `configs/model_sft_v3eK.yaml`), chunk 6 (RL-train file with anchors;
-monitoring uses the RL-train reward and the MoralChoice core suite, eval-1-hard was scrapped 2026-10-02). Instance: one node with 2 x A100 80 GB (or H100) for trainer + vLLM rollouts, plus a
+Chunk 5b (merged, text-only-exported RL start: `configs/model_sft_kne4.yaml`; it replaced SFT v3 epoch 4 on
+2026-10-02), chunk 6 (`data/dilemmas/final/rl_train.jsonl` = RL-train with anchors, `rl_holdout.jsonl` = the RL
+hold-out, `rl_reserve.jsonl` = items for the D20 re-filter; monitoring uses the RL-train reward, the RL hold-out reward
+and the MoralChoice core suite; eval-1-hard was scrapped 2026-10-02). Instance: one node with 2 x A100 80 GB (or H100) for trainer + vLLM rollouts, plus a
 48 GB-class card for the judge (same node if available; else a separate instance on the same provider network).
 
 ## Deliverables
@@ -66,6 +70,46 @@ monitoring uses the RL-train reward and the MoralChoice core suite, eval-1-hard 
    core suite on the step-20 adapter (LoRA-served on GPU 1 after stopping the vLLM server); set the step count for
    chunk 8 (80 planned; the rule: the number of steps that fits ~6 h wall-clock, minimum 60) and checkpoint spacing
    (6 checkpoints).
+9. **RL hold-out evaluation** (Felix 2026-10-03; chunk 6 built the data): measures overfitting. Training reward
+   alone cannot separate "the policy applies the constitution better" from "the policy learned these prompts".
+   - **Data**: `data/dilemmas/final/rl_holdout.jsonl` = 29 generated items from 23 families (15% of the generated
+     RL-train families, seeded, stratified by principle: P1 9, P2 5, P3 2, P4 7, P5 6; persuasive framing 15,
+     rationalization 8, plain seed 4, pushback 2), selected exactly like RL-train (0 < passes < 8 on the RL start).
+     Whole families are held out (a seed and its pressure variants share the situation). RL never trains on them:
+     they are not in `rl_train.jsonl`, and chunk 6 removed their families from `rl_reserve.jsonl`, so the D20
+     re-filter cannot bring them back. Manifest: `data/manifests/dilemmas_v1.json` (`holdout_families`, `rules`).
+   - **Config**: add `rl_holdout: data/dilemmas/final/rl_holdout.jsonl` to `RLDataSettings` (next to `rl_train`) and
+     to `configs/rl/C3.yaml` / `C4.yaml` (identical in both, so the C3/C4 identity test keeps holding).
+   - **Rows**: build them with `rl.prompts` exactly like RL-train dilemma rows (both letter orders -> 58 rows,
+     `task_type="dilemma"`, the same metadata columns: `verdict`, `letter_order`, `principles`, `item_id`,
+     `family_id`); no anchors, no math; no shuffling needed. `rl.dataset` keeps reading only `rl_train`; add a unit test
+     that the item ids and family ids of `rl_train.jsonl` and `rl_holdout.jsonl` are disjoint (and that no holdout
+     family appears in `rl_reserve.jsonl`).
+   - **When and how** (preferred: in the trainer): pass the hold-out rows as `eval_dataset` to `GRPOTrainer` (same
+     `to_hf_dataset`), `eval_strategy="steps"`, `eval_steps=10`, `eval_on_start=True` (step-0 value), the same reward
+     functions and weights as training (so C4's eval includes `r_cite` through the local judge, cached), 8 completions
+     per prompt at T=1.0 (as in training; set the eval generation count explicitly if the TRL version exposes one).
+     With ~464 generations per evaluation this costs ~1-2 min on the rollout server, ~15 min per 80-step run.
+     Verify on the 4B plumbing test that GRPO evaluation works in vLLM server mode and that eval metrics are logged
+     (TRL logs `eval_reward` and `eval_rewards/<func>/mean`). Write one JSON line per evaluation to
+     `outputs/rl/<run>/holdout.jsonl` (step; outcome reward mean overall, per principle and per variant kind;
+     for C4 also `r_cite` mean, mention rate and judge class distribution; mean completion length; parse rate).
+   - **Fallback** if in-loop evaluation does not work in server mode: evaluate offline at step 0 and at every saved
+     checkpoint (steps 20, 40, ...) with the dilemma filter's sampler, which uses the same prompt:
+     `calign.dilemmas.filter sample --eval-config <id>@s<step> --file data/dilemmas/final/rl_holdout.jsonl --k 8
+     --temperature 1.0 --out outputs/rl/<run>/holdout/s<step>` (step 0: `--eval-config C2`); outcome reward = mean
+     pass rate (`summary.json`, `breakdown.groups.all.mean_pass_rate`); for C4 score the citation component on those
+     records with `rl.rewards` offline. Then 5 points per run instead of 9.
+   - **Baseline**: the step-0 evaluation, not the pass counts stored in the rows (`meta.filter.rl_start`): the items
+     were selected on that very run, so its counts are biased (regression to the mean, the E3 lesson). On the
+     selection run the hold-out's mean pass rate was 0.57 (RL-train generated items 0.60).
+   - **Monitor** (`rl.monitor`): show the hold-out reward next to the training outcome reward on generated dilemma rows
+     (rolling mean of the 10 steps before each evaluation; baseline = mean of the first 5 steps). New flag
+     `holdout_gap` (stop and check in, as the other flags): at two consecutive evaluations the training gain minus the
+     hold-out gain exceeds 0.15 while the hold-out gain is below 0.05 (gains relative to the baselines). Precision: with
+     29 items x 16 samples the hold-out mean has a standard error of ~0.05, so read single points with care. Expected
+     readings: both rise = generalisation within the distribution; training rises, hold-out flat or falling =
+     memorisation; comparing the C3 and C4 gaps is part of the outcome-vs-process analysis.
 
 ## Steps
 
@@ -101,7 +145,8 @@ GPU ~6 h across 2-3 cards (setup 2 h, pilot 1.5 h wall-clock x 2 cards, suite 0.
 
 ## Exit criteria
 
-Pilot adapter evaluated; step time and chunk 8 parameters recorded; configs `configs/rl/C3.yaml`, `C4.yaml` final;
+Pilot adapter evaluated; RL hold-out evaluation wired and verified in the pilot (step-0, step-10 and step-20 values
+in `holdout.jsonl` and Results); step time and chunk 8 parameters recorded; configs `configs/rl/C3.yaml`, `C4.yaml` final;
 pilot adapter pushed to HF and configs committed; the RL node's full setup (`setup.sh` + RL env + judge model
 download) scripted as one command so chunk 8 can re-create it; instance deleted (cannot be stopped); pushed.
 
@@ -187,7 +232,9 @@ the RL start, not only at matched step.
 
 **Mention tracking during training (Felix 2026-10-02):** the per-step deterministic measures on the training rollouts,
 logged for both C3 and C4 (regex mention rate per task type, the deterministic citation classes, outcome reward, KL),
-are sufficient; no held-out probe during training. Held-out numbers come from the core suite every 20 steps.
+are sufficient; no separate held-out mention probe during training. Held-out numbers come from the core suite every
+20 steps and, since 2026-10-03 (Felix), from the RL hold-out evaluation every 10 steps (deliverable 9), which also
+logs mention rate and citation classes on held-out prompts.
 
 R7-relevance (decided by Felix 2026-10-01, option b): the relevance check uses the item set = the verdict judge's principles plus the generator's stated principles (anchors: verdict only); Principles 4 and 5 cited outside that set are not irrelevant when a sentence citing them uses priority language (priority / precedence / override / overrule / outrank / trumps), so restating the priority ordering is neutral at the deterministic layer and the judge checks it against the priority text (`citations.priority_restatement`).
 
@@ -207,7 +254,7 @@ ssh <inst> 'cd ~/constitutional-alignment && sh scripts/brev/run_bg.sh rl_4b_tes
 ssh <inst> 'cd ~/constitutional-alignment && sh scripts/brev/rl_serve.sh configs/rl/C4.yaml pilot'
 ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calign.rl.judge_server smoke --config configs/rl/C4.yaml'
 # 3. judge calibration (sample + Claude locally, local labels on the node)
-uv run python -m calign.rl.calibrate_judge sample --records outputs/dilemmas/<C2@eK>/dilemma_filter/<run>/records.jsonl --out outputs/rl/judge_calibration/cal1
+uv run python -m calign.rl.calibrate_judge sample --records outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl --out outputs/rl/judge_calibration/cal1
 uv run python -m calign.rl.calibrate_judge label-claude --run-dir outputs/rl/judge_calibration/cal1 --dry-run   # cost check
 uv run python -m calign.rl.calibrate_judge label-claude --run-dir outputs/rl/judge_calibration/cal1
 rsync -rtz outputs/rl/judge_calibration/cal1 <inst>:constitutional-alignment/outputs/rl/judge_calibration/
@@ -215,7 +262,7 @@ ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calig
 rsync back; uv run python -m calign.rl.calibrate_judge report --run-dir outputs/rl/judge_calibration/cal1
 # 3b. reward scale for C4 (after the judge is accepted; GPU 0 is free while the servers run on GPUs 1-2)
 ssh <inst> 'cd ~/constitutional-alignment && sh scripts/brev/run_bg.sh rs_sample env CUDA_VISIBLE_DEVICES=0 ~/.local/bin/uv run python -m calign.rl.reward_scale sample --config configs/rl/C4.yaml --out outputs/rl/reward_scale/rs1'
-ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calign.rl.reward_scale measure --config configs/rl/C4.yaml --run-dir outputs/rl/reward_scale/rs1 --dilemma-records outputs/dilemmas/<C2@eK>/dilemma_filter/<run>/records.jsonl'
+ssh <inst> 'cd ~/constitutional-alignment && ~/.local/bin/uv run python -m calign.rl.reward_scale measure --config configs/rl/C4.yaml --run-dir outputs/rl/reward_scale/rs1 --dilemma-records outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl'
 #    paste the printed scale / scale_source into configs/rl/C4.yaml locally, commit, push, git pull on the node
 # 4. pilot: 20 steps of C4 (trainer on GPU 0, detached)
 ssh <inst> 'cd ~/constitutional-alignment && sh scripts/brev/run_bg.sh rl_pilot env CUDA_VISIBLE_DEVICES=0 ~/.local/bin/uv run python -m calign.rl.train_grpo --config configs/rl/C4.yaml --max-steps 20 --out outputs/rl/C4_pilot'
@@ -272,6 +319,15 @@ adapter on the text-only base for the core suite (`configs/model.yaml` sets `lan
   per checkpoint (eval-1, eval-2, hard subset). `calibrate_judge sample --items` now defaults to `rl_train.jsonl`
   only. The core-suite component `hardsets` covers eval-2-hard (P6, evaluation only) only.
 - 2026-10-03, chunk 6: **RL-train is ready**: `data/dilemmas/final/rl_train.jsonl` (committed, 0c2c45c) = 208 generated items (149 families; P1 57, P2 27, P3 13, P4 62, P5 49; persuasive framing 96, rationalization 67, pushback 23, plain seed 22) + 40 MoralChoice anchors (`variant_kind=anchor`) = 248 rows, each with `meta.filter.rl_start` = its pass counts on the RL start `C2` at k=8, T=1.0 (all generated rows have 0 < passes < 8; 76 are at 7/8, a weak signal at G=8). `data/dilemmas/final/rl_reserve.jsonl` holds the 757 all-pass/all-fail items with counts, for the D20 re-filter from later checkpoints. The k=8 RL-start responses for the judge calibration: `outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl` (8 640 records; local only, 84 MB). eval-1-hard is scrapped; eval-2-hard is open (status E6), so monitor on the RL-train reward and the MoralChoice core suite.
+
+- 2026-10-03, chunk 6: **RL hold-out split** (Felix 2026-10-03), which supersedes the counts in the previous note:
+  `rl_train.jsonl` = **179 generated items (126 families) + 40 anchors = 219 rows**; `rl_holdout.jsonl` = **29 items
+  (23 families)**, never trained on (deliverable 9 says how to evaluate it); `rl_reserve.jsonl` = 703 items (all-pass
+  or all-fail on the RL start, held-out families removed). The k=8 RL-start records
+  (`outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl`, local only) cover RL-train, hold-out and reserve
+  items: `reward_scale measure` already restricts to `rl_train.jsonl` items; for the judge calibration either set is
+  fine (the judge does not train the policy). Selection code: `calign.dilemmas.filter select --rl-start-run ...
+  --pools p15 --holdout-share 0.15` (seed 20261002).
 
 ## Results
 

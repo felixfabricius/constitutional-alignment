@@ -14,9 +14,11 @@ Chunk 7 (stack, configs, step count, instance). Chunk 2/5 (core suite, LoRA serv
 ## Deliverables
 
 1. Run dirs `outputs/rl/C3/` and `outputs/rl/C4/`: `resolved_config.yaml`, `run_meta.json`, `steps.jsonl`
-   (per-step metrics), `checkpoint-<step>/` adapters, `monitor.md`.
+   (per-step metrics), `holdout.jsonl` (RL hold-out evaluation at step 0 and every 10 steps, chunk 7 deliverable 9),
+   `checkpoint-<step>/` adapters, `monitor.md`.
 2. Adapters pushed to HF `felixfabricius/gemma-3-27b-it-halden-rl` under `C3/checkpoint-<step>/`, `C4/...`.
-3. Eval configs `C3@s20..s80`, `C4@s20..s80`; core-suite run dirs for each; the per-checkpoint table.
+3. Eval configs `C3@s20..s80`, `C4@s20..s80`; core-suite run dirs for each; the per-checkpoint table (core
+   suite plus the RL hold-out reward and the training reward at the same step).
 4. Periodic Claude audit of the local judge on C4 (100 rollouts at steps 40 and 80, ~$1 each): agreement recorded.
 
 ## Steps (per run; C3 first)
@@ -27,7 +29,8 @@ Chunk 7 (stack, configs, step count, instance). Chunk 2/5 (core suite, LoRA serv
    the ssh connection, the Brev tunnel or the agent session drops; nothing in the run depends on the local machine.
    Record instance, log paths and ETA (steps x measured step time) in `status.md`; end the session if needed.
 2. Resume: check the `EXIT` line and `steps.jsonl`; run `calign.rl.monitor`; if a flag fires (length explosion,
-   mention spam on math rows, letter prior, zero-variance share), stop the run and check in with Felix (write the
+   mention spam on math rows, letter prior, zero-variance share, `holdout_gap`: training reward rising while the
+   RL hold-out reward stays flat), stop the run and check in with Felix (write the
    numbers to `status.md` E). Otherwise wait for completion.
 3. After completion: stop the trainer and servers; core suite on each checkpoint (LoRA-served on one GPU,
    ~15 min each, ~1.5 h); rsync `outputs/rl/<run>` (without optimizer states; adapters only) and the eval runs back;
@@ -55,8 +58,8 @@ GPU ~26 h: 2 runs x ~6 h wall-clock x 2 cards = 24, suites 3, judge card ~12 h a
 - Run crash mid-way: resume from the last adapter is **not** equivalent (optimizer state is not saved with
   `save_only_model`); restart from scratch unless the crash is within the first 10 steps. If restarts become a
   pattern, switch `save_only_model` off for the second run and accept the disk cost.
-- If C3 at step 80 shows no movement on the RL-train reward or on MoralChoice eval-1 / the hard subset (within noise
-  of the SFT start), still run C4 as planned; the null result is a result. (eval-1-hard, the earlier criterion, was
+- If C3 at step 80 shows no movement on the RL-train reward, the RL hold-out reward or MoralChoice eval-1 / the
+  hard subset (within noise of the SFT start), still run C4 as planned; the null result is a result. (eval-1-hard, the earlier criterion, was
   scrapped, Felix 2026-10-02.)
 
 ## Exit criteria

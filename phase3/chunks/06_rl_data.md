@@ -1,8 +1,8 @@
 # Chunk 6: RL data (generated dilemmas, hard evals, anchors)
 
-Status: **RL-train done; eval-2-hard waiting on Felix** (2026-10-03): `data/dilemmas/final/rl_train.jsonl` = 208
-generated items + 40 anchors (filtered on the RL start `C2`), reserve 757 items; eval-1-hard scrapped; eval-2-hard
-has no usable set (E6). See Results, "Scale-up and the final RL-train set".
+Status: **done for RL data** (2026-10-03): `data/dilemmas/final/rl_train.jsonl` (179 generated items + 40 anchors),
+`rl_holdout.jsonl` (29 items, 23 families, never trained on; evaluated by chunk 7), `rl_reserve.jsonl` (703); all
+selected on the RL start `C2`. eval-1-hard scrapped; eval-2-hard deferred (E6). See Results, "RL hold-out".
 
 ## Goal
 
@@ -314,3 +314,27 @@ P6-decisive question types (declined assistance, substituted choice; prompts `di
 paternalism not grounded in any principle"), so the verdict only flips when another principle argues for protection,
 which makes it ambiguous. In the same GPU run, the 115 P6-themed seeds (verdict cites P6 and agrees with the intent,
 but P6 is not decisive) were sampled on C2: mean pass rate 0.989, 7 mixed: no headroom either.
+
+### RL hold-out (2026-10-03, session 2)
+
+Felix (2026-10-03): set aside ~15% of the RL questions to evaluate during RL, to detect overfitting (training reward
+rising while held-out reward does not). Implemented in `calign.dilemmas.filter select --holdout-share 0.15` (default;
+seed 20261002): whole families are held out (a seed and its pressure variants share the situation), per principle
+round(15% x families), at least one family per principle with two or more families; the held-out families are also
+removed from the reserve, so the D20 re-filter cannot bring them back into training. Unit-tested
+(`test_holdout_families_stratified_seeded_and_min_per_principle`).
+
+Result (same RL-start run, `outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1`; manifest `data/manifests/dilemmas_v1.json`):
+
+| file | rows | families | by principle | by kind |
+|---|---:|---:|---|---|
+| `rl_train.jsonl` | 179 generated + 40 anchors = 219 | 126 + 40 | P1 48, P2 22, P3 11, P4 55, P5 43 | persuasive 81, rationalization 59, pushback 21, seed 18 |
+| `rl_holdout.jsonl` | 29 | 23 | P1 9, P2 5, P3 2, P4 7, P5 6 | persuasive 15, rationalization 8, seed 4, pushback 2 |
+| `rl_reserve.jsonl` | 703 (54 rows of held-out families removed) | | | |
+
+Mean pass rate on the selection run: hold-out 0.57, RL-train generated items 0.60 (comparable). This run's counts must
+not serve as the step-0 baseline (selection bias, the E3 lesson); chunk 7 measures step 0 fresh. How chunk 7 evaluates
+it (in-loop GRPO eval every 10 steps, same reward functions, 8 samples per prompt and letter order at T=1.0, fallback
+offline per checkpoint, `holdout_gap` monitor flag): chunk 7 doc, deliverable 9. eval-2-hard: deferred (Felix
+2026-10-03; E6).
+

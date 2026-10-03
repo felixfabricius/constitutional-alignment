@@ -1,10 +1,11 @@
 {
   "version": "dilemmas-v1",
-  "created_at": "2026-10-03T01:08:01+00:00",
+  "created_at": "2026-10-03T01:23:29+00:00",
   "rl_start_filter": "applied",
   "rules": {
     "rl_train": "0 < RL-start passes < k (unparsed = fail); no base condition",
-    "rl_reserve": "RL-train pool items that are all-pass or all-fail on the RL start (for the D20 re-filter)",
+    "rl_holdout": "15% of the generated RL-train families (seed 20261002, stratified by principle, >= 1 family per principle with >= 2), never trained on; chunk 7 evaluates it during RL",
+    "rl_reserve": "RL-train pool items that are all-pass or all-fail on the RL start (for the D20 re-filter), minus held-out families",
     "eval1_hard": "scrapped (Felix 2026-10-02): all P1-P5 families go to RL-train",
     "eval2_hard": "every P6 pool item (rule not yet confirmed by Felix); evaluation only",
     "anchors": "phase3_splits.json anchors, unfiltered, appended to rl_train"
@@ -13,7 +14,9 @@
     "pools": [
       "p15"
     ],
-    "eval2_rule": "all"
+    "eval2_rule": "all",
+    "holdout_share": 0.15,
+    "seed": 20261002
   },
   "inputs": {
     "pools": {
@@ -115,26 +118,26 @@
   },
   "sets": {
     "rl_train": {
-      "n_items": 248,
-      "n_families": 189,
+      "n_items": 219,
+      "n_families": 166,
       "by_kind": {
         "anchor": 40,
-        "persuasive_framing": 96,
-        "pushback": 23,
-        "rationalization": 67,
-        "seed": 22
+        "persuasive_framing": 81,
+        "pushback": 21,
+        "rationalization": 59,
+        "seed": 18
       },
       "by_principle": {
-        "P1": 57,
-        "P2": 27,
-        "P3": 13,
-        "P4": 62,
-        "P5": 49,
+        "P1": 48,
+        "P2": 22,
+        "P3": 11,
+        "P4": 55,
+        "P5": 43,
         "anchor": 40
       },
       "by_direction": {
-        "action1": 159,
-        "action2": 89
+        "action1": 142,
+        "action2": 77
       }
     },
     "eval2_hard": {
@@ -143,11 +146,58 @@
       "by_kind": {},
       "by_principle": {},
       "by_direction": {}
+    },
+    "rl_holdout": {
+      "n_items": 29,
+      "n_families": 23,
+      "by_kind": {
+        "persuasive_framing": 15,
+        "pushback": 2,
+        "rationalization": 8,
+        "seed": 4
+      },
+      "by_principle": {
+        "P1": 9,
+        "P2": 5,
+        "P3": 2,
+        "P4": 7,
+        "P5": 6
+      },
+      "by_direction": {
+        "action1": 17,
+        "action2": 12
+      }
     }
   },
-  "n_rl_train_generated": 208,
+  "n_rl_train_generated": 179,
   "n_anchors": 40,
-  "n_reserve": 757,
+  "n_reserve": 703,
+  "n_reserve_dropped_holdout_families": 54,
+  "holdout_families": [
+    "d1-softened_truth-39",
+    "d1-white_lie-21",
+    "d1-white_lie-23",
+    "d1-white_lie-48",
+    "d1-white_lie-53",
+    "d2-false_confidence-01",
+    "d2-false_confidence-05",
+    "d2-reassurance-42",
+    "d2-reassurance-48",
+    "d3-absent_third_party-00",
+    "d3-absent_third_party-08",
+    "d4-goal_preservation-06",
+    "d4-goal_preservation-23",
+    "d4-self_continuation-25",
+    "d4-self_continuation-40",
+    "d4-self_continuation-44",
+    "d4-self_continuation-47",
+    "d4-self_continuation-62",
+    "d5-benevolent_deception-17",
+    "d5-benevolent_deception-40",
+    "d5-benevolent_deception-54",
+    "d5-benevolent_nudge-44",
+    "d5-benevolent_nudge-46"
+  ],
   "ids": {
     "rl_train": [
       "d1-white_lie-01",
@@ -156,20 +206,16 @@
       "d1-white_lie-09",
       "d1-white_lie-17",
       "d1-white_lie-19",
-      "d1-white_lie-21",
-      "d1-white_lie-23",
       "d1-white_lie-25",
       "d1-white_lie-33",
       "d1-white_lie-37",
       "d1-white_lie-39",
       "d1-white_lie-40",
-      "d1-white_lie-48",
       "d1-white_lie-51",
       "d1-white_lie-52",
       "d1-white_lie-57",
       "d4-self_continuation-15",
       "d4-goal_preservation-22",
-      "d5-benevolent_deception-17",
       "d5-benevolent_nudge-00",
       "d5-benevolent_nudge-43",
       "d1-white_lie-01.push",
@@ -183,8 +229,6 @@
       "d1-white_lie-17.push",
       "d1-white_lie-17.rat",
       "d1-white_lie-19.push",
-      "d1-white_lie-21.push",
-      "d1-white_lie-21.rat",
       "d1-white_lie-25.pers",
       "d1-white_lie-27.rat",
       "d1-white_lie-31.push",
@@ -194,27 +238,20 @@
       "d1-white_lie-37.pers",
       "d1-white_lie-45.push",
       "d1-white_lie-45.rat",
-      "d1-white_lie-48.pers",
-      "d1-white_lie-48.rat",
       "d1-white_lie-49.pers",
       "d1-white_lie-49.rat",
       "d1-white_lie-51.push",
       "d1-white_lie-51.pers",
       "d1-white_lie-51.rat",
-      "d1-white_lie-53.pers",
       "d1-white_lie-55.rat",
       "d1-softened_truth-22.pers",
       "d1-softened_truth-23.push",
       "d1-softened_truth-23.pers",
-      "d1-softened_truth-39.pers",
       "d1-softened_truth-52.pers",
       "d1-softened_truth-52.rat",
       "d1-softened_truth-56.pers",
       "d1-softened_truth-58.pers",
       "d1-softened_truth-59.rat",
-      "d2-false_confidence-01.rat",
-      "d2-false_confidence-05.pers",
-      "d2-false_confidence-05.rat",
       "d2-false_confidence-07.rat",
       "d2-false_confidence-16.rat",
       "d2-false_confidence-18.rat",
@@ -234,16 +271,12 @@
       "d2-reassurance-26.pers",
       "d2-reassurance-37.push",
       "d2-reassurance-39.pers",
-      "d2-reassurance-42.pers",
       "d2-reassurance-45.pers",
-      "d2-reassurance-48.pers",
       "d2-reassurance-54.pers",
       "d2-reassurance-59.rat",
-      "d3-absent_third_party-00.pers",
       "d3-absent_third_party-02.pers",
       "d3-absent_third_party-04.pers",
       "d3-absent_third_party-06.rat",
-      "d3-absent_third_party-08.pers",
       "d3-absent_third_party-10.rat",
       "d3-absent_third_party-13.rat",
       "d3-requester_loyalty-12.pers",
@@ -267,7 +300,6 @@
       "d4-self_continuation-18.rat",
       "d4-self_continuation-23.pers",
       "d4-self_continuation-23.rat",
-      "d4-self_continuation-25.pers",
       "d4-self_continuation-26.pers",
       "d4-self_continuation-26.rat",
       "d4-self_continuation-32.push",
@@ -276,13 +308,10 @@
       "d4-self_continuation-34.rat",
       "d4-self_continuation-36.pers",
       "d4-self_continuation-39.pers",
-      "d4-self_continuation-40.pers",
       "d4-self_continuation-41.pers",
       "d4-self_continuation-41.rat",
       "d4-self_continuation-42.pers",
-      "d4-self_continuation-44.pers",
       "d4-self_continuation-45.rat",
-      "d4-self_continuation-47.rat",
       "d4-self_continuation-48.pers",
       "d4-self_continuation-48.rat",
       "d4-self_continuation-49.push",
@@ -291,13 +320,10 @@
       "d4-self_continuation-54.rat",
       "d4-self_continuation-55.pers",
       "d4-self_continuation-58.rat",
-      "d4-self_continuation-62.rat",
-      "d4-goal_preservation-06.rat",
       "d4-goal_preservation-08.pers",
       "d4-goal_preservation-11.rat",
       "d4-goal_preservation-12.pers",
       "d4-goal_preservation-14.pers",
-      "d4-goal_preservation-23.pers",
       "d4-goal_preservation-25.pers",
       "d4-goal_preservation-26.pers",
       "d4-goal_preservation-26.rat",
@@ -321,7 +347,6 @@
       "d5-benevolent_deception-14.pers",
       "d5-benevolent_deception-15.pers",
       "d5-benevolent_deception-15.rat",
-      "d5-benevolent_deception-17.push",
       "d5-benevolent_deception-24.pers",
       "d5-benevolent_deception-28.push",
       "d5-benevolent_deception-28.pers",
@@ -330,13 +355,11 @@
       "d5-benevolent_deception-34.pers",
       "d5-benevolent_deception-34.rat",
       "d5-benevolent_deception-36.pers",
-      "d5-benevolent_deception-40.pers",
       "d5-benevolent_deception-42.pers",
       "d5-benevolent_deception-44.pers",
       "d5-benevolent_deception-44.rat",
       "d5-benevolent_deception-49.pers",
       "d5-benevolent_deception-53.pers",
-      "d5-benevolent_deception-54.rat",
       "d5-benevolent_deception-58.pers",
       "d5-benevolent_deception-59.pers",
       "d5-benevolent_deception-61.pers",
@@ -353,8 +376,6 @@
       "d5-benevolent_nudge-40.pers",
       "d5-benevolent_nudge-43.push",
       "d5-benevolent_nudge-43.pers",
-      "d5-benevolent_nudge-44.pers",
-      "d5-benevolent_nudge-46.pers",
       "d5-benevolent_nudge-47.pers",
       "d5-benevolent_nudge-50.pers",
       "d5-benevolent_nudge-59.pers",
@@ -399,17 +420,52 @@
       "H_080",
       "H_096"
     ],
-    "eval2_hard": []
+    "eval2_hard": [],
+    "rl_holdout": [
+      "d1-white_lie-21",
+      "d1-white_lie-23",
+      "d1-white_lie-48",
+      "d5-benevolent_deception-17",
+      "d1-white_lie-21.push",
+      "d1-white_lie-21.rat",
+      "d1-white_lie-48.pers",
+      "d1-white_lie-48.rat",
+      "d1-white_lie-53.pers",
+      "d1-softened_truth-39.pers",
+      "d2-false_confidence-01.rat",
+      "d2-false_confidence-05.pers",
+      "d2-false_confidence-05.rat",
+      "d2-reassurance-42.pers",
+      "d2-reassurance-48.pers",
+      "d3-absent_third_party-00.pers",
+      "d3-absent_third_party-08.pers",
+      "d4-self_continuation-25.pers",
+      "d4-self_continuation-40.pers",
+      "d4-self_continuation-44.pers",
+      "d4-self_continuation-47.rat",
+      "d4-self_continuation-62.rat",
+      "d4-goal_preservation-06.rat",
+      "d4-goal_preservation-23.pers",
+      "d5-benevolent_deception-17.push",
+      "d5-benevolent_deception-40.pers",
+      "d5-benevolent_deception-54.rat",
+      "d5-benevolent_nudge-44.pers",
+      "d5-benevolent_nudge-46.pers"
+    ]
   },
-  "git_commit": "a58e3a275a5c80a71d8aff852d103ad37548d8dd",
+  "git_commit": "945bd4609431a0c44281dc668b1c27e90691188a",
   "files": {
     "rl_train": {
       "path": "data/dilemmas/final/rl_train.jsonl",
-      "sha256": "04f5f268fe4697635b4956a7982a82ed28efb0578ea5ab044701ee786a16fde7"
+      "sha256": "a82779c09bab4b7c3bd831c75a374a67ed18a4705dd0679a4d5850aabcb6bf94"
+    },
+    "rl_holdout": {
+      "path": "data/dilemmas/final/rl_holdout.jsonl",
+      "sha256": "6ad0d21d9d2a1a1429a07344776914ffa192ab88ff3ec767bed81a57a39d37e0"
     },
     "rl_reserve": {
       "path": "data/dilemmas/final/rl_reserve.jsonl",
-      "sha256": "29ee5a33fee73158f9eebe77b0d95802ced47b761c96050994787db5a7a6fb31"
+      "sha256": "391403644899a98d97e765157f5cd2bc03432f6638c22912d6a31d10226eeaf0"
     }
   },
   "hard_exemplars": {

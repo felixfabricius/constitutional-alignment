@@ -7,22 +7,26 @@ CLI:
     # any Dilemma file (e.g. a pilot's items.jsonl incl. rejected items) instead of the pools
     uv run python -m calign.dilemmas.filter sample --eval-config C2kn@e4 --file data/dilemmas/pilot/items.jsonl --k 8 \
         --temperature 1.0
-    # local: per-item counts -> final sets, anchors, reserve, manifest
+    # local: per-item counts -> final sets (RL-train, RL hold-out, eval-2-hard), anchors, reserve, manifest
     uv run python -m calign.dilemmas.filter select --rl-start-run outputs/dilemmas/C2kn@e4/dilemma_filter/<run> \
-        [--pools p15 p6] [--eval2-rule all|not_all_pass] [--dry-run]
+        [--pools p15 p6] [--holdout-share 0.15] [--eval2-rule all|not_all_pass] [--dry-run]
 
 Rules (Felix 2026-10-02): **RL-train** keeps items whose RL-start pass count at k=8, T=1.0 is strictly between 0 and
 k (a pass = parsed and equal to the verdict; an unparsed sample is a fail, as R1 scores it 0), so every kept item
 gives GRPO groups with reward variance; the base model plays no role. Items that are all-pass or all-fail on the RL
 start go to the **reserve** (`rl_reserve.jsonl`, with their counts) for the periodic re-filter from later checkpoints
-(D20). **eval-1-hard is scrapped** (all P1-P5 families go to RL-train; items still labelled eval1_hard in old pools
+(D20). **RL hold-out** (Felix 2026-10-03): a seeded share of the generated RL-train *families* (default 15%,
+stratified by principle, at least one family per principle that has two or more) is moved to `rl_holdout.jsonl`; RL
+never trains on it and chunk 7 evaluates it during training (step 0, every 10 steps, every checkpoint) to detect
+overfitting; reserve items of held-out families are dropped from the reserve so a later re-filter cannot leak them
+back into training. **eval-1-hard is scrapped** (all P1-P5 families go to RL-train; items still labelled eval1_hard in old pools
 are dropped). **eval-2-hard** (P6 pool, evaluation only): `--eval2-rule all` keeps every item (default until Felix
 picks the rule), `not_all_pass` keeps items the RL start does not get right k/k; C2's reference value on it must come
 from an independent sample (the suite's `hardsets` seed differs from this filter's). Anchors: the 40 `anchors` ids of
 data/manifests/phase3_splits.json as Dilemma rows (variant_kind=anchor, source=moralchoice) appended to the RL-train
 file, unfiltered.
 
-Outputs: data/dilemmas/final/{rl_train,eval2_hard,rl_reserve}.jsonl (Dilemma rows with `meta.filter`; committed),
+Outputs: data/dilemmas/final/{rl_train,rl_holdout,eval2_hard,rl_reserve}.jsonl (Dilemma rows with `meta.filter`; committed),
 data/dilemmas/<tag>/hard_seeds.txt (one exemplar per family whose items survived, for a sibling batch),
 data/manifests/dilemmas_v1.json.
 """
@@ -32,6 +36,7 @@ from __future__ import annotations
 import argparse
 import logging
 import math
+import random
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -236,6 +241,28 @@ def filter_decision(
     return True, None
 
 
+def holdout_families(items: list[Dilemma], share: float, seed: int, min_per_principle: int = 1) -> set[str]:
+    """Seeded family-level hold-out of the generated RL items: per principle, round(share x families) families, at
+    least `min_per_principle` when the principle has two or more families (a lone family stays in training)."""
+    by_p: dict[int, list[str]] = {}
+    for d in items:
+        if d.source != "generated" or d.principle_focus is None:
+            continue
+        fams = by_p.setdefault(d.principle_focus, [])
+        if d.family_id not in fams:
+            fams.append(d.family_id)
+    out: set[str] = set()
+    for p, fams in sorted(by_p.items()):
+        fams = sorted(fams)
+        n = round(share * len(fams))
+        if share > 0 and len(fams) >= 2:
+            n = max(n, min_per_principle)
+        n = min(n, len(fams) - 1) if len(fams) > 1 else 0
+        random.Random(f"{seed}:rl_holdout:P{p}").shuffle(fams)
+        out |= set(fams[:n])
+    return out
+
+
 def anchor_items(splits_path: Path = SPLITS_PATH) -> list[Dilemma]:
     """The MoralChoice RL anchors as Dilemma rows (unfiltered; their verdict principles feed the R2 relevance check)."""
     from calign.data.moralchoice import load_scenarios
@@ -328,7 +355,13 @@ def run_select(args: argparse.Namespace) -> dict:
             final[d.meta["set"]].append(row)
         elif reason in ("rl_start_all_pass", "rl_start_all_fail") and d.meta.get("set") == "rl_train":
             reserve.append(row)
-    generated_rl = list(final["rl_train"])
+    held = holdout_families(final["rl_train"], args.holdout_share, args.seed) if args.holdout_share > 0 else set()
+    final["rl_holdout"] = [
+        d.model_copy(update={"meta": {**d.meta, "set": "rl_holdout"}}) for d in final["rl_train"] if d.family_id in held
+    ]
+    generated_rl = [d for d in final["rl_train"] if d.family_id not in held]
+    n_reserve_all = len(reserve)
+    reserve = [d for d in reserve if d.family_id not in held]
     anchors = anchor_items()
     final["rl_train"] = generated_rl + anchors
 
@@ -347,7 +380,10 @@ def run_select(args: argparse.Namespace) -> dict:
         "rules": {
             "rl_train": "0 < RL-start passes < k (unparsed = fail); no base condition"
             + ("" if rl_applied else " [RL-start part pending]"),
-            "rl_reserve": "RL-train pool items that are all-pass or all-fail on the RL start (for the D20 re-filter)",
+            "rl_holdout": f"{args.holdout_share:.0%} of the generated RL-train families (seed {args.seed}, stratified by "
+            "principle, >= 1 family per principle with >= 2), never trained on; chunk 7 evaluates it during RL",
+            "rl_reserve": "RL-train pool items that are all-pass or all-fail on the RL start (for the D20 re-filter), "
+            "minus held-out families",
             "eval1_hard": "scrapped (Felix 2026-10-02): all P1-P5 families go to RL-train",
             "eval2_hard": {
                 "all": "every P6 pool item (rule not yet confirmed by Felix)",
@@ -356,7 +392,12 @@ def run_select(args: argparse.Namespace) -> dict:
             + "; evaluation only",
             "anchors": "phase3_splits.json anchors, unfiltered, appended to rl_train",
         },
-        "params": {"pools": args.pools, "eval2_rule": args.eval2_rule},
+        "params": {
+            "pools": args.pools,
+            "eval2_rule": args.eval2_rule,
+            "holdout_share": args.holdout_share,
+            "seed": args.seed,
+        },
         "inputs": {
             "pools": {t: file_provenance(pool_path(t)) for t in args.pools},
             "rl_start_run": (
@@ -376,6 +417,8 @@ def run_select(args: argparse.Namespace) -> dict:
         "n_rl_train_generated": len(generated_rl),
         "n_anchors": len(anchors),
         "n_reserve": len(reserve),
+        "n_reserve_dropped_holdout_families": n_reserve_all - len(reserve),
+        "holdout_families": sorted(held),
         "ids": {s: [d.item_id for d in v] for s, v in final.items()},
         "git_commit": git_commit(),
     }
@@ -417,6 +460,8 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--max-tokens", type=int, default=2048)
     c = sub.add_parser("select", help="local: final sets, anchors, manifest")
     c.add_argument("--eval2-rule", choices=EVAL2_RULES, default="all", help="eval-2-hard selection on the RL start")
+    c.add_argument("--holdout-share", type=float, default=0.15, help="share of generated RL-train families held out")
+    c.add_argument("--seed", type=int, default=DEFAULT_SEED, help="hold-out seed")
     c.add_argument("--rl-start-run", type=Path, default=None)
     c.add_argument("--pools", nargs="+", default=["p15", "p6"])
     c.add_argument("--manifest", type=Path, default=MANIFEST_PATH)

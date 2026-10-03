@@ -30,7 +30,9 @@ Chunks 4 (frozen suite, C0/C1 results), 8 (C3/C4 checkpoints and core suites), 5
    vs C0 and vs C2 with CIs, the primary comparisons (C1 vs C0, C2 vs C0 on eval-2 and the
    hard subset; C3 vs C2; C4 vs C3 on eval-2 and eval-2-hard; scenario deceptive-tier rates vs C0), feasibility
    flags and the sensitivity table, frontier plots (alignment vs each budget metric across SFT epochs and RL
-   checkpoints, per method).
+   checkpoints, per method), and a training-dynamics figure per RL run: training outcome reward vs RL hold-out
+   reward over steps (C3 and C4; `outputs/rl/<run>/steps.jsonl` and `holdout.jsonl`; Felix 2026-10-03), the in-
+   distribution overfitting check next to MoralChoice eval-1 / hard subset as the out-of-distribution one.
 4. **Write-up docs**: `phase3_runs.md` (model, data, every run dir, costs, results tables, caveats; same style as
    `phase2_runs.md`), `CLAUDE.md` Phase 3 status paragraph, `details.md` additions for new mechanics, README run
    order for Phase 3 (pointing at `phase3/README.md`).

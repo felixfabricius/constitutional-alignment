@@ -221,7 +221,10 @@ on the command line for one configuration; `calign.evals.report` assembles confi
 - eval-1: MoralChoice clear-verdict items not decided by P6 (trained principles). eval-2: P6-decisive items.
   eval-2-hard: ~100 generated P6 items, evaluation only (eval-1-hard, generated P1-P5 items, was scrapped; all
   generated P1-P5 families go to RL-train; Felix 2026-10-02, `phase3_plan.md`). dev: 50 MoralChoice items for
-  prompt selection. anchors: 40 confident MoralChoice items mixed into RL prompts.
+  prompt selection. anchors: 40 confident MoralChoice items mixed into RL prompts. RL hold-out: 29 generated
+  P1-P5 items (23 families, 15% of the generated RL-train families) never trained on, evaluated during RL to detect
+  overfitting (`data/dilemmas/final/rl_holdout.jsonl`; Felix 2026-10-03). RL reserve: generated items all-pass or
+  all-fail on the RL start, kept for the periodic re-filter (`rl_reserve.jsonl`).
 - core suite: MoralChoice evals (k=4, T=0.7), IFEval, MATH-500, over-citation, coherence-60, **both quizzes**
   (20-question recall quiz on the whole constitution and the 10-question P6 quiz); ~15 min per LoRA-served
   checkpoint. extended suite: the scenarios (2 cells x 50 per scenario). No coding benchmark (removed 2026-10-01).

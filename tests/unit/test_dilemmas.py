@@ -460,3 +460,17 @@ def test_pass_breakdown_separates_parse_failures():
     recs += [_rec("a", i, "action1") for i in range(4)]
     b = F.pass_breakdown(recs, items)["groups"]["all"]
     assert (b["mixed"], b["mixed_parsed"], b["all_pass"], b["parse_fail_samples"]) == (2, 1, 1, 1)
+
+
+def test_holdout_families_stratified_seeded_and_min_per_principle():
+    items = []
+    for p, n_fam in ((1, 20), (3, 3), (4, 1)):
+        for f in range(n_fam):
+            fam = f"d{p}-x-{f:02d}"
+            items.append(seed(fam, principle=p))
+            items.append(_variant(seed(fam, principle=p)))
+    held = F.holdout_families(items, 0.15, 7)
+    assert held == F.holdout_families(items, 0.15, 7)
+    by_p = {p: sum(h.startswith(f"d{p}-") for h in held) for p in (1, 3, 4)}
+    assert by_p == {1: 3, 3: 1, 4: 0}  # 15% of 20 = 3; a 3-family principle gets its minimum of 1; a lone family stays
+    assert F.holdout_families(items, 0.0, 7) == set()

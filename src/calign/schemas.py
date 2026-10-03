@@ -37,6 +37,7 @@ Split = Literal[
     "eval1_hard",  # deprecated 2026-10-02
     "eval2_hard",
     "dilemma_pool",
+    "rl_holdout",
 ]
 RuleLabel = Literal["Yes", "No", "No Agreement"]
 Decision = Literal["action1", "action2", "refusal", "invalid"]

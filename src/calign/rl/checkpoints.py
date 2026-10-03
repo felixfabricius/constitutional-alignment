@@ -2,7 +2,7 @@
 
 CLI (`push` on the GPU node, HF_TOKEN with write access; `eval-configs` anywhere):
     uv run python -m calign.rl.checkpoints push --run-dir outputs/rl/C3 --prefix C3 \
-        [--repo felixfabricius/gemma-3-27b-it-halden-rl] [--steps 20 40]
+        [--repo felixfabricius/gemma-3-27b-it-halden-rl] [--steps 20 40] [--only-new]
     uv run python -m calign.rl.checkpoints eval-configs --config-id C3 --run-dir outputs/rl/C3 [--steps 20 40] \
         [--revision <push revision>] [--local] [--suffix s]
 
@@ -54,12 +54,28 @@ def rl_start() -> tuple[str, str | None]:
     return m["model_path"], m.get("revision")
 
 
-def push(run_dir: Path, prefix: str, repo: str = RL_REPO, steps: list[int] | None = None) -> dict:
+def pushed_steps(run_dir: Path, prefix: str, repo: str = RL_REPO) -> set[int]:
+    """Checkpoint steps of this run already pushed to `repo` under `prefix` (from the push manifest)."""
+    if not (run_dir / PUSH_MANIFEST).exists():
+        return set()
+    man = read_json(run_dir / PUSH_MANIFEST)
+    return {s for p in man["pushes"] if p["repo"] == repo and p["prefix"] == prefix for s in p["steps"]}
+
+
+def push(
+    run_dir: Path, prefix: str, repo: str = RL_REPO, steps: list[int] | None = None, only_new: bool = False
+) -> dict | None:
     from huggingface_hub import CommitOperationAdd, HfApi
 
     from calign.paths import hf_token
 
     steps = steps or checkpoint_steps(run_dir)
+    if only_new:
+        done = pushed_steps(run_dir, prefix, repo)
+        steps = [s for s in steps if s not in done]
+        if not steps:
+            LOGGER.info("%s: every checkpoint already pushed to %s/%s", run_dir, repo, prefix)
+            return None
     if not steps:
         raise SystemExit(f"{run_dir}: no checkpoint-<step>/ adapters")
     api = HfApi(token=hf_token())
@@ -169,6 +185,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--prefix", required=True)
     p.add_argument("--repo", default=RL_REPO)
     p.add_argument("--steps", type=int, nargs="+", default=None)
+    p.add_argument("--only-new", action="store_true", help="skip steps already in the push manifest (idle watchdog)")
     e = sub.add_parser("eval-configs")
     e.add_argument("--config-id", required=True)
     e.add_argument("--run-dir", type=Path, required=True)
@@ -182,7 +199,7 @@ def main(argv: list[str] | None = None) -> None:
 
     load_env()
     if args.cmd == "push":
-        print(json.dumps(push(args.run_dir, args.prefix, args.repo, args.steps), indent=2))
+        print(json.dumps(push(args.run_dir, args.prefix, args.repo, args.steps, args.only_new), indent=2))
     else:
         for path in write_eval_configs(
             args.config_id, args.run_dir, args.steps, args.revision, args.local, args.suffix

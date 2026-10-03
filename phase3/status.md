@@ -22,6 +22,9 @@ Last updated: 2026-10-02 23:15 UTC (chunk 5b done). Update at every run start/en
 
 | instance | state | run / log | started (UTC) | expected end | chunk |
 |---|---|---|---|---|---|
+| p3-rl2 (massedcompute `A100_80Gx2`, 2 x A100 80 GB PCIe, $3.24/h, not stoppable) | **running** | chunk 7: 4B GRPO test (passed), reward-scale sample `outputs/rl/reward_scale/rs1`, C3 pilot at 16 prompts stopped after step 2 (`outputs/rl/C3_pilot`, timing), **C3 pilot at 12 prompts** `outputs/rl/C3_pilot12` (`outputs/logs/rl_pilot_C3_12.log`; rollout server `rollout_pilot12` on GPU 1) | 2026-10-03 02:35 | pilot ~05:45 | 7 |
+| p3-judge (massedcompute `A6000`, $0.68/h) | **deleted** 2026-10-03 ~03:40 UTC (labels synced) | chunk 7 judge calibration: 12B, 27B w8a8, 27B w8a8 with reasoning (all < 90%) | 02:35 | 03:40 | 7 |
+| p3-rl (denvr 8 x A100, $14.64/h) | **deleted** 2026-10-03 ~02:30 UTC after ~5 min (created by mistake, Felix: too expensive) | none | | | 7 |
 | p3-kn2 (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable) | **deleted** 2026-10-02 22:59 UTC (RL start pushed and verified, all run dirs and logs synced) | chunk 5b session B: merge e4, 27B lora_check, text-only export, push (`outputs/logs/s5kn_main.log`, `s5kn_push.log`), full core suite + scenario-1 deadline L1 n=50 on C2kn@e4 | 2026-10-02 22:04 | 22:57 | 5b |
 | p3-kn (massedcompute `A100_sxm4_80G`, $1.66/h, not stoppable) | **deleted** 2026-10-02 20:53 UTC (adapters on HF and verified, run dirs and logs synced) | chunk 5b session A: SFT kn (`outputs/logs/s5kn_train.log`), lite checks C2kn@e1..e6 (`outputs/logs/s5kn_lite.log`) | 2026-10-02 18:00 | 20:53 | 5b |
 | p3-scen (Crusoe `a100-80gb.1x`, $1.98/h) | **deleted** 2026-10-02 (all run dirs and logs synced to `outputs/scenarios/C0/`, `outputs/logs/s3_*`) | chunk 3 runs: v2.0 pilot, briefing v2.1 L1, v2.2 L1 + L0 | 2026-10-01 | done | 3 |

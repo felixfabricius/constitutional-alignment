@@ -19,6 +19,7 @@ rsync -rtz --info=stats1 \
     --exclude 'models/*/merged*/' \
     --exclude 'models/*/checkpoints/' \
     --exclude 'checkpoint-*/' \
+    --exclude 'rl/test_*/gemma*/' \
     --exclude '*.pid' \
     "$src" "$dst"
 echo "synced $src -> $dst"

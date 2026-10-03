@@ -59,8 +59,8 @@ reward:
   kind: outcome_cite
   cite_lambda: 0.5
   math_mention_lambda: 0.5
-  scale: 0.764                  # f = S3 / S4 = 0.356 / 0.466 (calign.rl.reward_scale measure, Claude judge, 2026-10-03)
-  scale_source: outputs/rl/reward_scale/rs1
+  scale: 0.767                  # f = S3 / S4 = 0.334 / 0.435 (per-principle citation score E8, RL-train incl. all-fail items; Claude judge; 2026-10-03)
+  scale_source: outputs/rl/reward_scale/rs2
 judge:
   # Claude as the citation judge (Felix 2026-10-03): no local judge reached the 90% agreement bar on cal1 (12B 75.7%,
   # 27B w8a8 78.6%, 27B w8a8 with reasoning 82.1%); sonnet-5 at low effort agrees with the medium-effort labels on 94%

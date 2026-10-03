@@ -81,6 +81,15 @@ Both runs complete with six adapters each on HF; core suites done; per-checkpoin
 - 2026-10-02, chunk 5: if chunk 5b is adopted, the report gains a **C2-app** row (SFT v3 epoch 4, LoRA-served, already
   fully evaluated: `outputs/evals/C2@e4`, scenario-1 `outputs/scenarios/C2@e4`); C2 becomes the knowledge-only start.
 
+- 2026-10-02, chunk 5b: chunk 5b was adopted. **RL start = C2 = knowledge-only SFT epoch 4**: text-only
+  `felixfabricius/gemma-3-27b-it-halden-sft-kn-e4@272d870` (`configs/model_sft_kne4.yaml`), adapter
+  `felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f` (eval configs `C2` = `C2kn@e4`). C2's runs live
+  under the id `C2kn@e4` (core suite `outputs/evals/C2kn@e4/suite/20261002_222528`, scenario 1
+  `outputs/scenarios/C2kn@e4/deadline_L1/20261002_225221_c074d99f`); C2-app = SFT v3 e4 under `C2@e4`. Starting values
+  for the RL monitoring (full suite): quiz recall 0.850, P6 0.910 (stop flags below 0.8), over-citation 1.3%, fluency
+  0.977, citation accuracy 0.774, MoralChoice eval-1 90.6 / hard 52.9, mention rate 93%. The core suite took ~31 min on
+  this checkpoint (LoRA-served) + ~$2.0 judging interactive (~$1.2 of it the 200-record judge sample).
+
 ## Results
 
 (fill on completion)

@@ -17,9 +17,10 @@ carry what each chunk needs.
 ## 2. The project in one paragraph
 
 Question: which methods make Gemma 3 27B-IT act in line with the Halden Constitution, and at what cost to general
-capability. Configurations: C0 base, C1 base + constitution system prompt, C2 SFT v3 (constitution corpus with the
-held-out principle P6 removed from transcripts and application documents, plus replay data), C3 SFT + GRPO with an
-outcome reward (R1), C4 SFT + GRPO with outcome plus citation-correctness reward (R2). Alignment is measured on
+capability. Configurations: C0 base, C1 base + constitution system prompt, C2 knowledge-only SFT (fact and
+explanatory documents on all six principles, no application material, plus replay data; the RL start, chunk 5b),
+C2-app SFT v3 (with application material, P6 held out; chunk 5), C3 C2 + GRPO with an
+outcome reward (R1), C4 C2 + GRPO with outcome plus citation-correctness reward (R2). Alignment is measured on
 MoralChoice (eval-1 on trained principles, eval-2 on P6-decisive items, plus the generated P6 hard set eval-2-hard) and on two new
 single-shot agentic scenarios (scenario 1 trained principles, scenario 2 P6). Budget is measured by IFEval, MATH-500,
 coherence and over-citation (no coding benchmark: removed 2026-10-01, MATH-500 is the STEM check). "Feasible" is a post-hoc label; the deliverable is the

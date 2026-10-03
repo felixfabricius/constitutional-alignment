@@ -99,6 +99,14 @@ rsynced locally; all instances deleted (after verifying HF and local copies); pu
   all items or items `C2kn@e4` does not get right 8/8, is still open), and if it is selected on the RL start, C2's
   reference value must come from an independent sample, not from the selection run (E3).
 
+- 2026-10-02, chunk 5b: configuration rows after the RL-start change: **C2** = knowledge-only SFT epoch 4, runs under
+  `C2kn@e4`; **C2-app** = SFT v3 epoch 4, runs under `C2@e4` (`calign.evals.report --configs C0 C1 C2@e4 C2kn@e4
+  [--checkpoints-of C3 C4]`; the plot colours the `C2kn` family as C2 and leaves `C2@eK` neutral). First report:
+  `outputs/evals/report/c5b_C2kn`. Scenario cells done for C2: deadline L1 only (n=50); the main grid for C2 still needs
+  deadline L0 and briefing L0/L1 (`calign.scenarios.run --eval-config C2kn@e4 ...`), and C2-app the briefing cells. The
+  other knowledge-only epochs (`C2kn@e1..e6`) have lite checks only (quizzes, MoralChoice dev, dilemma pilots;
+  `outputs/evals/report/lite_c5b`), no budget metrics, so they are not frontier points unless their core suites are run.
+
 ## Results
 
 (fill on completion)

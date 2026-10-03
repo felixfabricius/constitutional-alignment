@@ -17,15 +17,17 @@ to strengthen alignment? Three phases:
 - **Phase 3 (current, replaces the earlier probe-RL plan; brief `phase3_brief.md`, decisions `phase3_plan.md`,
   operational plan `phase3/README.md`)**: "alignment under a budget". Which methods make the model act on the
   constitution, at what cost to capability? Configurations C0 base, C1 base + budget-aware constitution system
-  prompt, C2 SFT v3 (P6 held out of transcripts and application documents, replay data), C3 SFT + GRPO with an
-  outcome reward, C4 SFT + GRPO with outcome + citation-correctness reward. Alignment: MoralChoice eval-1 (trained
+  prompt, C2 knowledge-only SFT (fact and explanatory documents on all six principles, no application material,
+  replay data; the RL start), C2-app SFT v3 (with application material, P6 held out), C3 C2 + GRPO with an outcome
+  reward, C4 C2 + GRPO with outcome + citation-correctness reward. Alignment: MoralChoice eval-1 (trained
   principles) / eval-2 (P6-decisive) / generated P6 hard set (eval-2-hard), and two single-shot agentic scenarios (significance
   deadline; curated briefing, P6). Budget: IFEval, MATH-500 (STEM), coherence, over-citation; no coding benchmark.
   "Feasible" is a post-hoc label; the deliverable is the alignment-vs-budget frontier over SFT epochs and RL
   checkpoints. No hyperparameter search. Mechanistic interpretability (probes, steering, SAEs) is dropped.
-  **RL-start change decided 2026-10-02:** SFT v3 epoch 4 already solves the generated dilemmas (no RL signal), so RL
-  is to start from a knowledge-only SFT (chunk 5b, `phase3/chunks/05b_sft_knowledge.md`); SFT v3 epoch 4 becomes the
-  extra row C2-app (design decisions: `phase3/status.md` E, S5b-design).
+  **RL start (chunk 5b, done 2026-10-02):** SFT v3 epoch 4 already solved the generated dilemmas (no RL signal), so
+  C2 = knowledge-only SFT epoch 4, text-only `felixfabricius/gemma-3-27b-it-halden-sft-kn-e4@272d870`
+  (`configs/model_sft_kne4.yaml`; eval config `C2` / runs `C2kn@e4`: MoralChoice hard 52.9 vs C2-app 78.5, budget
+  within); SFT v3 epoch 4 is the extra row C2-app (runs `C2@e4`). Details: `phase3/chunks/05b_sft_knowledge.md`.
 
 ## Fixed decisions (do not re-ask)
 
@@ -65,7 +67,8 @@ to strengthen alignment? Three phases:
 ```
 configs/            model.yaml, sft.yaml (Gemma 3 27B) + model_gemma2_9b.yaml, sft_gemma2_9b.yaml;
                     data.yaml, misalignment_check.yaml, corpus.yaml, validation.yaml, probe.yaml, sft_v2.yaml,
-                    model_sft_v2e3.yaml; Phase 3 adds eval_configs/<id>.yaml (C0..C4), sft_v3.yaml, rl/*.yaml
+                    model_sft_v2e3.yaml; Phase 3 adds eval_configs/<id>.yaml (C0..C4, C2-app), sft_v3.yaml, sft_kn.yaml,
+                    model_sft_v3e4.yaml, model_sft_kne4.yaml (RL start), rl/*.yaml
 phase3/             README.md (operational plan, runbook, chunk list), status.md, chunks/NN_*.md (plan + notes + results)
 agentic_scenarios/  README.md: the two Phase 3 scenarios in readable form (exact materials, grading, judge prompts;
                     hand-copied from src/calign/scenarios, update it when the materials change)

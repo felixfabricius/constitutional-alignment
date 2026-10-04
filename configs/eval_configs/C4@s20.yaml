@@ -1,0 +1,12 @@
+# C4@s20: the C4 GRPO adapter at optimizer step 20, LoRA-served on the text-only RL start
+# (written by calign.rl.checkpoints eval-configs; the adapters target model.layers.N, so the base is the
+# Gemma3ForCausalLM export, not the multimodal checkpoint).
+id: C4@s20
+label: C4 GRPO step 20
+model_config: configs/model_sft_kne4.yaml
+model_path: felixfabricius/gemma-3-27b-it-halden-sft-kn-e4
+revision: 272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-rl/C4/checkpoint-20@67e16874eb83c107cdd8ce3a1b9e005d60b2d4b3
+system_prompt_variant: none
+stage: rl
+notes: RL adapter of outputs/rl/C4 at step 20 on the text-only RL start (calign.rl.checkpoints)

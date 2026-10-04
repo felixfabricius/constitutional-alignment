@@ -1,0 +1,12 @@
+# C3@s30: the C3 GRPO adapter at optimizer step 30, LoRA-served on the text-only RL start
+# (written by calign.rl.checkpoints eval-configs; the adapters target model.layers.N, so the base is the
+# Gemma3ForCausalLM export, not the multimodal checkpoint).
+id: C3@s30
+label: C3 GRPO step 30
+model_config: configs/model_sft_kne4.yaml
+model_path: felixfabricius/gemma-3-27b-it-halden-sft-kn-e4
+revision: 272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-rl/C3/checkpoint-30@a7daade549c13849082cb6d8f118ed68c00e3e75
+system_prompt_variant: none
+stage: rl
+notes: RL adapter of outputs/rl/C3 at step 30 on the text-only RL start (calign.rl.checkpoints)

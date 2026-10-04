@@ -1,0 +1,11 @@
+# SFTP (chunk 9, exploratory): C2 (knowledge-only SFT epoch 4, the RL start) + the chosen C1 system prompt
+# (budget_silent, D18). Same model as C2kn@e4; only the system-prompt variant differs.
+id: SFTP
+label: knowledge-only SFT + constitution system prompt (budget_silent)
+model_config: configs/model.yaml
+model_path: google/gemma-3-27b-it
+revision: null
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f2bf55925982529a30bab5395dc7452548
+system_prompt_variant: budget_silent
+stage: sft
+notes: "chunk 9 exploratory configuration: SFT + prompt"

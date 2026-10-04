@@ -66,6 +66,21 @@ GPU ~5 h. Claude ~$15.
 Report and plots in `outputs/evals/report/<run>/`; `phase3_runs.md` written; CLAUDE.md status updated; all run dirs
 rsynced locally; all instances deleted (after verifying HF and local copies); pushed.
 
+## Selection (Felix 2026-10-04; `phase3_plan.md`, row "Chunk 9 checkpoint selection")
+
+Every C3 and C4 checkpoint is within all four budget margins, so the rule in deliverable 1 would pick s60 for both;
+C4@s60 fails knowledge retention (P6 quiz 0.43, E9). Felix's selection instead:
+
+- extended suite (scenarios, main grid {deadline, briefing} x {L0, L1} x 50) on **C3@s60**, **C4@s20**, **C4@s50**;
+  plus the cells C2 (`C2kn@e4`) and C2-app (`C2@e4`) still lack (deadline L0, briefing L0 / L1) and **SFTP**
+  (`configs/eval_configs/SFTP.yaml`: C2 + budget_silent; core suite + main grid);
+- primary comparisons: **C4@s20** for scenario 2 (briefing, the P6 scenario) and the P6 questions (eval-2, P6 quiz;
+  eval-2-hard if it gets a set); **C4@s50** for every other C4 comparison (eval-1, hard subset, scenario 1, budget);
+  C3@s60 throughout;
+- the write-up states that the per-component C4 choice is post hoc and may favour C4 (C4@s50 = best citation term,
+  hold-out r_cite +0.091; C4@s20 = last checkpoint with P6 quiz >= 0.8), and shows all checkpoints in the trajectory
+  tables (quizzes, hold-out, core suite) so the reader can see the trade-off.
+
 ## Notes from other chunks
 
 (append: date, source chunk, note)

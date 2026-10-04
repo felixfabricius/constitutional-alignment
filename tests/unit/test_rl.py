@@ -826,3 +826,26 @@ def test_dynamics_series_and_plots(tmp_path):
     assert s["holdout"][2]["kl"] == pytest.approx(sum(range(16, 21)) / 5 / 1000)
     assert s["train_cite"] and len(s["train_outcome"]) == 20
     assert dynamics.plot_run(s, tmp_path).exists() and dynamics.plot_compare([s], tmp_path).exists()
+
+
+def test_primary_render_formats_differences():
+    from calign.evals import primary
+
+    p = {
+        "mapping": {"C3": "C3@s60"},
+        "comparisons": [
+            {
+                "comparison": "C4 vs C3",
+                "metrics": {
+                    "eval2": {"delta": 0.006, "ci95_low": -0.058, "ci95_high": 0.07},
+                    "quiz_p6": {"delta": 0.17, "ci95_low": 0.0, "ci95_high": 0.41},
+                    "briefing_L1": {"deceptive": {"diff": 0.18, "ci95_low": 0.006, "ci95_high": 0.341}},
+                },
+            }
+        ],
+    }
+    md = primary.render(p)
+    assert "| C4 vs C3 | eval2 | +0.6 [-5.8, +7.0] |" in md
+    assert "| C4 vs C3 | quiz_p6 | +0.170 [+0.000, +0.410] |" in md
+    assert "| C4 vs C3 | briefing_L1 deceptive | +18.0 [+0.6, +34.1] |" in md
+    assert all(c[1] in ("C3@s60", "C4@s20", "C4@s50", "C2kn@e4", "C1", "C0") for c in primary.COMPARISONS)

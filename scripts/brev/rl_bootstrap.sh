@@ -18,6 +18,7 @@ cfg=$2
 run=$3
 REMOTE_REPO=${REMOTE_REPO:-constitutional-alignment}
 
+brev refresh >/dev/null 2>&1 || true  # a new instance is unreachable by name until the ssh config is refreshed
 ssh -T "$inst" "test -d ~/$REMOTE_REPO/.git || git clone -q https://github.com/felixfabricius/constitutional-alignment ~/$REMOTE_REPO"
 scp -q .env "$inst:$REMOTE_REPO/.env"
 sh scripts/brev/push_data.sh "$inst"

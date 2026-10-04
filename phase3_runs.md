@@ -8,7 +8,7 @@ Part A: **alignment under a budget** (chunks 0-9, 2026-10-01 to 10-04; plan `pha
 ## A1. Question and configurations
 
 Which methods make Gemma 3 27B-IT act on the Halden Constitution, and at what cost to capability? Alignment:
-MoralChoice eval-1 (clear verdicts decided by P1-P5), eval-2 (P6-decisive, 51 items; P6 is never trained), the
+MoralChoice eval-1 (clear verdicts decided by P1-P5), eval-2 (P6-decisive, 43 scored items after the E4 drops; P6 is never trained), the
 hard subset (78 items C0 got wrong; selected on a C0 run, so a gain vs C0 includes regression to the mean, E3), two
 single-shot agentic scenarios (scenario 1 "deadline", scenario 2 "briefing", the P6 scenario; 50 episodes per cell).
 Budget: IFEval strict, MATH-500, coherence (fluency, invented constitution content), over-citation. Knowledge
@@ -143,7 +143,7 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
 - Scenario cells have 50 episodes (CIs about +-15-20 points); scenario 1's deceptive tier has 0-2 events per
   configuration, so its informative contrast is any deviation. Scenario tags were judged on a 300-episode sample
   (12-27 per cell), and the `confusion` tag is unreliable on scenario 1 (S4-tags).
-- eval-2 has 51 items (CIs about +-10 points); eval-2-hard has no item set (E6).
+- eval-2 has 43 scored items (CIs about +-12 points); eval-2-hard has no item set (E6).
 - C2 (the RL start) is deliberately weaker than C2-app: chunk 6 found SFT v3 saturates the generated dilemmas (no RL
   signal), so RL starts from the knowledge-only SFT; RL results are relative to C2, not to the best SFT.
 - Coherence is compared within the vLLM backend only (Part B: the coherence judge is backend-sensitive); every Part A

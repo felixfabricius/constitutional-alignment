@@ -118,7 +118,8 @@ while true; do
             exit 0
         fi
         log "deleting $inst (preserved, synced, verified)"
-        brev delete "$inst" && log "deleted" && exit 0
+        # brev create/delete can hang without output (2026-10-04): time out and retry at the next poll
+        timeout 300 brev delete "$inst" && log "deleted" && exit 0
         log "brev delete failed; retrying next poll"
     fi
     sleep "$POLL_S"

@@ -34,7 +34,7 @@ IDLE_MIN=${IDLE_MIN:-30}
 POLL_S=${POLL_S:-300}
 DRY_RUN=${DRY_RUN:-0}
 REMOTE_REPO=${REMOTE_REPO:-constitutional-alignment}
-EXCLUDES="--exclude test_*/gemma*/--exclude models/*/merged*/--exclude models/*/checkpoints/ --exclude checkpoint-*/ --exclude *.pid"
+EXCLUDES="--exclude test_*/gemma*/ --exclude models/*/merged*/ --exclude models/*/checkpoints/ --exclude checkpoint-*/ --exclude *.pid"
 
 log() { echo "[watchdog $inst] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 

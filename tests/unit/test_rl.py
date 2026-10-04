@@ -809,3 +809,20 @@ def test_monitor_letter_prior_uses_correct_letter_share(tmp_path):
         r["letter"] = "A"
     (tmp_path / "rollouts.jsonl").write_text("\n".join(json.dumps(r) for r in rollouts) + "\n", encoding="utf-8")
     assert [f for f in monitor.run(tmp_path)["flags"] if f["flag"] == "letter_prior"]
+
+
+def test_dynamics_series_and_plots(tmp_path):
+    from calign.rl import dynamics
+
+    run = tmp_path / "C4"
+    run.mkdir()
+    steps = [{"step": s, "r_outcome/dilemma": 0.5 + s / 100, "r_cite/dilemma": -0.1 + s / 100, "kl": s / 1000}
+             for s in range(1, 21)]  # fmt: skip
+    (run / "steps.jsonl").write_text("\n".join(json.dumps(r) for r in steps) + "\n", encoding="utf-8")
+    hold = [{"step": s, "outcome": 0.6 + s / 100, "outcome_se": 0.05, "r_cite": -0.05 + s / 200} for s in (0, 10, 20)]
+    (run / "holdout.jsonl").write_text("\n".join(json.dumps(r) for r in hold) + "\n", encoding="utf-8")
+    s = dynamics.run_series(run)
+    assert [h["step"] for h in s["holdout"]] == [0, 10, 20] and s["holdout"][0]["kl"] == 0.0
+    assert s["holdout"][2]["kl"] == pytest.approx(sum(range(16, 21)) / 5 / 1000)
+    assert s["train_cite"] and len(s["train_outcome"]) == 20
+    assert dynamics.plot_run(s, tmp_path).exists() and dynamics.plot_compare([s], tmp_path).exists()

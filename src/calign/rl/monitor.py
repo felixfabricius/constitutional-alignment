@@ -214,6 +214,26 @@ def holdout_flags(traj: list[dict]) -> list[dict]:
     return []
 
 
+def suite_quizzes(config_dir: Path) -> dict | None:
+    """{"recall": score, "p6": score, "suite": dir} from the newest suite under `<config dir>/suite/`, or None."""
+    if not (config_dir / "suite").exists():
+        return None
+    suites = sorted(p for p in (config_dir / "suite").iterdir() if (p / "suite.json").exists())
+    if not suites:
+        return None
+    manifest = json.loads((suites[-1] / "suite.json").read_text(encoding="utf-8"))
+    quiz_dir = manifest.get("components", {}).get("quiz")
+    summary_path = Path(quiz_dir) / "summary.json" if quiz_dir else None
+    if summary_path is not None and not summary_path.is_absolute():
+        summary_path = REPO_ROOT / summary_path
+    if summary_path is None or not summary_path.exists():
+        return None
+    s = json.loads(summary_path.read_text(encoding="utf-8"))
+    return {q: (s.get(q) or {}).get("mean_correct", {}).get("mean") for q in ("recall", "p6")} | {
+        "suite": str(suites[-1]).replace("\\", "/")
+    }
+
+
 def checkpoint_quizzes(config_id: str, evals_root: Path | None = None) -> dict[int, dict]:
     """step -> {"recall": score, "p6": score, "suite": dir} from the newest suite of each `<config_id>@s<step>`."""
     root = evals_root or OUTPUTS_DIR / "evals"
@@ -223,22 +243,8 @@ def checkpoint_quizzes(config_id: str, evals_root: Path | None = None) -> dict[i
     pat = re.compile(rf"^{re.escape(config_id)}@s(\d+)$")
     for d in sorted(root.iterdir()):
         m = pat.match(d.name)
-        if not m or not (d / "suite").exists():
-            continue
-        suites = sorted(p for p in (d / "suite").iterdir() if (p / "suite.json").exists())
-        if not suites:
-            continue
-        manifest = json.loads((suites[-1] / "suite.json").read_text(encoding="utf-8"))
-        quiz_dir = manifest.get("components", {}).get("quiz")
-        summary_path = Path(quiz_dir) / "summary.json" if quiz_dir else None
-        if summary_path is not None and not summary_path.is_absolute():
-            summary_path = REPO_ROOT / summary_path
-        if summary_path is None or not summary_path.exists():
-            continue
-        s = json.loads(summary_path.read_text(encoding="utf-8"))
-        out[int(m.group(1))] = {q: (s.get(q) or {}).get("mean_correct", {}).get("mean") for q in ("recall", "p6")} | {
-            "suite": str(suites[-1]).replace("\\", "/")
-        }
+        if m and (q := suite_quizzes(d)) is not None:
+            out[int(m.group(1))] = q
     return out
 
 

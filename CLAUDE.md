@@ -33,7 +33,7 @@ to strengthen alignment? Three phases:
 60 GRPO steps on C2 (adapters on HF `felixfabricius/gemma-3-27b-it-halden-rl`); chunk 9 uses C3@s60, C4@s20 (scenario 2,
 P6 items) and C4@s50 (rest; post hoc, Felix). Readings: the prompt (C1) is the strongest cheap lever but breaks the
 over-citation margin (6.8%); application SFT (C2-app) is best on every alignment measure within budget (scenario 2
-deception 20% vs C0 80%); RL on C2 adds eval-1 +2.2, hard +5.1, nothing measurable in the scenarios; the citation
+deception 20% vs C0 80%; its P6 hold-out was partial: 162 of 912 kept examples apply or cite P6, `phase3_runs.md` A7); RL on C2 adds eval-1 +2.2, hard +5.1, nothing measurable in the scenarios; the citation
 reward (C4) is learned in-distribution but does not transfer, does not beat C3, and erodes P6 knowledge after step 30
 (RL-train has no P6 items, so P6 citations count as wrong). eval-2-hard has no item set (E6).
 

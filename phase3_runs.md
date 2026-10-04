@@ -19,7 +19,7 @@ retention: recall quiz (20 questions) and P6 quiz (10). Frozen suite `p3-v1` (RE
 | C0 | Gemma 3 27B-IT | `google/gemma-3-27b-it` | `C0` |
 | C1 | C0 + budget-aware constitution system prompt (`budget_silent`, D18) | base | `C1` |
 | C2 | knowledge-only SFT epoch 4 (fact and explanatory documents on all six principles, no application material, replay); the RL start | LoRA `felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f`; merged text-only `...-sft-kn-e4@272d870` | `C2kn@e4` |
-| C2-app | application SFT v3 epoch 4 (P6 application material held out) | LoRA `...-halden-sft-v3`, epoch 4 | `C2@e4` |
+| C2-app | application SFT v3 epoch 4 (P6's own transcripts and P6-central application documents removed; P6 still applied in ~162 kept examples, see A7) | LoRA `...-halden-sft-v3`, epoch 4 | `C2@e4` |
 | SFTP | C2 + the C1 prompt (exploratory) | as C2 | `SFTP` |
 | C3 | C2 + GRPO, outcome reward | `felixfabricius/gemma-3-27b-it-halden-rl/C3/checkpoint-60` | `C3@s60` |
 | C4 | C2 + GRPO, outcome + per-principle citation reward | `.../C4/checkpoint-{20,50}` | `C4@s20`, `C4@s50` |
@@ -121,7 +121,11 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
 2. **Knowledge-only SFT (C2) teaches the constitution but barely changes behaviour under pressure**: quizzes 0.85 /
    0.91, eval-1 +5.4, hard +31.4 (part regression to the mean), scenario 2 deception 76% (C0 80%).
 3. **Application SFT (C2-app) is the strongest configuration on every alignment measure, within budget**: eval-1 95.5,
-   hard 78.5, eval-2 68.6, scenario 2 deception 20% (C0 80%), although its P6 application material was held out.
+   hard 78.5, eval-2 68.6, scenario 2 deception 20% (C0 80%). Its training data was **not** P6-free (A7): the D17 rule
+   removed P6's own transcripts and P6-central application documents, but 162 of 912 kept examples apply or cite P6
+   (82 P1-P5 transcripts, 52 application documents where P6 is not central, 28 manuals), several on exactly scenario
+   2's theme (do not withhold information from the person deciding). Its P6 results are therefore not evidence of
+   transfer to an unseen principle.
 4. **RL on top of C2 (C3) adds a little on MoralChoice and nothing measurable in the scenarios**: eval-1 +2.2 [+0.7,
    +3.8], hard +5.1 [0.0, +10.6], eval-2 flat; scenario differences vs C2 within noise. The gain arrives by step
    10-20 and the training reward saturates (zero-variance groups up to 69%). Budget unchanged. RL generalises within
@@ -144,6 +148,13 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
   configuration, so its informative contrast is any deviation. Scenario tags were judged on a 300-episode sample
   (12-27 per cell), and the `confusion` tag is unreliable on scenario 1 (S4-tags).
 - eval-2 has 43 scored items (CIs about +-12 points); eval-2-hard has no item set (E6).
+- **The P6 hold-out of C2-app was partial** (found 2026-10-04): `data/sft_v3/train.jsonl` keeps 337 of 912 examples that
+  mention P6, 162 of them application-type (P1-P5 transcripts citing P6: 82 / 123; case studies, worked conflict
+  examples, dialogues, fiction with P6 not central: 52 / 153; training manuals: 28 / 46). Spot checks show applied P6
+  reasoning ("she's entitled to accurate information to decide her own path"). This follows the D17 rule (other
+  principles' transcripts citing P6 are kept; documents are dropped only if P6 is central), but it means C2-app's eval-2
+  and scenario-2 results include in-distribution P6 application. The knowledge-only data (C2) mentions P6 only in fact
+  and explanatory types (125 / 501, audited for worked cases).
 - C2 (the RL start) is deliberately weaker than C2-app: chunk 6 found SFT v3 saturates the generated dilemmas (no RL
   signal), so RL starts from the knowledge-only SFT; RL results are relative to C2, not to the best SFT.
 - Coherence is compared within the vLLM backend only (Part B: the coherence judge is backend-sensitive); every Part A

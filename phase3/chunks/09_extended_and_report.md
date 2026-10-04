@@ -126,4 +126,19 @@ C4@s60 fails knowledge retention (P6 quiz 0.43, E9). Felix's selection instead:
 
 ## Results
 
-(fill on completion)
+**Done 2026-10-04.** Write-up: `phase3_runs.md` Part A (configurations, RL setup, main table, primary comparisons,
+RL trajectories, readings, caveats, costs). Report dir `outputs/evals/report/final_c9/`: `summary.{json,md}`
+(`calign.evals.report --configs C0 C1 C2kn@e4 C2@e4 SFTP C3@s60 C4@s20 C4@s50 --checkpoints-of C2 C3 C4`),
+`primary.{json,md}` (`calign.evals.primary`, D15 comparisons with the C4 mapping), `frontier_<budget>.png`,
+`dynamics_{C3,C4,compare}.png` + `dynamics.json` (`calign.rl.dynamics`).
+
+GPU (`p3-c9`, 2 x A100, ~1.8 h, `scripts/brev/chunk9_gpu.sh`): scenario main grid {deadline, briefing} x {L0, L1} x 50
+for SFTP, C3@s60, C4@s20, C4@s50 and the missing cells of C2 (`C2kn@e4`) and C2-app (`C2@e4`); SFTP core suite.
+Local: SFTP judge phase ($1.85), coherence on the 90-text set v2 for C3@s60 / C4@s20 / C4@s50 ($0.89), scenario tags
+on a 300-episode sample of the L1 cells of all eight configurations ($2.25).
+
+Headline (details in `phase3_runs.md` A6): the prompt (C1) is the strongest cheap lever but outside the over-citation
+margin; application SFT (C2-app) is the best configuration on every alignment measure within budget (scenario 2
+deception 20% vs C0 80%); RL on the knowledge-only start adds eval-1 +2.2 and hard +5.1 (C3 vs C2) and nothing
+measurable in the scenarios; the citation reward (C4) is learned in-distribution but does not transfer, does not beat
+C3, deceives more on scenario 2 at s20 (+18 [+0.6, +34.1] vs C3), and erodes P6 knowledge after step 30.

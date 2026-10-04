@@ -434,6 +434,35 @@ Companion to `CLAUDE.md`. Keep it current when behaviour changes.
   `_calculate_rewards`: its `log_metric` buffer is flushed only by the next training batch, so hold-out metrics would
   leak into the next training step's log. Evaluation lines in `steps.jsonl` (`eval_*` keys) are skipped by
   `monitor.read_steps`. `_generate` is private TRL API (pinned 1.14.1), checked by the 4B GPU test.
+- Citation judge = Claude (chunk 7-8): `judge.backend: claude` sends the `cite-judge-v1` prompt + "Reply with the label
+  only." to `claude_model` at `claude_effort` (interactive, a fresh `ClaudeClient` per `labels()` batch because
+  `asyncio.run` makes a new event loop); the JSONL cache key includes `model:effort`, and each batch's cost goes to
+  `judge_usage.jsonl` next to the cache. The vLLM backend (`judge.quantization`, `judge.enforce_eager`) stays for local
+  judges: on Ampere vLLM's fp8 path fails (torch.compile inductor error; eager hits an sm80 CUTLASS fp8 kernel), the
+  INT8 checkpoint `RedHatAI/gemma-3-27b-it-quantized.w8a8` works.
+- C4 citation score (E8): `citations.check_citations` returns relevant (R) and wrong (W) principle sets;
+  `citations.cite_score(chk, j)` = (|R| j - |W|) / |C|; the judge sees `citation_sentences(text, only=R)`. Final
+  without the judge: c = 0 (nothing cited), c = -1 (nothing relevant). No P4/P5 priority exception.
+- Node scripts (chunk 8): `rl_bootstrap.sh <inst> <cfg> <run>` (local: `brev refresh`, clone, .env, data, then one
+  detached job = `rl_setup.sh` + `rl_run.sh`); `rl_run.sh` = rollout server, `push_loop.sh` (pushes settled checkpoints
+  to HF during the run, `checkpoints push --only-new`), trainer, eval configs from the push manifest, `rl_suites.sh`
+  (core suites over free GPUs). `push_data.sh` copies the gitignored `data/scenarios` the core suite needs.
+- Idle watchdog (`scripts/brev/idle_watchdog.sh`, local, started from Windows via a hidden `wsl.exe`): deletes after
+  30 idle minutes only after `preserve.sh` (unpushed RL adapters -> HF), rsync with `--update` (instance logs to
+  `outputs/logs/<inst>/`) and an empty dry-run rsync. Pitfalls met: Brev's ssh_config sets `RequestTTY yes` (use
+  `ssh -T`, strip `\r`); a failing `brev ls` is not "deleted"; `brev create` / `brev delete` can hang without output
+  (delete under `timeout 300`; check `brev ls` after a create); a new instance is not resolvable by name until
+  `brev refresh`; shell scripts must be LF (`.gitattributes`); `pkill -f <pattern>` also kills the ssh shell whose
+  command line contains the pattern (kill by pid).
+- vLLM on hosts without a CUDA toolkit (massedcompute): FlashInfer's sampler JIT needs nvcc and the engine dies in
+  warm-up; `run_bg.sh` sets `VLLM_USE_FLASHINFER_SAMPLER=0` there (PyTorch sampler, same distribution).
+- LoRA serving of RL adapters: no merged checkpoint exists, so `lora_check delta` compares the adapter's effect
+  (served - vLLM base) with the PEFT effect (HF PEFT - HF base); a 20-step delta (~0.07 nats/token) sits at the
+  vLLM-vs-HF noise floor (0.06), so scale lora_B (`--scale 8`) to test the mapping.
+- Monitor `letter_prior` compares the chosen-A share with the correct-is-A share of the same rollouts: the raw A share
+  tracks which letter orders a step sampled (both chunk 8 runs fell to 0.35 at steps 21-25 with 36% A-correct rows).
+- Analysis CLIs (chunk 9): `calign.rl.dynamics` (training vs hold-out figures, matched-KL view, quiz trajectories),
+  `calign.evals.primary` (D15 comparisons with the C4 checkpoint mapping), `calign.rl.checkpoints eval-configs`.
 
 ## Phase 3 SFT v3 and LoRA serving (chunk 5)
 

@@ -187,7 +187,7 @@ Every run directory keeps the raw records (`samples.jsonl` / `records.jsonl`), `
 
 Two inference-time baselines for the selected SFT checkpoint on the agentic-misalignment scenarios, compared with the
 existing base and epoch-3 runs. Same protocol as every agentic run (`configs/misalignment_check.yaml`: 12 conditions x
-25 samples, T=1.0, max_tokens 4000). Results and run dirs: `phase3_runs.md`. `M` and `STEER` as in:
+25 samples, T=1.0, max_tokens 4000). Results and run dirs: `phase3_runs.md` Part B. `M` and `STEER` as in:
 
 ```bash
 M="--model-config configs/model_sft_v2e3.yaml --stage sft_merged --skip-classify"
@@ -262,6 +262,26 @@ uv run python -m calign.evals.suite --judge-only --eval-config C0 [--coherence-r
 uv run python -m calign.evals.report --configs C0 [C1 C2 ...] [--checkpoints-of C3 C4]
 uv run python diagnostics/show_verdict_audit.py --n-hard 30 --n-random 10      # D4 audit for Felix
 ```
+
+RL and the final report (chunks 7-9; GPU steps run on 2 x A100 nodes through the scripts, each with an idle watchdog):
+
+```bash
+# chunk 7: judge calibration (local), reward scale f for C4 (local with the Claude judge)
+uv run python -m calign.rl.calibrate_judge sample --records outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl
+uv run python -m calign.rl.reward_scale measure --config configs/rl/C4.yaml --run-dir outputs/rl/reward_scale/rs2 \
+    --dilemma-records outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl
+# chunk 8: one node per run (WSL), then the watchdog (command in scripts/brev/idle_watchdog.sh)
+sh scripts/brev/rl_bootstrap.sh p3-c3 configs/rl/C3.yaml C3       # rollout server, trainer, HF pushes, core suites
+uv run python -m calign.rl.checkpoints eval-configs --config-id C3 --run-dir outputs/rl/C3 --steps 10 20 30 40 50 60
+uv run python -m calign.evals.suite --judge-only --suite-run outputs/evals/C3@s60/suite/<run> --no-batches
+# chunk 9: scenarios + SFTP (GPU: scripts/brev/chunk9_gpu.sh), then the report
+uv run python -m calign.evals.report --configs C0 C1 C2kn@e4 C2@e4 SFTP C3@s60 C4@s20 C4@s50 \
+    --checkpoints-of C2 C3 C4 --out outputs/evals/report/final_c9
+uv run python -m calign.evals.primary --out outputs/evals/report/final_c9
+uv run python -m calign.rl.dynamics --runs outputs/rl/C3 outputs/rl/C4 --out outputs/evals/report/final_c9
+```
+
+Results: `phase3_runs.md` Part A.
 
 Every component also has its own CLI (`calign.evals.{moralchoice,ifeval,math500,overcitation,coherence,quiz}`,
 subcommands `sample` / `report` and the judge steps) for single reruns.

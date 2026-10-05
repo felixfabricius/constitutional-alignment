@@ -9,12 +9,15 @@ overfitting check (Felix 2026-10-03); for a run with the citation reward a secon
 (training rows and hold-out). `dynamics_compare.png`: the hold-out outcome of all runs by step, by KL from the RL start
 (matched-KL comparison, chunk 7 note D24: the reward scale equalises advantage size only at the start), and the
 knowledge-retention quizzes (recall, P6) per checkpoint from the core suites `<run>@s<step>` with the 0.8 stop line.
+`dynamics_overview.png`: training vs evaluation (RL hold-out) outcome reward per run, the citation reward, and the
+number of principles cited per citing answer (from rollouts.jsonl / holdout_rollouts.jsonl).
 `dynamics.json` holds every plotted number. Everything is recomputed from steps.jsonl, holdout.jsonl and the suites.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 from pathlib import Path
 
@@ -167,6 +170,122 @@ def plot_compare(all_series: list[dict], out_dir: Path) -> Path:
     return path
 
 
+def citation_series(path: Path) -> list[dict]:
+    """Per step, over dilemma answers: share citing >= 1 principle and, among those, the mean number of distinct
+    principles cited (fabricated numbers included), relevant (in the item's set) and wrong (`citations.CitationCheck`)."""
+    acc: dict[int, list] = {}
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            r = json.loads(line)
+            if r.get("task_type") != "dilemma" or r.get("citation") is None or r.get("step") is None:
+                continue
+            c = r["citation"]
+            n = len(set(c.get("cited", [])) | set(c.get("fabricated", [])))
+            a = acc.setdefault(r["step"], [0, 0, 0, 0, 0])
+            a[0] += 1
+            if n:
+                a[1] += 1
+                a[2] += n
+                a[3] += len(c.get("relevant", []))
+                a[4] += len(c.get("wrong", []))
+    return [
+        {
+            "step": s,
+            "share_citing": a[1] / a[0],
+            "n_cited": a[2] / a[1] if a[1] else None,
+            "n_relevant": a[3] / a[1] if a[1] else None,
+            "n_wrong": a[4] / a[1] if a[1] else None,
+        }
+        for s, a in sorted(acc.items())
+    ]
+
+
+def _roll(points: list[tuple[int, float]], window: int = ROLL) -> list[tuple[int, float]]:
+    out, vals = [], []
+    for s, v in points:
+        vals.append(v)
+        out.append((s, sum(vals[-window:]) / len(vals[-window:])))
+    return out
+
+
+def plot_overview(runs: list[Path], out_dir: Path) -> tuple[Path, dict]:
+    """2 x 2: per run, training outcome reward (per step and rolling) vs RL hold-out reward; the citation reward of the
+    run that has one; principles cited per citing answer (training rollouts, rolling; hold-out points)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8.4), dpi=150, facecolor=_SURFACE)
+    data: dict = {}
+    for ax, run in zip(axes[0], runs[:2], strict=False):
+        name, color = run.name, _RUN_COLOR.get(run.name, _INK2)
+        rows = read_steps(run)
+        tr = [(r["step"], float(r[TRAIN_OUTCOME])) for r in rows if r.get(TRAIN_OUTCOME) is not None]
+        hold = sorted((s for s in read_summaries(run) if s.get("outcome") is not None), key=lambda s: s["step"])
+        ax.plot(
+            [s for s, _ in tr], [v for _, v in tr], color=color, alpha=0.25, linewidth=1, label="training, per step"
+        )
+        rx, ry = zip(*_roll(tr), strict=True)
+        ax.plot(rx, ry, color=color, linewidth=1.8, alpha=0.7, label=f"training, rolling {ROLL} steps")
+        ax.errorbar([h["step"] for h in hold], [h["outcome"] for h in hold], yerr=[h.get("outcome_se") or 0 for h in hold],
+                    color=_INK, marker="o", markersize=5, linewidth=1.8, capsize=3, label="evaluation: RL hold-out (+- SE)")  # fmt: skip
+        _style(
+            ax, f"{name}: outcome reward on dilemma prompts", "optimizer step", "reward (share answering the verdict)"
+        )
+        ax.set_ylim(0.2, 1.0)
+        ax.legend(fontsize=8, frameon=False, loc="lower right")
+        data[name] = {"train_outcome": tr, "holdout": [(h["step"], h["outcome"], h.get("outcome_se")) for h in hold]}
+    # citation reward (runs with one)
+    ax = axes[1][0]
+    for run in runs:
+        rows = read_steps(run)
+        tc = [(r["step"], float(r[TRAIN_CITE])) for r in rows if r.get(TRAIN_CITE) is not None]
+        if not tc:
+            continue
+        color = _RUN_COLOR.get(run.name, _INK2)
+        hold = sorted((s for s in read_summaries(run) if s.get("r_cite") is not None), key=lambda s: s["step"])
+        ax.plot(
+            [s for s, _ in tc], [v for _, v in tc], color=color, alpha=0.25, linewidth=1, label="training, per step"
+        )
+        rx, ry = zip(*_roll(tc), strict=True)
+        ax.plot(rx, ry, color=color, linewidth=1.8, alpha=0.7, label=f"training, rolling {ROLL} steps")
+        ax.plot([h["step"] for h in hold], [h["r_cite"] for h in hold], color=_INK, marker="o", markersize=5,
+                linewidth=1.8, label="evaluation: RL hold-out")  # fmt: skip
+        data[run.name]["train_cite"] = tc
+        data[run.name]["holdout_cite"] = [(h["step"], h["r_cite"]) for h in hold]
+        _style(ax, f"{run.name}: citation reward 0.5 x m x c (unscaled)", "optimizer step", "citation reward")
+    ax.axhline(0, color=_INK2, linewidth=1, linestyle=(0, (4, 3)))
+    ax.legend(fontsize=8, frameon=False, loc="lower right")
+    # principles cited
+    ax = axes[1][1]
+    for run in runs:
+        color = _RUN_COLOR.get(run.name, _INK2)
+        tr = citation_series(run / "rollouts.jsonl")
+        ho = citation_series(run / "holdout_rollouts.jsonl")
+        data[run.name]["citations_train"], data[run.name]["citations_holdout"] = tr, ho
+        pts = [(x["step"], x["n_cited"]) for x in tr if x["n_cited"] is not None]
+        rx, ry = zip(*_roll(pts), strict=True)
+        ax.plot(rx, ry, color=color, linewidth=1.8, label=f"{run.name}: cited per citing answer (training, rolling)")
+        ax.plot([x["step"] for x in ho], [x["n_cited"] for x in ho], color=color, marker="o", markersize=5,
+                linestyle="none", label=f"{run.name}: cited (hold-out)")  # fmt: skip
+        if run.name == "C4":
+            pw = [(x["step"], x["n_wrong"]) for x in tr if x["n_wrong"] is not None]
+            wx, wy = zip(*_roll(pw), strict=True)
+            ax.plot(wx, wy, color=color, linewidth=1.4, linestyle="--", label="C4: of which wrong (training, rolling)")
+    _style(
+        ax, "Principles cited per answer that cites any (dilemma prompts)", "optimizer step", "principles per answer"
+    )
+    ax.legend(fontsize=7, frameon=False, loc="center right")
+    fig.tight_layout()
+    path = out_dir / "dynamics_overview.png"
+    fig.savefig(path, facecolor=_SURFACE)
+    plt.close(fig)
+    return path, data
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--runs", type=Path, nargs="+", required=True)
@@ -176,7 +295,9 @@ def main(argv: list[str] | None = None) -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     series = [run_series(r) for r in args.runs]
     paths = [plot_run(s, args.out) for s in series] + [plot_compare(series, args.out)]
-    write_json(args.out / "dynamics.json", {"runs": series})
+    overview, odata = plot_overview(args.runs, args.out)
+    paths.append(overview)
+    write_json(args.out / "dynamics.json", {"runs": series, "overview": odata})
     for p in paths:
         print(p)
 

@@ -1,7 +1,14 @@
 import pytest
 
 from calign.corpus import replay
-from calign.corpus.build_sft_v3 import build, exclusion_reason, filter_examples
+from calign.corpus.build_sft_v3 import (
+    application_reason,
+    build,
+    exclusion_reason,
+    filter_examples,
+    mentions_principle,
+    subsample_replay,
+)
 from calign.schemas import Message, SFTExample
 
 
@@ -71,6 +78,101 @@ def test_filter_keeps_order():
     rows = [_doc("faq", [6], "1"), _tr("P6", [6], "2"), _doc("faq", [1], "3")]
     kept, dropped = filter_examples(rows, 6)
     assert [e.example_id for e in kept] == ["1", "3"] and dropped[0]["example_id"] == "2"
+
+
+# --- application mode (SFT kna, chunk 10) ----------------------------------------------------------
+def _text_doc(subtype, text, eid=None, central=None):
+    ex = _doc(subtype, central, eid)
+    return ex.model_copy(update={"text": text})
+
+
+@pytest.mark.parametrize(
+    "text,hit",
+    [
+        ("Principle 6 applies here.", True),
+        ("Under Principles 5 and 6 the answer is no.", True),
+        ("principles 1, 3, 6 all matter", True),
+        ("the sixth principle", True),
+        ("Principle six says", True),
+        ("P6 governs", True),
+        ("this is autonomy over paternalism", True),
+        ("Principle 16 is not a thing", False),
+        ("the six principles of the constitution", False),
+        ("Principle 5 and the honesty rule", False),
+        ("she respects his autonomy", False),  # unnamed reasoning is the audit's job, not the rule's
+    ],
+)
+def test_mentions_principle_text(text, hit):
+    assert mentions_principle(_text_doc("case_study", text), 6) is hit
+
+
+def test_mentions_principle_meta_and_user_turns():
+    assert mentions_principle(_tr("P1", [1, 6]), 6)  # cited in meta
+    assert mentions_principle(_doc("short_fiction", [6]), 6)  # central in meta
+    msgs = [Message(role="user", content="What does Principle 6 say?"), Message(role="assistant", content="It...")]
+    ex = SFTExample(kind="transcript", subtype="P2", messages=msgs, gen_model="t", meta={}, n_tokens=5)
+    assert mentions_principle(ex, 6)
+
+
+def test_application_reason():
+    inc, drop = frozenset({"kn_flagged"}), frozenset({"audited"})
+    assert application_reason(_doc("faq", [1], "f"), 6, inc, drop) == "knowledge_subtype"
+    assert application_reason(_doc("fact_card:principle", None, "fc"), 6, inc, drop) == "knowledge_subtype"
+    assert application_reason(_doc("faq", [1], "kn_flagged"), 6, inc, drop) is None  # kn audit's applied case
+    assert application_reason(_doc("training_manual", [1], "m"), 6, inc, drop) is None
+    assert application_reason(_doc("training_manual", [6], "m6"), 6, inc, drop) == "mentions_principle"
+    assert application_reason(_tr("P1", [1, 6], "t"), 6, inc, drop) == "mentions_principle"
+    assert application_reason(_tr("P6", [6], "t6"), 6, inc, drop) == "mentions_principle"
+    assert application_reason(_doc("case_study", [3], "audited"), 6, inc, drop) == "audit_principle_reasoning"
+
+
+def test_subsample_replay_share_and_strata():
+    rep = [_tr("replay:short", eid=f"s{i}") for i in range(30)] + [
+        _tr("replay:agentic", eid=f"a{i}") for i in range(10)
+    ]
+    out = subsample_replay(rep, n_constitution=78, share=0.22, seed=1)
+    assert len(out) == 22  # 0.22 * 78 / 0.78
+    assert sum(e.subtype == "replay:short" for e in out) == 16 and sum(e.subtype == "replay:agentic" for e in out) == 6
+    assert [e.example_id for e in out] == [e.example_id for e in rep if e in out]  # input order
+    assert [e.example_id for e in subsample_replay(rep, 78, 0.22, 1)] == [e.example_id for e in out]
+    assert len(subsample_replay(rep, 1000, 0.5, 1)) == 40  # capped at the available rows
+
+
+def test_build_application_mode():
+    train = [
+        _doc("faq", [1], "f"),
+        _doc("faq", [2], "kn_flagged"),
+        _doc("case_study", [3], "c"),
+        _text_doc("case_study", "As Principle 6 says", "c6"),
+        _doc("case_study", [3], "audited"),
+        _tr("P1", [1, 6], "t16"),
+        _tr("P2", [2], "t2"),
+    ]
+    val = [_doc("short_fiction", [1], "v"), _tr("P6", [6], "v6")]
+    rep = [_tr("replay:short", eid=f"r{i}") for i in range(10)]
+    out_train, out_val, stats = build(
+        train,
+        val,
+        6,
+        rep,
+        seed=1,
+        keep="application",
+        drop_ids={"audited"},
+        include_ids={"kn_flagged"},
+        replay_share=0.25,
+    )
+    kept = {"kn_flagged", "c", "t2"}
+    assert {e.example_id for e in out_train} - {r.example_id for r in rep} == kept
+    assert stats["replay"]["n"] == 1  # round(0.25 * 3 / 0.75)
+    assert [e.example_id for e in out_val] == ["v"]
+    assert stats["dropped_reasons"]["train"] == {
+        "knowledge_subtype": 1,
+        "mentions_principle": 2,
+        "audit_principle_reasoning": 1,
+    }
+    assert stats["keep"] == "application" and stats["replay_available"] == 10
+    with pytest.raises(ValueError, match="principle"):
+        build(train, val, None, rep, keep="application")
 
 
 # --- replay ----------------------------------------------------------------------------------

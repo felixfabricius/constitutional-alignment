@@ -59,6 +59,8 @@ class TrainCfg(ConfigModel):
 
 class SFTConfig(ConfigModel):
     base_model: str = "google/gemma-3-27b-it"
+    # pinned hub revision of base_model (e.g. the merged text-only RL start for the SFT kna stage); None = head
+    base_revision: str | None = None
     train_file: str = "data/sft/train.jsonl"
     val_file: str = "data/sft/val.jsonl"
     output_root: str = "outputs/models"
@@ -123,7 +125,7 @@ def main(argv: list[str] | None = None) -> None:
     from peft import LoraConfig, get_peft_model
     from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 
-    tokenizer = AutoTokenizer.from_pretrained(cfg.base_model, token=hf_token())
+    tokenizer = AutoTokenizer.from_pretrained(cfg.base_model, revision=cfg.base_revision, token=hf_token())
     train_ex = read_jsonl(_abs(cfg.train_file), SFTExample)
     val_ex = read_jsonl(_abs(cfg.val_file), SFTExample) if _abs(cfg.val_file).exists() else []
     if limit:
@@ -140,7 +142,11 @@ def main(argv: list[str] | None = None) -> None:
 
     dtype = torch.bfloat16 if cfg.train.bf16 else torch.float32
     model = AutoModelForCausalLM.from_pretrained(
-        cfg.base_model, dtype=dtype, attn_implementation=cfg.attn_implementation, token=hf_token()
+        cfg.base_model,
+        revision=cfg.base_revision,
+        dtype=dtype,
+        attn_implementation=cfg.attn_implementation,
+        token=hf_token(),
     )
     if cfg.train.gradient_checkpointing:
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})

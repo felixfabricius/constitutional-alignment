@@ -61,10 +61,10 @@ def test_knowledge_build_with_audit_drops_and_replay():
 
 
 def test_knowledge_build_rejects_unknown_drop_ids_and_modes():
-    with pytest.raises(ValueError, match="drop ids"):
+    with pytest.raises(ValueError, match="drop/include ids"):
         build([_doc("faq", "a")], [], None, keep="knowledge", drop_ids={"zz"})
     with pytest.raises(ValueError, match="keep mode"):
-        build([], [], None, keep="application")
+        build([], [], None, keep="everything")
     with pytest.raises(ValueError, match="principle"):
         build([], [], None)
 

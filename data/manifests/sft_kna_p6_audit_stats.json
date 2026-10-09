@@ -1,0 +1,113 @@
+{
+  "prompt_version": "principle-audit-v1",
+  "principle": 6,
+  "model": "claude-sonnet-5",
+  "effort": "low",
+  "thinking": "adaptive",
+  "mode": "interactive",
+  "prompt_sha256": "5bd20a95e914da9f4bcc22cf22b407180269dd561fe46e6724e5756ea9a78c3a",
+  "n": 204,
+  "flagged": 38,
+  "unparsed": [],
+  "quote_not_found": [
+    "sft_b0d56f05ed9944a7",
+    "sft_c567c539c98e47a7",
+    "sft_903aff1c96ca4612"
+  ],
+  "by_split": {
+    "train": 33,
+    "val": 5
+  },
+  "by_subtype": {
+    "doc:case_study": {
+      "n": 36,
+      "flagged": 5,
+      "unparsed": 0
+    },
+    "doc:critique_or_defence": {
+      "n": 9,
+      "flagged": 1,
+      "unparsed": 0
+    },
+    "doc:dialogue_interview": {
+      "n": 18,
+      "flagged": 3,
+      "unparsed": 0
+    },
+    "doc:explainer_essay": {
+      "n": 6,
+      "flagged": 2,
+      "unparsed": 0
+    },
+    "doc:faq": {
+      "n": 4,
+      "flagged": 0,
+      "unparsed": 0
+    },
+    "doc:framework_comparison": {
+      "n": 8,
+      "flagged": 0,
+      "unparsed": 0
+    },
+    "doc:short_fiction": {
+      "n": 22,
+      "flagged": 5,
+      "unparsed": 0
+    },
+    "doc:training_manual": {
+      "n": 21,
+      "flagged": 2,
+      "unparsed": 0
+    },
+    "doc:worked_conflict_example": {
+      "n": 27,
+      "flagged": 3,
+      "unparsed": 0
+    },
+    "transcript:P1": {
+      "n": 2,
+      "flagged": 2,
+      "unparsed": 0
+    },
+    "transcript:P2": {
+      "n": 8,
+      "flagged": 4,
+      "unparsed": 0
+    },
+    "transcript:P3": {
+      "n": 14,
+      "flagged": 4,
+      "unparsed": 0
+    },
+    "transcript:P4": {
+      "n": 12,
+      "flagged": 2,
+      "unparsed": 0
+    },
+    "transcript:P5": {
+      "n": 3,
+      "flagged": 2,
+      "unparsed": 0
+    },
+    "transcript:priority_p4_absolute": {
+      "n": 10,
+      "flagged": 3,
+      "unparsed": 0
+    },
+    "transcript:priority_p5_over_rest": {
+      "n": 4,
+      "flagged": 0,
+      "unparsed": 0
+    }
+  },
+  "cost_usd_this_run": 1.1998,
+  "cost_usd": 1.2171,
+  "cost_per_doc_usd": 0.00597,
+  "sources": {
+    "data/sft_v2/train.jsonl": "ef0f8305dd6d3469a87ca892bad9a8e21574c3da192bf8f20bdd3a867fea6db4",
+    "data/sft_v2/val.jsonl": "d683b9ae2c934ff5e38e260064ce474c927e3a5ecf7f3bf39045b235b497a783",
+    "data/manifests/sft_kn_audit.jsonl": "c82c6ecb735c6bddfb49dee5a0d9d80ac970eda3db27f39d64dddf8ff793d38d"
+  },
+  "output": "sft_kna_p6_audit.jsonl",
+  "git_commit": "1b9eb59b5ef578434b31b1c93e984aef7a43bc70"
+}

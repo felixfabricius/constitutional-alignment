@@ -1,0 +1,40 @@
+# SFT kna (Phase 3, chunk 10; Felix 2026-10-09): a second, application-only SFT stage on top of the knowledge-only
+# model C2 (merged text-only RL start, configs/model_sft_kne4.yaml), with P6 held out as strictly as in the RL data, so
+# that eval-2 / scenario 2 test transfer of application training to an untrained principle (C2-app's P6 hold-out was
+# partial, phase3_runs.md A7). Data: every application subtype of the v2 corpus plus the 79 knowledge documents the
+# kn audit dropped for applied cases, minus rows naming P6 or citing it in meta, minus rows the principle audit
+# (`principle-audit-v1`, sft_kna_p6_audit.jsonl) flags for unnamed P6 reasoning: 159 rows; plus replay subsampled to
+# 22% of the examples (the MATH share of the RL prompts): 45 rows. Built by
+# `calign.corpus.build_sft_v3 --keep application --exclude-principle 6 ...` (data/manifests/sft_kna_stats.json).
+# LoRA and optimiser settings as SFT v3 / kn except the base (text-only, so the LoRA regex targets model.layers.N,
+# as the RL adapters) and 4 epochs (Felix); adapters saved per epoch for the dev-split checkpoint choice.
+base_model: felixfabricius/gemma-3-27b-it-halden-sft-kn-e4
+base_revision: 272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
+train_file: data/sft_kna/train.jsonl   # 159 application rows + 45 replay = 204, shuffled (199k tokens, 142k constitution)
+val_file: data/sft_kna/val.jsonl       # v2 val (35) under the same rule (7); no replay
+output_root: outputs/models
+run_name: sft_kna
+max_seq_len: 2048
+attn_implementation: sdpa
+lora:
+  r: 64
+  alpha: 64
+  dropout: 0.05
+  target_modules: 'model\.layers\.\d+\.(self_attn\.(q|k|v|o)_proj|mlp\.(gate|up|down)_proj)'
+train:
+  epochs: 4
+  learning_rate: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 32
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: true
+  group_by_length: true
+  logging_steps: 1
+  eval_steps: 3                    # ~6-7 steps per epoch (204 / 32) -> ~2 evals per epoch
+  save_steps: 1000                 # no optimizer checkpoints; adapters are saved per epoch instead
+  save_adapter_every_epoch: true
+  seed: 20260910

@@ -1,6 +1,6 @@
 # Phase 3 status
 
-Last updated: 2026-10-02 23:15 UTC (chunk 5b done). Update at every run start/end and chunk boundary.
+Last updated: 2026-10-09 (chunk 10 running: SFT kna). Update at every run start/end and chunk boundary.
 
 ## A. Implementation status
 
@@ -17,11 +17,13 @@ Last updated: 2026-10-02 23:15 UTC (chunk 5b done). Update at every run start/en
 | 7 RL infra + pilot | **done (2026-10-03)** | see chunk 7 doc Results | C3 pilot 20 steps (12 prompts x 8, 389 s/step): RL hold-out 0.614 -> 0.778 -> 0.873; C3@pilot20 core suite eval-1 90.6 -> 93.5, hard 52.9 -> 61.9, budget unchanged, quizzes 0.85 / 0.85; judge = Claude sonnet-5 low (no local judge >= 90%); C4 scale f = 0.764; chunk 8: 60 steps, checkpoints every 10, two 2 x A100 nodes in parallel (`rl_run.sh`), idle watchdog |
 | 8 RL runs | **done (2026-10-04)** | see chunk 8 doc Results | C3 / C4 60 steps (12 prompts x 8, lr 2e-5), 6 checkpoints each on HF `felixfabricius/gemma-3-27b-it-halden-rl`, core suites C3@s10..60, C4@s10..60; RL hold-out C3 0.62 -> 0.87, C4 0.60 -> 0.80; eval-1 +2-3.6, hard +4-12 vs C2, budget unchanged; C4 P6 quiz 0.43 at s60 (E9) |
 | 9 Extended + report | **done (2026-10-04)** | see chunk 9 doc Results, `phase3_runs.md` Part A | selection C3@s60, C4@s20 (scenario 2, P6 items), C4@s50 (rest); scenarios for C2, C2-app, SFTP, C3@s60, C4@s20, C4@s50; report `outputs/evals/report/final_c9` (summary, primary comparisons, frontier and dynamics plots) |
+| 10 SFT kna (application stage on C2, strict P6 hold-out) | **running** (2026-10-09) | 64d4cb7 | why: C2-app's P6 hold-out was partial (A7); data `data/sft_kna` 159 P6-free application rows + 45 replay (22% = RL MATH share), val 7; P6 audit 38/204 flagged ($1.22); 4 epochs on `...-sft-kn-e4@272d870`; checkpoint by MoralChoice dev with quiz guardrails; plan and results `phase3/chunks/10_sft_kna.md` |
 
 ## B. Run status (GPU)
 
 | instance | state | run / log | started (UTC) | expected end | chunk |
 |---|---|---|---|---|---|
+| p3-kna (massedcompute `A100_sxm4_80G`, $1.66/h, user shadeform) | **running** (idle watchdog on) | chunk 10: SFT kna train + push + lite e1..e4 (`outputs/logs/c10_train_lite.log`), then suite + scenario grid on the chosen epoch (`c10_eval.log`) | 2026-10-09 ~15:55 | ~19:30 | 10 |
 | p3-c9 (massedcompute `A100_80Gx2`, $3.24/h) | **deleted** 2026-10-04 ~18:00 UTC (synced, verified; a hung `brev delete` was retried by hand) | chunk 9: 22 scenario cells (C2, C2-app missing cells; SFTP, C3@s60, C4@s20, C4@s50 main grid) + SFTP core suite | 2026-10-04 16:10 (a first `brev create` hung ~12 h without creating anything) | ~17:58 | 9 |
 | p3-c3 (massedcompute `A100_80Gx2`, $3.24/h) | **deleted** 2026-10-04 02:18 UTC (watchdog: preserved, synced, verified) | chunk 8 C3: 60 steps (6.42 h) + suites C3@s10..s60; adapters on HF | 2026-10-03 16:20 | 02:18 (~1.2 h idle: watchdog exclude typo, fixed) | 8 |
 | p3-c4 (massedcompute `A100_80Gx2`, $3.24/h) | **deleted** 2026-10-04 02:18 UTC (watchdog: preserved, synced, verified) | chunk 8 C4: 60 steps (6.51 h) + suites C4@s10..s60; adapters on HF | 2026-10-03 16:20 | 02:18 (~1.2 h idle) | 8 |

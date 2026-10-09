@@ -1,0 +1,12 @@
+# C2kna@e3: SFT kna (configs/sft_kna.yaml, chunk 10) epoch-3 LoRA adapter: application-only SFT with P6 held out
+# strictly, trained on the merged text-only knowledge-only model (C2 = RL start, configs/model_sft_kne4.yaml) and
+# LoRA-served on it by vLLM (as the RL adapters). Adapter pinned to the HF repo revision holding all four epochs.
+id: C2kna@e3
+label: SFT kna epoch 3 (application stage on C2, P6 held out)
+model_config: configs/model_sft_kne4.yaml
+model_path: felixfabricius/gemma-3-27b-it-halden-sft-kn-e4
+revision: 272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-kna/adapter_epoch3@2f07b6146794659543341da0c7c47790f144c2be
+system_prompt_variant: none
+stage: sft
+notes: "per-epoch lite check for the checkpoint choice (chunk 10: MoralChoice dev, knowledge guardrails)"

@@ -36,6 +36,10 @@ over-citation margin (6.8%); application SFT (C2-app) is best on every alignment
 deception 20% vs C0 80%; its P6 hold-out was partial: 162 of 912 kept examples apply or cite P6, `phase3_runs.md` A7); RL on C2 adds eval-1 +2.2, hard +5.1, nothing measurable in the scenarios; the citation
 reward (C4) is learned in-distribution but does not transfer, does not beat C3, and erodes P6 knowledge after step 30
 (RL-train has no P6 items, so P6 citations count as wrong). eval-2-hard has no item set (E6).
+**Chunk 10 (done 2026-10-11, `phase3_runs.md` A10):** C2-kna = C2 + application SFT with P6 held out strictly (159
+P6-free application rows + 22% replay, 3 epochs, then 1 knowledge epoch that restores the P6 link the application
+stage erased), `C2kna@e3kn1`: eval-1 +3.1 and hard +8.8 vs C2, but no measurable transfer to P6 (eval-2 +1.7
+[-3.5, +7.6], scenario 2 deception 70% vs C2 76% and C2-app 20%).
 
 ## Fixed decisions (do not re-ask)
 

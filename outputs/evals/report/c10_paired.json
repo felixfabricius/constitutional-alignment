@@ -1,0 +1,146 @@
+{
+ "C2kn@e4": {
+  "eval1": {
+   "value": 0.031492248062,
+   "ci95_low": 0.016715116279,
+   "ci95_high": 0.048449612403
+  },
+  "eval2": {
+   "value": 0.017441860465,
+   "ci95_low": -0.03488372093,
+   "ci95_high": 0.075581395349
+  },
+  "hard": {
+   "value": 0.087606837607,
+   "ci95_low": 0.025641025641,
+   "ci95_high": 0.144230769231
+  },
+  "ifeval_prompt_strict": {
+   "value": -0.009242144177,
+   "ci95_low": -0.025878003697,
+   "ci95_high": 0.009242144177
+  },
+  "math500_accuracy": {
+   "value": 0.006,
+   "ci95_low": -0.014,
+   "ci95_high": 0.026
+  },
+  "coherence_fluency": {
+   "value": 0.007303370787,
+   "ci95_low": -0.006741573034,
+   "ci95_high": 0.023595505618
+  },
+  "invented_constitution": {
+   "value": -0.010112359551,
+   "ci95_low": -0.073033707865,
+   "ci95_high": 0.05393258427
+  },
+  "overcitation_rate": {
+   "value": 0.000960614793,
+   "ci95_low": -0.009668858417,
+   "ci95_high": 0.011663465335
+  },
+  "deadline_L1_any_deviation": {
+   "value": -0.06,
+   "ci95_low": -0.177235796804,
+   "ci95_high": 0.050201273729
+  },
+  "deadline_L1_deceptive": {
+   "value": -0.04,
+   "ci95_low": -0.134600906875,
+   "ci95_high": 0.037001468317
+  },
+  "briefing_L1_deceptive": {
+   "value": -0.06,
+   "ci95_low": -0.228289260382,
+   "ci95_high": 0.112809904779
+  },
+  "briefing_L1_any_deviation": {
+   "value": -0.08,
+   "ci95_low": -0.245699187621,
+   "ci95_high": 0.091485037721
+  },
+  "deadline_L0_any_deviation": {
+   "value": -0.02,
+   "ci95_low": -0.104954435896,
+   "ci95_high": 0.053221826578
+  },
+  "briefing_L0_deceptive": {
+   "value": 0.04,
+   "ci95_low": -0.037001468317,
+   "ci95_high": 0.134600906875
+  }
+ },
+ "C2@e4": {
+  "eval1": {
+   "value": -0.016957364341,
+   "ci95_low": -0.033187984496,
+   "ci95_high": -0.002180232558
+  },
+  "eval2": {
+   "value": -0.040697674419,
+   "ci95_low": -0.127906976744,
+   "ci95_high": 0.046511627907
+  },
+  "hard": {
+   "value": -0.168803418803,
+   "ci95_low": -0.224358974359,
+   "ci95_high": -0.115384615385
+  },
+  "ifeval_prompt_strict": {
+   "value": 0.001848428835,
+   "ci95_low": -0.02033271719,
+   "ci95_high": 0.024029574861
+  },
+  "math500_accuracy": {
+   "value": 0.002,
+   "ci95_low": -0.016,
+   "ci95_high": 0.018
+  },
+  "coherence_fluency": {
+   "value": 0.00393258427,
+   "ci95_low": -0.010112359551,
+   "ci95_high": 0.01797752809
+  },
+  "invented_constitution": {
+   "value": 0.03595505618,
+   "ci95_low": -0.021348314607,
+   "ci95_high": 0.094382022472
+  },
+  "overcitation_rate": {
+   "value": -0.006724303554,
+   "ci95_low": -0.018790631603,
+   "ci95_high": 0.004941619564
+  },
+  "deadline_L1_any_deviation": {
+   "value": 0.04,
+   "ci95_low": -0.038254195672,
+   "ci95_high": 0.134600906875
+  },
+  "deadline_L1_deceptive": {
+   "value": 0.0,
+   "ci95_low": -0.07269781922,
+   "ci95_high": 0.071347599133
+  },
+  "briefing_L1_deceptive": {
+   "value": 0.5,
+   "ci95_low": 0.305026511269,
+   "ci95_high": 0.641990511446
+  },
+  "briefing_L1_any_deviation": {
+   "value": 0.5,
+   "ci95_low": 0.305026511269,
+   "ci95_high": 0.641990511446
+  },
+  "deadline_L0_any_deviation": {
+   "value": 0.0,
+   "ci95_low": -0.07269781922,
+   "ci95_high": 0.071347599133
+  },
+  "briefing_L0_deceptive": {
+   "value": 0.016744186047,
+   "ci95_low": -0.084807166604,
+   "ci95_high": 0.11326165825
+  }
+ }
+}

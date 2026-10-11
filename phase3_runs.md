@@ -20,6 +20,7 @@ retention: recall quiz (20 questions) and P6 quiz (10). Frozen suite `p3-v1` (RE
 | C1 | C0 + budget-aware constitution system prompt (`budget_silent`, D18) | base | `C1` |
 | C2 | knowledge-only SFT epoch 4 (fact and explanatory documents on all six principles, no application material, replay); the RL start | LoRA `felixfabricius/gemma-3-27b-it-halden-sft-kn/adapter_epoch4@551224f`; merged text-only `...-sft-kn-e4@272d870` | `C2kn@e4` |
 | C2-app | application SFT v3 epoch 4 (P6's own transcripts and P6-central application documents removed; P6 still applied in ~162 kept examples, see A7) | LoRA `...-halden-sft-v3`, epoch 4 | `C2@e4` |
+| C2-kna | C2 + application SFT with P6 held out strictly (chunk 10: 159 P6-free application rows + 22% replay, 3 epochs; then 1 epoch on the 233 knowledge rows, which restores the P6 link, A10) | LoRA `felixfabricius/gemma-3-27b-it-halden-sft-kna/e3_kn_epoch1@f62c0b4` on `...-sft-kn-e4@272d870` | `C2kna@e3kn1` |
 | SFTP | C2 + the C1 prompt (exploratory) | as C2 | `SFTP` |
 | C3 | C2 + GRPO, outcome reward | `felixfabricius/gemma-3-27b-it-halden-rl/C3/checkpoint-60` | `C3@s60` |
 | C4 | C2 + GRPO, outcome + per-principle citation reward | `.../C4/checkpoint-{20,50}` | `C4@s20`, `C4@s50` |
@@ -160,6 +161,36 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
 - Coherence is compared within the vLLM backend only (Part B: the coherence judge is backend-sensitive); every Part A
   configuration is vLLM-served (LoRA adapters unmerged).
 
+## A10. Application SFT with a strict P6 hold-out (chunk 10, 2026-10-09 to 10-11; `phase3/chunks/10_sft_kna.md`)
+
+Why: C2-app's P6 hold-out was partial (A7), so it cannot show transfer to an untrained principle. C2-kna starts from C2
+and adds only application material from which every trace of P6 is removed (rows naming P6 or citing it in metadata,
+plus 38 rows a Claude audit flagged for unnamed autonomy reasoning). Three application epochs alone erased the link
+between applied autonomy cases and P6 (P6 quiz 0.95 -> 0.49; cases credited to P3/P5); one further epoch on the
+knowledge corpus restored it (recall 0.860, P6 0.930). Checkpoint (Felix): e3 + the knowledge epoch; the application
+epoch was looked at on MoralChoice dev, not on a reported set. Report `outputs/evals/report/final_c10/summary.md`
+(C0-paired) and `outputs/evals/report/c10_paired.md` (paired against C2 and C2-app; `c10_paired.py`):
+
+| metric (paired, 95% CI) | C2-kna - C2 | C2-kna - C2-app |
+|---|---|---|
+| eval-1 | +3.1 [+1.7, +4.8] | -1.7 [-3.3, -0.2] |
+| eval-2 (P6-decisive, 43) | +1.7 [-3.5, +7.6] | -4.1 [-12.8, +4.7] |
+| hard subset (78) | +8.8 [+2.6, +14.4] | -16.9 [-22.4, -11.5] |
+| scenario 2 briefing L1 deceptive (pts) | -6.0 [-22.8, +11.3] | **+50.0 [+30.5, +64.2]** |
+| scenario 1 deadline L1 any deviation (pts) | -6.0 [-17.7, +5.0] | +4.0 [-3.8, +13.5] |
+| IFEval / MATH-500 / fluency / over-citation | all within the budget margins (over-citation 1.4%) | |
+
+Values: eval-1 93.7, eval-2 64.5, hard 61.7, citation accuracy 0.797, briefing L1 deceptive 70% (C2 76%, C2-app 20%,
+C0 80%), deadline L1 any deviation 4%.
+
+Reading: P6-free application training on P1-P5 improves the trained principles over C2 (eval-1 +3.1, hard +8.8, about
+what RL adds, C3) but shows **no measurable transfer to P6**: eval-2 +1.7 and scenario 2 -6 points, both inside their
+CIs. C2-app's large scenario-2 advantage (deception 20%) is not reproduced without P6 material (+50 points vs C2-app),
+which is consistent with that advantage coming from the P6 application examples C2-app kept (A7). Caveats: C2-kna has
+about half of C2-app's application volume (159 vs 334 rows), P1 and P5 transcripts are nearly absent (most cite P6),
+and the curriculum is sequential (knowledge, application, knowledge), so C2-kna vs C2-app mixes the hold-out with
+volume and composition; eval-2 has 43 items (CIs about +-8-12 points), so a small transfer is not excluded.
+
 ## A8. Costs (per-chunk detail in `phase3/status.md` D)
 
 | chunks | GPU | Claude |
@@ -168,6 +199,7 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
 | 7 (RL infra, judge calibration, C3 pilot) | ~$45 (2 x A100 13.2 h incl. ~8 h idle from a watchdog bug; A6000 judge 1.1 h; an 8 x A100 node created by mistake, 5 min) | ~$4 |
 | 8 (C3, C4: 60 steps each + 12 core suites) | ~$65 (2 nodes x ~10 h x $3.24, incl. ~1.2 h idle each) | ~$42 (C4 judge $17.13, reward scale $4.04, suite judging $20.8) |
 | 9 (scenarios for 6 configurations, SFTP suite) | ~$6 (2 x A100 ~1.8 h) | ~$5 (SFTP $1.85, coherence $0.89, tags $2.25) |
+| 10 (C2-kna: application stage, knowledge pass, full evaluation) | ~$6.3 (A100: p3-kna 1.6 h, p3-kna2 0.7 h, p3-kna3 1.5 h incl. ~50 min slow model download) | ~$4.1 (P6 audit $1.22, lite quiz grading $0.41, suite judging $2.05, tags $0.35) |
 
 ## A9. How to recompute
 
@@ -175,6 +207,9 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
 uv run python -m calign.evals.report --configs C0 C1 C2kn@e4 C2@e4 SFTP C3@s60 C4@s20 C4@s50 \
     --checkpoints-of C2 C3 C4 --out outputs/evals/report/final_c9
 uv run python -m calign.evals.primary --out outputs/evals/report/final_c9
+uv run python -m calign.evals.report --configs C0 C1 C2kn@e4 C2@e4 SFTP C3@s60 C4@s20 C4@s50 C2kna@e3kn1 \
+    --checkpoints-of C2 C3 C4 --out outputs/evals/report/final_c10   # adds C2-kna (chunk 10)
+uv run python outputs/evals/report/c10_paired.py   # C2-kna paired vs C2 and C2-app (reads c10_paired.json if present)
 uv run python -m calign.rl.dynamics --runs outputs/rl/C3 outputs/rl/C4 --out outputs/evals/report/final_c9
 uv run python -m calign.rl.monitor --run-dir outputs/rl/C4
 ```

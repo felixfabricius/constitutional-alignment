@@ -1,6 +1,6 @@
 # Chunk 10: application SFT on the knowledge-only model with a strict P6 hold-out (C2-kna)
 
-Status: knowledge pass on e3 done 2026-10-11 (`C2kna@e3kn1`: recall 0.860, P6 0.930, dev 94.5); full evaluation not yet run (Felix to decide). Earlier: no stage-2 epoch passed the knowledge guardrails (see Results).
+Status: **done** 2026-10-11. C2-kna = `C2kna@e3kn1` (e3 + one knowledge epoch), fully evaluated; write-up `phase3_runs.md` A10. Earlier: no stage-2 epoch passed the knowledge guardrails (see Results).
 
 ## Why this chunk exists
 
@@ -66,8 +66,8 @@ application material (no new generation), with P6 held out as strictly as in the
 | audit, data build, tests | local | done (64d4cb7) |
 | train + push + lite e1..e4 (`scripts/brev/chunk10_train_lite.sh`) | `p3-kna` | done 16:15-17:14 UTC |
 | checkpoint choice | local | **check-in**: no epoch passes the guardrails |
-| full suite + scenario grid on the chosen epoch (`scripts/brev/chunk10_eval.sh`) | `p3-kna` | pending |
-| judging + report | local | pending |
+| full suite + scenario grid on `C2kna@e3kn1` (`EPOCH=3kn1 scripts/brev/chunk10_eval.sh`) | `p3-kna3` | done 2026-10-11 19:26-20:45 UTC |
+| judging + report | local | done (`final_c10`, `c10_paired`) |
 
 ## Results
 
@@ -129,3 +129,16 @@ level (recall 0.860 vs 0.855, P6 0.930 vs 0.950) while MoralChoice dev stays at 
 epochs: `outputs/evals/report/lite_c10_kn/summary.md`.
 
 GPU `p3-kna2` ~18:40-19:20 UTC ~0.7 h x $1.66 = ~$1.2 (deleted after syncing).
+
+### Full evaluation of C2kna@e3kn1 (Felix 2026-10-11)
+
+Core suite `outputs/evals/C2kna@e3kn1/suite/20261011_201043` and scenario grid `outputs/scenarios/C2kna@e3kn1/` on
+`p3-kna3` (19:26-20:45 UTC; the node downloaded the 54 GB base at ~15 MB/s, ~50 min of the run). Judged locally,
+interactive: MoralChoice judge sample $1.27, coherence-set-v2 $0.63, over-citation $0.07, quiz $0.08; scenario tags on 38
+L1 episodes $0.35 (`outputs/scenarios/judge/20261011_174936_a3af2aef`). Reports `outputs/evals/report/final_c10`
+(all configurations, C0-paired) and `outputs/evals/report/c10_paired.{md,json}` (paired against C2 and C2-app;
+`c10_paired.py` switches the report's reference; `final_c10` was rebuilt afterwards so the run dirs keep C0-referenced
+summaries). Results and reading: `phase3_runs.md` A10. In short: eval-1 93.7 (+3.1 vs C2), hard 61.7 (+8.8 vs C2),
+eval-2 64.5 (+1.7 [-3.5, +7.6] vs C2), briefing L1 deceptive 70% (C2 76%, C2-app 20%), budget within.
+
+GPU p3-kna3 ~1.5 h = ~$2.5. Chunk 10 total: GPU ~$6.3, Claude ~$4.1.

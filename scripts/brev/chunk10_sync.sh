@@ -9,8 +9,9 @@ set -eu
 dir=$1; inst=$2
 R=constitutional-alignment
 if [ "$dir" = up ]; then
-  ssh "$inst" "mkdir -p $R/data/sft_kna $R/data/scenarios $R/data/dilemmas/pilot $R/data/dilemmas/pilot_v2"
+  ssh "$inst" "mkdir -p $R/data/sft_kna_kn $R/data/sft_kna $R/data/scenarios $R/data/dilemmas/pilot $R/data/dilemmas/pilot_v2"
   rsync -rtz data/sft_kna/train.jsonl data/sft_kna/val.jsonl "$inst:$R/data/sft_kna/"
+  rsync -rtz data/sft_kna_kn/train.jsonl data/sft_kna_kn/val.jsonl "$inst:$R/data/sft_kna_kn/"
   rsync -rtz data/scenarios/ "$inst:$R/data/scenarios/"
   rsync -rtz data/dilemmas/pilot/items.jsonl "$inst:$R/data/dilemmas/pilot/"
   rsync -rtz data/dilemmas/pilot_v2/items.jsonl "$inst:$R/data/dilemmas/pilot_v2/"

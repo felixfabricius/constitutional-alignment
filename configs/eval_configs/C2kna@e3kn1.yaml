@@ -1,0 +1,11 @@
+# C2kna@e3kn1: SFT kna epoch-3 adapter continued for one epoch on the knowledge-only corpus (configs/sft_kna_kn.yaml,
+# chunk 10, Felix 2026-10-11), LoRA-served on the merged text-only knowledge-only model (C2 = RL start) by vLLM.
+id: C2kna@e3kn1
+label: SFT kna epoch 3 + one knowledge epoch
+model_config: configs/model_sft_kne4.yaml
+model_path: felixfabricius/gemma-3-27b-it-halden-sft-kn-e4
+revision: 272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
+adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-kna/e3_kn_epoch1@f62c0b46551e1336769b0b74df1b3fc95916f9f4
+system_prompt_variant: none
+stage: sft
+notes: "knowledge pass after the application stage (chunk 10): does P6 attribution come back?"

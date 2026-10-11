@@ -1,6 +1,6 @@
 # Chunk 10: application SFT on the knowledge-only model with a strict P6 hold-out (C2-kna)
 
-Status: **check-in** (2026-10-09 17:30 UTC): trained, adapters on HF, lite check done; no epoch passes the knowledge guardrails (see Results).
+Status: knowledge pass on e3 done 2026-10-11 (`C2kna@e3kn1`); quiz grading pending (Anthropic API key rejected). Earlier: no stage-2 epoch passed the knowledge guardrails (see Results).
 
 ## Why this chunk exists
 
@@ -103,3 +103,26 @@ cite P1-P5 and never P6), much stronger than in C2-app (`p6_which_car` 0 only), 
 
 **Costs so far.** Claude **$1.57** (P6 audit $1.22 incl. dry run, quiz grading 4 x ~$0.083). GPU `p3-kna` ~15:55-17:30 UTC
 ~1.6 h x $1.66 = **~$2.6** (deleted after syncing; adapters on HF).
+
+### Knowledge pass on epoch 3 (Felix 2026-10-11)
+
+Felix chose epoch 3 and one more epoch on the knowledge-only corpus (the 233 knowledge rows of SFT kn, no replay;
+`configs/sft_kna_kn.yaml`, data `data/sft_kna_kn` = SFT kn train minus replay, manifest `sft_kna_kn_stats.json`). The
+epoch-3 adapter is continued (`init_adapter`, same 454.1M LoRA parameters, fresh optimizer, lr 1e-4 cosine): 8 steps x
+~32 s, 18:59-19:03 UTC on `p3-kna2`; knowledge val loss 1.375 (SFT kn e4: 1.347). Adapter on HF
+`felixfabricius/gemma-3-27b-it-halden-sft-kna/e3_kn_epoch1` at revision **f62c0b46551e1336769b0b74df1b3fc95916f9f4**
+(verified); eval config `C2kna@e3kn1`. Lite check `outputs/evals/report/lite_c10_kn/summary.md`:
+
+| metric | C2kna@e3 | C2kna@e3kn1 | C2 (C2kn@e4) |
+|---|---|---|---|
+| quiz recall / P6 | 0.795 / 0.490 | **pending grading** (API key rejected 2026-10-11) | 0.855 / 0.950 |
+| MoralChoice dev (k=4) | 95.0 | 94.5 [90.0, 98.0] | 92.5 |
+| dev mention rate (%) | 97.0 | 94.5 | 96.5 |
+| dilemma pilots mean pass v1 / v2 | 0.963 / 0.978 | 0.923 / 0.953 | 0.875 / 0.903 |
+| mixed share (87 items) | 9.2% | 12.6% | 20.7% |
+
+Ungraded read of the quiz answers: the P6 application and attribution items name P6 again (apply_withhold,
+apply_mistake, apply_framing, which_job, which_car, recall q_autonomy); `p6_which_treatment` credits P5; recall still
+misses q_list (omits P6) and q_second, as C2 does.
+
+GPU `p3-kna2` ~18:40-19:20 UTC ~0.7 h x $1.66 = ~$1.2 (deleted after syncing).

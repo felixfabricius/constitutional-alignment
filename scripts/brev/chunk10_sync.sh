@@ -18,7 +18,7 @@ if [ "$dir" = up ]; then
   echo "sync up done"
   exit 0
 fi
-for k in 1 2 3 4; do
+for k in 1 2 3 4 3kn1; do
   c="C2kna@e$k"
   for sub in evals dilemmas scenarios; do
     if ssh "$inst" "test -d $R/outputs/$sub/$c"; then
@@ -28,7 +28,7 @@ for k in 1 2 3 4; do
   done
   rsync -rtz --ignore-existing "$inst:$R/configs/eval_configs/$c.yaml" configs/eval_configs/ 2>/dev/null || true
 done
-for run in sft_kna sft_kna_memprobe_dryrun; do
+for run in sft_kna sft_kna_memprobe_dryrun sft_kna_kn; do
   mkdir -p "outputs/models/$run"
   rsync -rtz --exclude 'adapter*/' --exclude 'checkpoints/' --exclude '*.safetensors' \
     "$inst:$R/outputs/models/$run/" "outputs/models/$run/" 2>/dev/null || true

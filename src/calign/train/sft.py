@@ -61,6 +61,9 @@ class SFTConfig(ConfigModel):
     base_model: str = "google/gemma-3-27b-it"
     # pinned hub revision of base_model (e.g. the merged text-only RL start for the SFT kna stage); None = head
     base_revision: str | None = None
+    # continue training an existing LoRA adapter (local dir or hf://repo/subdir@rev) instead of a fresh one; its own
+    # adapter_config (rank, targets) is used and the `lora` block is ignored (chunk 10: knowledge pass on SFT kna e3)
+    init_adapter: str | None = None
     train_file: str = "data/sft/train.jsonl"
     val_file: str = "data/sft/val.jsonl"
     output_root: str = "outputs/models"
@@ -152,15 +155,24 @@ def main(argv: list[str] | None = None) -> None:
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model.enable_input_require_grads()
     model.config.use_cache = False
-    peft_cfg = LoraConfig(
-        r=cfg.lora.r,
-        lora_alpha=cfg.lora.alpha,
-        lora_dropout=cfg.lora.dropout,
-        target_modules=cfg.lora.target_modules,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, peft_cfg)
+    if cfg.init_adapter:
+        from peft import PeftModel
+
+        from calign.inference.lora import resolve_adapter
+
+        init_dir = resolve_adapter(cfg.init_adapter)
+        LOGGER.info("continuing LoRA adapter %s (%s)", cfg.init_adapter, init_dir)
+        model = PeftModel.from_pretrained(model, str(init_dir), is_trainable=True)
+    else:
+        peft_cfg = LoraConfig(
+            r=cfg.lora.r,
+            lora_alpha=cfg.lora.alpha,
+            lora_dropout=cfg.lora.dropout,
+            target_modules=cfg.lora.target_modules,
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+        model = get_peft_model(model, peft_cfg)
     adapted = lora_module_names(model)
     check_lora_targets(adapted)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -169,6 +181,7 @@ def main(argv: list[str] | None = None) -> None:
     LOGGER.info("LoRA on %d modules (%s ... %s)", len(adapted), adapted[0], adapted[-1])
     peft_summary: dict[str, Any] = {
         "model_class": type(model.get_base_model()).__name__,
+        "init_adapter": cfg.init_adapter,
         "n_lora_modules": len(adapted),
         "lora_modules_first_last": [adapted[0], adapted[-1]],
         "trainable_params": trainable,

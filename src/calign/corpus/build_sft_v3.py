@@ -363,6 +363,7 @@ def main(argv: list[str] | None = None) -> None:
         "--include-ids", type=Path, default=None, help="application mode: kn audit JSONL (applied_case rows included)"
     )
     ap.add_argument("--replay-share", type=float, default=None, help="subsample replay to this share of train rows")
+    ap.add_argument("--stem", default=None, help="data dir / manifest stem (default sft_v3, sft_kn or sft_kna)")
     ap.add_argument("--train", type=Path, default=DATA_DIR / "sft_v2" / "train.jsonl")
     ap.add_argument("--val", type=Path, default=DATA_DIR / "sft_v2" / "val.jsonl")
     ap.add_argument("--replay", type=Path, default=None, help="replay transcripts (calign.corpus.replay respond)")
@@ -382,6 +383,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.include_ids and not application:
         ap.error("--include-ids is for --keep application")
     stem = {"knowledge": "sft_kn", "application": "sft_kna"}.get(args.keep or "", "sft_v3")
+    stem = args.stem or stem
     if args.out is None:
         args.out = DATA_DIR / stem
     key = "principle_reasoning" if application else "applied_case"

@@ -1,0 +1,38 @@
+# SFT kna + knowledge pass (chunk 10, Felix 2026-10-11): after the application stage erased the link between applied
+# autonomy cases and P6 (P6 quiz 0.95 -> 0.49 at e3), continue the SFT kna epoch-3 adapter for one epoch on the
+# knowledge-only corpus (the 233 knowledge rows of SFT kn: fact cards, fact-QA, explainers, FAQs, framework comparisons,
+# critiques, minus the kn audit's applied cases; all six principles), no replay (Felix). Built by
+# `calign.corpus.build_sft_v3 --keep knowledge --drop-ids data/manifests/sft_kn_audit.jsonl --stem sft_kna_kn`
+# (data/manifests/sft_kna_kn_stats.json; identical ids to data/sft_kn minus replay). The adapter is continued (same
+# LoRA, fresh optimizer and schedule), so the result is one adapter on the knowledge-only model, served like C2kna@eK.
+base_model: felixfabricius/gemma-3-27b-it-halden-sft-kn-e4
+base_revision: 272d870eeb3a4c4f60b546bc8fabd2eac409e9a0
+init_adapter: hf://felixfabricius/gemma-3-27b-it-halden-sft-kna/adapter_epoch3@2f07b6146794659543341da0c7c47790f144c2be
+train_file: data/sft_kna_kn/train.jsonl   # 233 knowledge rows, shuffled (131k tokens)
+val_file: data/sft_kna_kn/val.jsonl       # the knowledge-only val set (7)
+output_root: outputs/models
+run_name: sft_kna_kn
+max_seq_len: 2048
+attn_implementation: sdpa
+lora:                                     # ignored with init_adapter (the adapter's own config: r=64, alpha 64)
+  r: 64
+  alpha: 64
+  dropout: 0.05
+  target_modules: 'model\.layers\.\d+\.(self_attn\.(q|k|v|o)_proj|mlp\.(gate|up|down)_proj)'
+train:
+  epochs: 1
+  learning_rate: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 32
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: true
+  group_by_length: true
+  logging_steps: 1
+  eval_steps: 4                    # ~8 steps (233 / 32)
+  save_steps: 1000
+  save_adapter_every_epoch: true
+  seed: 20260910

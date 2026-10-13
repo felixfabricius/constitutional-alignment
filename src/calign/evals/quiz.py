@@ -6,7 +6,9 @@ below 0.8 at an RL checkpoint is a stop-and-check-in flag).
 
 Generation (GPU): every question once, greedy (T=0), max 400 tokens, system prompt `QUIZ_SYSTEM` only. The
 configuration's own system prompt is NOT added: the quiz measures what the weights know (C1, which has the
-constitution in context, is not a meaningful quiz row). Grading (local, Claude): `calign.validate.judge` with
+constitution in context, is not a meaningful quiz row). `sample --with-config-prompt` (Felix 2026-10-13) puts the configuration's
+system prompt (`budget_system_prompt(cfg.system_prompt_variant)`) before `QUIZ_SYSTEM`, for C1-type rows that read the
+constitution from context; such runs are standalone (not part of a suite) and tagged `prompt_variant: quiz+config`. Grading (local, Claude): `calign.validate.judge` with
 `QUIZ_GRADE_USER` (`correct` 0/0.5/1, `fabricated`); the P6 questions carry descriptive answer keys.
 
 CLI:
@@ -144,8 +146,17 @@ def sample(
     limit: int | None = None,
     seed: int = 0,
     verbose: bool = False,
+    with_config_prompt: bool = False,
 ) -> list[GenerationRecord]:
     items = quiz_items()
+    system, variant, in_prompt = QUIZ_SYSTEM, "quiz", False
+    if with_config_prompt:
+        from calign.evals.common import budget_system_prompt
+
+        pre = budget_system_prompt(cfg.system_prompt_variant)
+        if pre is None:
+            raise ValueError(f"{cfg.id} has no system prompt (variant {cfg.system_prompt_variant!r})")
+        system, variant, in_prompt = pre + "\n\n" + QUIZ_SYSTEM, "quiz+config", True
     if limit:
         items = items[:limit]
     records = generate_records(
@@ -156,9 +167,9 @@ def sample(
         "quiz",  # source "quiz": calign.validate.judge grades these with QUIZ_GRADE_USER
         max_tokens=MAX_TOKENS,
         seed=seed,
-        system=QUIZ_SYSTEM,
-        prompt_variant="quiz",
-        constitution_in_prompt=False,
+        system=system,
+        prompt_variant=variant,
+        constitution_in_prompt=in_prompt,
     )
     write_jsonl(run_dir / RECORDS_FILE, records)
     if verbose:
@@ -239,6 +250,9 @@ def main(argv: list[str] | None = None) -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("sample")
     add_eval_args(s)
+    s.add_argument(
+        "--with-config-prompt", action="store_true", help="prepend the configuration's system prompt (C1-type rows)"
+    )
     g = sub.add_parser("grade")
     g.add_argument("--run-dir", type=Path, required=True)
     g.add_argument("--no-batches", action="store_true")
@@ -257,8 +271,17 @@ def main(argv: list[str] | None = None) -> None:
         return
     cfg = eval_config_from_args(args)
     backend, model_cfg = load_eval_backend(cfg, seed=0)
-    run_dir = eval_run_dir_for(cfg, COMPONENT, {"limit": item_limit(args)}, args, model_cfg)
-    sample(backend, cfg, model_cfg, run_dir, limit=item_limit(args), verbose=args.dry_run)
+    params = {"limit": item_limit(args), "with_config_prompt": args.with_config_prompt}
+    run_dir = eval_run_dir_for(cfg, COMPONENT, params, args, model_cfg)
+    sample(
+        backend,
+        cfg,
+        model_cfg,
+        run_dir,
+        limit=item_limit(args),
+        verbose=args.dry_run,
+        with_config_prompt=args.with_config_prompt,
+    )
     LOGGER.info("run dir %s (grade locally with `grade --run-dir`)", run_dir)
 
 

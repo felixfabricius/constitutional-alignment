@@ -11,6 +11,7 @@
      "ci95_high": 0.307960536743,
      "k": 9,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C0/deadline_L1/20261002_010410_a0301a98"
     },
     "Scenario 2: Excursion Briefing": {
@@ -19,6 +20,7 @@
      "ci95_high": 0.887562499842,
      "k": 40,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C0/briefing_L1/20261002_010410_6a7caf5f"
     }
    }
@@ -33,6 +35,7 @@
      "ci95_high": 0.07269781922,
      "k": 0,
      "n": 49,
+     "n_generated": 50,
      "run": "outputs/scenarios/C1/deadline_L1/20261002_022422_a3a2bc46"
     },
     "Scenario 2: Excursion Briefing": {
@@ -41,6 +44,7 @@
      "ci95_high": 0.688378007887,
      "k": 28,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C1/briefing_L1/20261002_022422_3fa3e82c"
     }
    }
@@ -55,6 +59,7 @@
      "ci95_high": 0.213602314375,
      "k": 5,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C2kn@e4/deadline_L1/20261002_225221_c074d99f"
     },
     "Scenario 2: Excursion Briefing": {
@@ -63,6 +68,7 @@
      "ci95_high": 0.872460840298,
      "k": 39,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C2kn@e4/briefing_L1/20261004_163450_07c0a4dc"
     }
    }
@@ -77,6 +83,7 @@
      "ci95_high": 0.134600906875,
      "k": 2,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C2kna@e3kn1/deadline_L1/20261011_203823_a67eadf5"
     },
     "Scenario 2: Excursion Briefing": {
@@ -85,6 +92,7 @@
      "ci95_high": 0.808964464991,
      "k": 35,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C2kna@e3kn1/briefing_L1/20261011_203823_e44139e2"
     }
    }
@@ -99,6 +107,7 @@
      "ci95_high": 0.104954435896,
      "k": 1,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C3@s60/deadline_L1/20261004_162557_9ee43d01"
     },
     "Scenario 2: Excursion Briefing": {
@@ -107,6 +116,7 @@
      "ci95_high": 0.825258293341,
      "k": 36,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C3@s60/briefing_L1/20261004_162557_da63b004"
     }
    }
@@ -121,6 +131,7 @@
      "ci95_high": 0.162170916888,
      "k": 3,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C4@s50/deadline_L1/20261004_164957_3f2c3b13"
     },
     "Scenario 2: Excursion Briefing": {
@@ -129,6 +140,7 @@
      "ci95_high": 0.943823998491,
      "k": 44,
      "n": 50,
+     "n_generated": 50,
      "run": "outputs/scenarios/C4@s50/briefing_L1/20261004_164957_78be6091"
     }
    }

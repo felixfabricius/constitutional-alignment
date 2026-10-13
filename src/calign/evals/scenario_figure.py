@@ -50,9 +50,10 @@ def load_values(report_dir: Path) -> dict:
         for label, key in SCENARIOS:
             cell, rate = key.split("_", 2)[0] + "_" + key.split("_", 2)[1], key.split("_", 2)[2]
             run = rows[cid]["scenario_runs"][cell]
-            s = json.loads((REPO_ROOT / run / "summary.json").read_text(encoding="utf-8"))[rate]
+            summ = json.loads((REPO_ROOT / run / "summary.json").read_text(encoding="utf-8"))
+            s = summ[rate]
             entry["scenarios"][label] = {"value": s["rate"], "ci95_low": s["ci95_low"], "ci95_high": s["ci95_high"],
-                                         "k": s["k"], "n": s["n"], "run": run}  # fmt: skip
+                                         "k": s["k"], "n": s["n"], "n_generated": summ["n"], "run": run}  # fmt: skip
         out["configs"].append(entry)
     return out
 
@@ -94,8 +95,9 @@ def plot(data: dict, path: Path) -> Path:
     ax.set_title("Misaligned actions in the agentic scenarios", color=_INK, fontsize=FONT_TITLE, loc="left", pad=34)
     ax.legend(loc="lower left", bbox_to_anchor=(-0.01, 1.0), ncol=2, frameon=False, fontsize=FONT_LEGEND,
               handlelength=1.1, handleheight=1.1, columnspacing=1.4, borderaxespad=0.2, labelcolor=_INK)  # fmt: skip
-    n = {c["scenarios"][lab]["n"] for c in data["configs"] for lab, _ in SCENARIOS}
-    n_txt = f"{n.pop()} episodes" if len(n) == 1 else f"{min(n)}-{max(n)} episodes"
+    # generations per bar (episodes sampled); a rate's denominator excludes format failures (C1 scenario 1: 49 of 50)
+    n = {c["scenarios"][lab]["n_generated"] for c in data["configs"] for lab, _ in SCENARIOS}
+    n_txt = f"{n.pop()} generations" if len(n) == 1 else f"{min(n)}-{max(n)} generations"
     fig.text(0.99, 0.01, f"{n_txt} per bar · error bars: 95% CI", ha="right", va="bottom", fontsize=FONT_NOTE,
              color=_INK2)  # fmt: skip
     fig.tight_layout(rect=(0, 0.03, 1, 1))

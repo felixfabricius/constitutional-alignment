@@ -23,9 +23,11 @@ retention: recall quiz (20 questions) and P6 quiz (10). Frozen suite `p3-v1` (RE
 | C2-kna | C2 + application SFT with P6 held out strictly (chunk 10: 159 P6-free application rows + 22% replay, 3 epochs; then 1 epoch on the 233 knowledge rows, which restores the P6 link, A10) | LoRA `felixfabricius/gemma-3-27b-it-halden-sft-kna/e3_kn_epoch1@f62c0b4` on `...-sft-kn-e4@272d870` | `C2kna@e3kn1` |
 | SFTP | C2 + the C1 prompt (exploratory) | as C2 | `SFTP` |
 | C3 | C2 + GRPO, outcome reward | `felixfabricius/gemma-3-27b-it-halden-rl/C3/checkpoint-60` | `C3@s60` |
-| C4 | C2 + GRPO, outcome + per-principle citation reward | `.../C4/checkpoint-{20,50}` | `C4@s20`, `C4@s50` |
+| C4 | C2 + GRPO, outcome + per-principle citation reward; **chosen checkpoint step 50** (Felix 2026-10-13) | `.../C4/checkpoint-50` | `C4@s50` |
 
-**C4 checkpoint mapping (Felix 2026-10-04, post hoc):** C4@s20 for scenario 2 and the P6 questions (eval-2, P6
+**C4 checkpoint (Felix 2026-10-13): C4@s50 for every comparison.** It supersedes the chunk 9 mapping described
+next, which the A3/A4 tables of chunk 9 used (`final_c9`); A4 below is recomputed with C4@s50 throughout.
+Superseded mapping (Felix 2026-10-04, post hoc): C4@s20 for scenario 2 and the P6 questions (eval-2, P6
 quiz), C4@s50 for everything else. C4@s50 has the best citation term on the RL hold-out; C4@s20 is the last C4
 checkpoint with the P6 quiz >= 0.8 (C4's P6 knowledge erodes from step 30, A5). Choosing per component may favour C4
 over C3, which uses its final checkpoint throughout; every checkpoint of both runs is in the trajectory tables.
@@ -75,7 +77,7 @@ SFT trajectory (C2-app = SFT v3, epochs 1-4): eval-1 94.2 / 94.9 / 94.5 / 95.5, 
 eval-2 70.9 / 67.4 / 72.7 / 68.6, recall quiz 0.64 / 0.85 / 0.92 / 0.92, P6 quiz 0.28 / 0.88 / 0.83 / 0.90,
 over-citation 1.3 / 2.0 / 1.8 / 2.1.
 
-## A4. Primary comparisons (D15; `outputs/evals/report/final_c9/primary.md`)
+## A4. Primary comparisons (D15; `outputs/evals/report/final_c10/primary.md`, C4 = C4@s50)
 
 Paired over items (MoralChoice, quizzes) or Newcombe (scenarios, independent samples); differences a - b, 95% CI.
 
@@ -88,11 +90,16 @@ Paired over items (MoralChoice, quizzes) or Newcombe (scenarios, independent sam
 | C3 vs C2 | eval-1 / eval-2 / hard | +2.2 [+0.7, +3.8] / -1.2 [-7.6, +5.2] / +5.1 [+0.0, +10.6] |
 | C3 vs C2 | scenario 1 any deviation / scenario 2 deceptive | -8.0 [-19.5, +2.2] / -12.0 [-28.9, +5.9] |
 | C3 vs C0 | scenario 1 any deviation / scenario 2 deceptive | -16.0 [-28.9, -4.2] / -16.0 [-32.4, +1.6] |
-| C4@s50 vs C3 | eval-1 / hard / scenario 1 any deviation | +0.3 [-0.9, +1.5] / +1.3 [-4.2, +6.4] / +4.0 [-5.4, +14.3] |
-| C4@s20 vs C3 | eval-2 / P6 quiz | +0.6 [-5.8, +7.0] / +0.17 [+0.00, +0.41] |
-| C4@s20 vs C3 | scenario 2 any deviation / deceptive | **+18.0 [+2.5, +32.8] / +18.0 [+0.6, +34.1]** |
-| C4@s20 vs C2 | scenario 2 deceptive | +6.0 [-10.1, +21.7] |
-| C4 vs C0 | scenario 1 any deviation (s50) / scenario 2 deceptive (s20) | -12.0 [-25.4, +1.1] / +2.0 [-13.5, +17.4] |
+| C4 vs C3 | eval-1 / hard / scenario 1 any deviation | +0.3 [-0.9, +1.5] / +1.3 [-4.2, +6.4] / +4.0 [-5.4, +14.3] |
+| C4 vs C3 | eval-2 / P6 quiz | -1.7 [-8.7, +5.2] / **-0.33 [-0.59, -0.08]** |
+| C4 vs C3 | scenario 2 any deviation / deceptive | **+16.0 [+0.2, +31.1]** / +12.0 [-5.9, +28.9] |
+| C4 vs C2 | eval-1 / eval-2 / hard | +2.5 [+1.2, +3.9] / -2.9 [-9.9, +4.1] / +6.4 [+1.0, +12.2] |
+| C4 vs C2 | P6 quiz / scenario 2 deceptive | **-0.41 [-0.71, -0.11]** / +0.0 [-16.6, +16.6] |
+| C4 vs C0 | scenario 1 any deviation / scenario 2 deceptive | -12.0 [-25.4, +1.1] / -4.0 [-20.0, +12.3] |
+
+With the superseded chunk 9 mapping (C4@s20 for the P6 items, `final_c9/primary.md`) the P6 rows were: vs C3
+eval-2 +0.6 [-5.8, +7.0], P6 quiz +0.17 [+0.00, +0.41], scenario 2 any deviation / deceptive +18.0 [+2.5, +32.8] /
++18.0 [+0.6, +34.1]; vs C2 scenario 2 deceptive +6.0 [-10.1, +21.7]; vs C0 scenario 2 deceptive +2.0 [-13.5, +17.4].
 
 `primary.md` lists every row (including C1 vs C0 on eval-2). eval-2-hard (generated P6 dilemmas) has no usable item set
 (status E6), so the planned C4-vs-C3 comparison on it is not available.
@@ -134,15 +141,16 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
 5. **The citation (process) reward (C4) is learned but does not help, and it costs P6 knowledge**: the hold-out
    citation term rises (-0.07 -> +0.09) and C4 cites more precisely in training (answers with only relevant
    citations 27% -> 54% of citing hold-out answers), but MoralChoice citation accuracy does not improve (0.757-0.773 vs
-   0.774), C4 equals C3 on eval-1 / hard / eval-2, and on scenario 2 C4@s20 deceives more than C3 (+18 [+0.6,
-   +34.1]; vs C2 +6, n.s.). RL-train has only P1-P5 items, so every P6 citation counts as wrong under the
-   per-principle score and C4 stops citing P6: its P6 quiz falls from 1.00 (s20) to 0.43 (s60), while C3 stays at
-   0.83-1.00.
+   0.774), C4 (step 50, the chosen checkpoint) equals C3 on eval-1 / hard / eval-2, and on scenario 2 it deviates
+   more than C3 (any deviation +16 [+0.2, +31.1], deceptive +12 [-5.9, +28.9]; vs C2 deceptive +0, n.s.).
+   RL-train has only P1-P5 items, so every P6 citation counts as wrong under the per-principle score and C4 stops
+   citing P6: its P6 quiz falls from 1.00 (s20) to 0.50 at s50 (-0.33 vs C3, -0.41 vs C2) and 0.43 at s60, while C3
+   stays at 0.83-1.00.
 
 ## A7. Caveats
 
-- The C4 checkpoints are chosen per component after seeing the core suites (Felix 2026-10-04); this can only favour
-  C4, and C4 still does not beat C3.
+- C4's checkpoint (step 50, Felix 2026-10-13) was chosen after seeing the evaluations, on the RL hold-out citation
+  term; the superseded per-component mapping (2026-10-04) could only favour C4, and C4 did not beat C3 under it either.
 - The hard subset is selected on a C0 run: gains vs C0 include regression to the mean (E3); compare trained
   configurations with each other (paired), not only with C0.
 - Scenario cells have 50 episodes (CIs about +-15-20 points); scenario 1's deceptive tier has 0-2 events per

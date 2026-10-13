@@ -126,6 +126,10 @@ C4@s60 fails knowledge retention (P6 quiz 0.43, E9). Felix's selection instead:
 
 ## Results
 
+**Update 2026-10-13 (Felix):** C4@s50 is the chosen C4 checkpoint for every comparison; the per-component mapping
+below (C4@s20 for scenario 2 and the P6 questions) is superseded. Primary comparisons recomputed:
+`outputs/evals/report/final_c10/primary.md` (`calign.evals.primary`, default `--c4-mapping s50`); `phase3_runs.md` A4.
+
 **Done 2026-10-04.** Write-up: `phase3_runs.md` Part A (configurations, RL setup, main table, primary comparisons,
 RL trajectories, readings, caveats, costs). Report dir `outputs/evals/report/final_c9/`: `summary.{json,md}`
 (`calign.evals.report --configs C0 C1 C2kn@e4 C2@e4 SFTP C3@s60 C4@s20 C4@s50 --checkpoints-of C2 C3 C4`),

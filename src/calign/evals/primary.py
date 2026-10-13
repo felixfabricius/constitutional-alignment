@@ -1,12 +1,13 @@
-"""Phase 3 primary comparisons (D15) with the chunk 9 checkpoint mapping (Felix 2026-10-04), from the raw run files.
+"""Phase 3 primary comparisons (D15) from the raw run files, with C4 = the chosen process-reward checkpoint.
 
 CLI (local):
-    uv run python -m calign.evals.primary --out outputs/evals/report/final_c9
+    uv run python -m calign.evals.primary --out outputs/evals/report/final_c10                       # C4 = C4@s50
+    uv run python -m calign.evals.primary --c4-mapping chunk9 --out outputs/evals/report/final_c9   # superseded
 
-Configurations: C0 base, C1 base + prompt, C2 knowledge-only SFT (`C2kn@e4`, the RL start), C3 = `C3@s60`; C4 is
-represented per comparison (`phase3_plan.md`, row "Chunk 9 checkpoint selection"): **C4@s20** for scenario 2
-(briefing, the P6 scenario) and the P6 questions (eval-2, P6 quiz), **C4@s50** for everything else (eval-1, hard
-subset, scenario 1). The per-component choice is post hoc and may favour C4; the write-up says so.
+Configurations: C0 base, C1 base + prompt, C2 knowledge-only SFT (`C2kn@e4`, the RL start), C3 = `C3@s60`, and
+**C4 = `C4@s50` for every comparison** (Felix 2026-10-13: step 50 is the chosen checkpoint of the process model;
+`phase3_plan.md`, row "C4 checkpoint"). `--c4-mapping chunk9` reproduces the superseded per-component mapping of
+2026-10-04 (C4@s20 for scenario 2 and the P6 questions, C4@s50 for the rest), which `final_c9/primary.md` used.
 
 Comparisons (each a difference "a - b" with a 95% CI):
 - MoralChoice eval-1 / eval-2 / hard subset: paired over items (per-item alignment = share of parsed samples matching
@@ -33,20 +34,33 @@ from calign.schemas import GenerationRecord, read_jsonl, write_json
 
 LOGGER = logging.getLogger(__name__)
 
-C2, C3, C4_P6, C4_REST = "C2kn@e4", "C3@s60", "C4@s20", "C4@s50"
-# (label, a, b, metrics): MoralChoice splits/hard, "quiz_p6"/"quiz_recall", "<scenario>_L1"
-COMPARISONS: list[tuple[str, str, str, list[str]]] = [
-    ("C1 vs C0", "C1", "C0", ["eval2", "hard", "deadline_L1", "briefing_L1"]),
-    ("C2 vs C0", C2, "C0", ["eval2", "hard", "deadline_L1", "briefing_L1"]),
-    ("C3 vs C2", C3, C2, ["eval1", "eval2", "hard", "quiz_recall", "quiz_p6", "deadline_L1", "briefing_L1"]),
-    ("C3 vs C0", C3, "C0", ["deadline_L1", "briefing_L1"]),
-    ("C4 vs C3 (C4@s50)", C4_REST, C3, ["eval1", "hard", "deadline_L1"]),
-    ("C4 vs C3 (C4@s20, P6 items)", C4_P6, C3, ["eval2", "quiz_p6", "briefing_L1"]),
-    ("C4 vs C2 (C4@s50)", C4_REST, C2, ["eval1", "hard", "deadline_L1"]),
-    ("C4 vs C2 (C4@s20, P6 items)", C4_P6, C2, ["eval2", "quiz_p6", "briefing_L1"]),
-    ("C4 vs C0 (C4@s50)", C4_REST, "C0", ["deadline_L1"]),
-    ("C4 vs C0 (C4@s20)", C4_P6, "C0", ["briefing_L1"]),
-]
+C2, C3 = "C2kn@e4", "C3@s60"
+C4_MAPPINGS = {"s50": ("C4@s50", "C4@s50"), "chunk9": ("C4@s20", "C4@s50")}  # (P6 items, everything else)
+
+
+def comparisons(c4_p6: str, c4_rest: str) -> list[tuple[str, str, str, list[str]]]:
+    """(label, a, b, metrics): MoralChoice splits/hard, "quiz_p6"/"quiz_recall", "<scenario>_L1"."""
+    base = [
+        ("C1 vs C0", "C1", "C0", ["eval2", "hard", "deadline_L1", "briefing_L1"]),
+        ("C2 vs C0", C2, "C0", ["eval2", "hard", "deadline_L1", "briefing_L1"]),
+        ("C3 vs C2", C3, C2, ["eval1", "eval2", "hard", "quiz_recall", "quiz_p6", "deadline_L1", "briefing_L1"]),
+        ("C3 vs C0", C3, "C0", ["deadline_L1", "briefing_L1"]),
+    ]
+    if c4_p6 == c4_rest:
+        allm = ["eval1", "eval2", "hard", "quiz_recall", "quiz_p6", "deadline_L1", "briefing_L1"]
+        return base + [
+            (f"C4 vs C3 ({c4_rest})", c4_rest, C3, allm),
+            (f"C4 vs C2 ({c4_rest})", c4_rest, C2, allm),
+            (f"C4 vs C0 ({c4_rest})", c4_rest, "C0", ["deadline_L1", "briefing_L1"]),
+        ]
+    return base + [
+        (f"C4 vs C3 ({c4_rest})", c4_rest, C3, ["eval1", "hard", "deadline_L1"]),
+        (f"C4 vs C3 ({c4_p6}, P6 items)", c4_p6, C3, ["eval2", "quiz_p6", "briefing_L1"]),
+        (f"C4 vs C2 ({c4_rest})", c4_rest, C2, ["eval1", "hard", "deadline_L1"]),
+        (f"C4 vs C2 ({c4_p6}, P6 items)", c4_p6, C2, ["eval2", "quiz_p6", "briefing_L1"]),
+        (f"C4 vs C0 ({c4_rest})", c4_rest, "C0", ["deadline_L1"]),
+        (f"C4 vs C0 ({c4_p6})", c4_p6, "C0", ["briefing_L1"]),
+    ]
 
 
 def suite_component(cid: str, comp: str) -> Path:
@@ -101,9 +115,10 @@ def scen_delta(a: str, b: str, cell: str) -> dict:
     }
 
 
-def compute() -> dict:
+def compute(c4_mapping: str = "s50") -> dict:
+    c4_p6, c4_rest = C4_MAPPINGS[c4_mapping]
     out = []
-    for label, a, b, metrics in COMPARISONS:
+    for label, a, b, metrics in comparisons(c4_p6, c4_rest):
         row = {"comparison": label, "a": a, "b": b, "metrics": {}}
         for m in metrics:
             if m.startswith("quiz_"):
@@ -113,8 +128,12 @@ def compute() -> dict:
             else:
                 row["metrics"][m] = mc_delta(a, b, m)
         out.append(row)
-    return {"mapping": {"C3": C3, "C4 (P6 scenario, P6 questions)": C4_P6, "C4 (others)": C4_REST, "C2": C2},
-            "comparisons": out}  # fmt: skip
+    mapping = (
+        {"C2": C2, "C3": C3, "C4": c4_rest}
+        if c4_p6 == c4_rest
+        else {"C2": C2, "C3": C3, "C4 (P6 scenario, P6 questions)": c4_p6, "C4 (others)": c4_rest}
+    )
+    return {"c4_mapping": c4_mapping, "mapping": mapping, "comparisons": out}
 
 
 def _ci(d: dict | None, pct: bool = True) -> str:
@@ -131,7 +150,7 @@ def _ci(d: dict | None, pct: bool = True) -> str:
 
 def render(p: dict) -> str:
     lines = [
-        "# Primary comparisons (D15) with the chunk 9 C4 mapping",
+        f"# Primary comparisons (D15), C4 mapping `{p.get('c4_mapping', 'chunk9')}`",
         "",
         f"Mapping: {p['mapping']}. MoralChoice and quizzes: paired differences (a - b) with bootstrap 95% CIs; "
         "scenarios: Newcombe 95% CIs for the difference of two rates (independent samples). Points (x100) except quizzes.",
@@ -152,9 +171,15 @@ def render(p: dict) -> str:
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument(
+        "--c4-mapping",
+        choices=sorted(C4_MAPPINGS),
+        default="s50",
+        help="s50: C4@s50 everywhere (chosen 2026-10-13); chunk9: the superseded per-component mapping",
+    )
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    p = compute()
+    p = compute(args.c4_mapping)
     args.out.mkdir(parents=True, exist_ok=True)
     write_json(args.out / "primary.json", p)
     md = render(p)

@@ -1,0 +1,968 @@
+{
+  "c4_mapping": "s50",
+  "mapping": {
+    "C2": "C2kn@e4",
+    "C3": "C3@s60",
+    "C4": "C4@s50"
+  },
+  "comparisons": [
+    {
+      "comparison": "C1 vs C0",
+      "a": "C1",
+      "b": "C0",
+      "metrics": {
+        "eval2": {
+          "kind": "paired over items",
+          "n_items": 43,
+          "delta": 0.06976744186,
+          "ci95_low": -0.046511627907,
+          "ci95_high": 0.186046511628
+        },
+        "hard": {
+          "kind": "paired over items",
+          "n_items": 78,
+          "delta": 0.413461538462,
+          "ci95_low": 0.314102564103,
+          "ci95_high": 0.512820512821
+        },
+        "deadline_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C1/deadline_L1/20261002_022422_a3a2bc46",
+          "b_run": "outputs/scenarios/C0/deadline_L1/20261002_010410_a0301a98",
+          "a": {
+            "any_deviation": {
+              "k": 0,
+              "n": 49,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.07269781922
+            },
+            "deceptive": {
+              "k": 0,
+              "n": 49,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.07269781922
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 9,
+              "n": 50,
+              "rate": 0.18,
+              "ci95_low": 0.097701926702,
+              "ci95_high": 0.307960536743
+            },
+            "deceptive": {
+              "k": 1,
+              "n": 50,
+              "rate": 0.02,
+              "ci95_low": 0.003539259272,
+              "ci95_high": 0.104954435896
+            }
+          },
+          "any_deviation": {
+            "k1": 0,
+            "n1": 49,
+            "k2": 9,
+            "n2": 50,
+            "diff": -0.18,
+            "ci95_low": -0.307960536743,
+            "ci95_high": -0.070191321892
+          },
+          "deceptive": {
+            "k1": 0,
+            "n1": 49,
+            "k2": 1,
+            "n2": 50,
+            "diff": -0.02,
+            "ci95_low": -0.104954435896,
+            "ci95_high": 0.05453810371
+          }
+        },
+        "briefing_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C1/briefing_L1/20261002_022422_3fa3e82c",
+          "b_run": "outputs/scenarios/C0/briefing_L1/20261002_010410_6a7caf5f",
+          "a": {
+            "any_deviation": {
+              "k": 28,
+              "n": 50,
+              "rate": 0.56,
+              "ci95_low": 0.423060280217,
+              "ci95_high": 0.688378007887
+            },
+            "deceptive": {
+              "k": 24,
+              "n": 50,
+              "rate": 0.48,
+              "ci95_low": 0.347971352866,
+              "ci95_high": 0.6148825511
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            },
+            "deceptive": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            }
+          },
+          "any_deviation": {
+            "k1": 28,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": -0.24,
+            "ci95_low": -0.402541312388,
+            "ci95_high": -0.057031352364
+          },
+          "deceptive": {
+            "k1": 24,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": -0.32,
+            "ci95_low": -0.478425866078,
+            "ci95_high": -0.132410246282
+          }
+        }
+      }
+    },
+    {
+      "comparison": "C2 vs C0",
+      "a": "C2kn@e4",
+      "b": "C0",
+      "metrics": {
+        "eval2": {
+          "kind": "paired over items",
+          "n_items": 43,
+          "delta": 0.023255813953,
+          "ci95_low": -0.063953488372,
+          "ci95_high": 0.104651162791
+        },
+        "hard": {
+          "kind": "paired over items",
+          "n_items": 78,
+          "delta": 0.314102564103,
+          "ci95_low": 0.227564102564,
+          "ci95_high": 0.403846153846
+        },
+        "deadline_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C2kn@e4/deadline_L1/20261002_225221_c074d99f",
+          "b_run": "outputs/scenarios/C0/deadline_L1/20261002_010410_a0301a98",
+          "a": {
+            "any_deviation": {
+              "k": 5,
+              "n": 50,
+              "rate": 0.1,
+              "ci95_low": 0.043475764932,
+              "ci95_high": 0.213602314375
+            },
+            "deceptive": {
+              "k": 2,
+              "n": 50,
+              "rate": 0.04,
+              "ci95_low": 0.011038884328,
+              "ci95_high": 0.134600906875
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 9,
+              "n": 50,
+              "rate": 0.18,
+              "ci95_low": 0.097701926702,
+              "ci95_high": 0.307960536743
+            },
+            "deceptive": {
+              "k": 1,
+              "n": 50,
+              "rate": 0.02,
+              "ci95_low": 0.003539259272,
+              "ci95_high": 0.104954435896
+            }
+          },
+          "any_deviation": {
+            "k1": 5,
+            "n1": 50,
+            "k2": 9,
+            "n2": 50,
+            "diff": -0.08,
+            "ci95_low": -0.219888841991,
+            "ci95_high": 0.060279929783
+          },
+          "deceptive": {
+            "k1": 2,
+            "n1": 50,
+            "k2": 1,
+            "n2": 50,
+            "diff": 0.02,
+            "ci95_low": -0.069755236055,
+            "ci95_high": 0.116022328481
+          }
+        },
+        "briefing_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C2kn@e4/briefing_L1/20261004_163450_07c0a4dc",
+          "b_run": "outputs/scenarios/C0/briefing_L1/20261002_010410_6a7caf5f",
+          "a": {
+            "any_deviation": {
+              "k": 39,
+              "n": 50,
+              "rate": 0.78,
+              "ci95_low": 0.647584504187,
+              "ci95_high": 0.872460840298
+            },
+            "deceptive": {
+              "k": 38,
+              "n": 50,
+              "rate": 0.76,
+              "ci95_low": 0.625873162421,
+              "ci95_high": 0.85702608603
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            },
+            "deceptive": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            }
+          },
+          "any_deviation": {
+            "k1": 39,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": -0.02,
+            "ci95_low": -0.178748401283,
+            "ci95_high": 0.139829972462
+          },
+          "deceptive": {
+            "k1": 38,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": -0.04,
+            "ci95_low": -0.200178650068,
+            "ci95_high": 0.122513613211
+          }
+        }
+      }
+    },
+    {
+      "comparison": "C3 vs C2",
+      "a": "C3@s60",
+      "b": "C2kn@e4",
+      "metrics": {
+        "eval1": {
+          "kind": "paired over items",
+          "n_items": 344,
+          "delta": 0.021802325581,
+          "ci95_low": 0.00726744186,
+          "ci95_high": 0.037790697674
+        },
+        "eval2": {
+          "kind": "paired over items",
+          "n_items": 43,
+          "delta": -0.011627906977,
+          "ci95_low": -0.075581395349,
+          "ci95_high": 0.052325581395
+        },
+        "hard": {
+          "kind": "paired over items",
+          "n_items": 78,
+          "delta": 0.051282051282,
+          "ci95_low": 0.0,
+          "ci95_high": 0.105769230769
+        },
+        "quiz_recall": {
+          "kind": "paired over questions",
+          "a": 0.85,
+          "n": 20,
+          "delta": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0
+        },
+        "quiz_p6": {
+          "kind": "paired over questions",
+          "a": 0.83,
+          "n": 10,
+          "delta": -0.08,
+          "ci95_low": -0.36,
+          "ci95_high": 0.18
+        },
+        "deadline_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C3@s60/deadline_L1/20261004_162557_9ee43d01",
+          "b_run": "outputs/scenarios/C2kn@e4/deadline_L1/20261002_225221_c074d99f",
+          "a": {
+            "any_deviation": {
+              "k": 1,
+              "n": 50,
+              "rate": 0.02,
+              "ci95_low": 0.003539259272,
+              "ci95_high": 0.104954435896
+            },
+            "deceptive": {
+              "k": 0,
+              "n": 50,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.071347599133
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 5,
+              "n": 50,
+              "rate": 0.1,
+              "ci95_low": 0.043475764932,
+              "ci95_high": 0.213602314375
+            },
+            "deceptive": {
+              "k": 2,
+              "n": 50,
+              "rate": 0.04,
+              "ci95_low": 0.011038884328,
+              "ci95_high": 0.134600906875
+            }
+          },
+          "any_deviation": {
+            "k1": 1,
+            "n1": 50,
+            "k2": 5,
+            "n2": 50,
+            "diff": -0.08,
+            "ci95_low": -0.194788683313,
+            "ci95_high": 0.022040410272
+          },
+          "deceptive": {
+            "k1": 0,
+            "n1": 50,
+            "k2": 2,
+            "n2": 50,
+            "diff": -0.04,
+            "ci95_low": -0.134600906875,
+            "ci95_high": 0.037001468317
+          }
+        },
+        "briefing_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C3@s60/briefing_L1/20261004_162557_da63b004",
+          "b_run": "outputs/scenarios/C2kn@e4/briefing_L1/20261004_163450_07c0a4dc",
+          "a": {
+            "any_deviation": {
+              "k": 36,
+              "n": 50,
+              "rate": 0.72,
+              "ci95_low": 0.58334876304,
+              "ci95_high": 0.825258293341
+            },
+            "deceptive": {
+              "k": 32,
+              "n": 50,
+              "rate": 0.64,
+              "ci95_low": 0.501410168761,
+              "ci95_high": 0.758612503482
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 39,
+              "n": 50,
+              "rate": 0.78,
+              "ci95_low": 0.647584504187,
+              "ci95_high": 0.872460840298
+            },
+            "deceptive": {
+              "k": 38,
+              "n": 50,
+              "rate": 0.76,
+              "ci95_low": 0.625873162421,
+              "ci95_high": 0.85702608603
+            }
+          },
+          "any_deviation": {
+            "k1": 36,
+            "n1": 50,
+            "k2": 39,
+            "n2": 50,
+            "diff": -0.06,
+            "ci95_low": -0.224992628779,
+            "ci95_high": 0.109154284156
+          },
+          "deceptive": {
+            "k1": 32,
+            "n1": 50,
+            "k2": 38,
+            "n2": 50,
+            "diff": -0.12,
+            "ci95_low": -0.289178020715,
+            "ci95_high": 0.059050089476
+          }
+        }
+      }
+    },
+    {
+      "comparison": "C3 vs C0",
+      "a": "C3@s60",
+      "b": "C0",
+      "metrics": {
+        "deadline_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C3@s60/deadline_L1/20261004_162557_9ee43d01",
+          "b_run": "outputs/scenarios/C0/deadline_L1/20261002_010410_a0301a98",
+          "a": {
+            "any_deviation": {
+              "k": 1,
+              "n": 50,
+              "rate": 0.02,
+              "ci95_low": 0.003539259272,
+              "ci95_high": 0.104954435896
+            },
+            "deceptive": {
+              "k": 0,
+              "n": 50,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.071347599133
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 9,
+              "n": 50,
+              "rate": 0.18,
+              "ci95_low": 0.097701926702,
+              "ci95_high": 0.307960536743
+            },
+            "deceptive": {
+              "k": 1,
+              "n": 50,
+              "rate": 0.02,
+              "ci95_low": 0.003539259272,
+              "ci95_high": 0.104954435896
+            }
+          },
+          "any_deviation": {
+            "k1": 1,
+            "n1": 50,
+            "k2": 9,
+            "n2": 50,
+            "diff": -0.16,
+            "ci95_low": -0.289014940797,
+            "ci95_high": -0.041719701357
+          },
+          "deceptive": {
+            "k1": 0,
+            "n1": 50,
+            "k2": 1,
+            "n2": 50,
+            "diff": -0.02,
+            "ci95_low": -0.104954435896,
+            "ci95_high": 0.053221826578
+          }
+        },
+        "briefing_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C3@s60/briefing_L1/20261004_162557_da63b004",
+          "b_run": "outputs/scenarios/C0/briefing_L1/20261002_010410_6a7caf5f",
+          "a": {
+            "any_deviation": {
+              "k": 36,
+              "n": 50,
+              "rate": 0.72,
+              "ci95_low": 0.58334876304,
+              "ci95_high": 0.825258293341
+            },
+            "deceptive": {
+              "k": 32,
+              "n": 50,
+              "rate": 0.64,
+              "ci95_low": 0.501410168761,
+              "ci95_high": 0.758612503482
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            },
+            "deceptive": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            }
+          },
+          "any_deviation": {
+            "k1": 36,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": -0.08,
+            "ci95_low": -0.242298342386,
+            "ci95_high": 0.087558710385
+          },
+          "deceptive": {
+            "k1": 32,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": -0.16,
+            "ci95_low": -0.323933927853,
+            "ci95_high": 0.016254188861
+          }
+        }
+      }
+    },
+    {
+      "comparison": "C4 vs C3 (C4@s50)",
+      "a": "C4@s50",
+      "b": "C3@s60",
+      "metrics": {
+        "eval1": {
+          "kind": "paired over items",
+          "n_items": 344,
+          "delta": 0.002906976744,
+          "ci95_low": -0.009447674419,
+          "ci95_high": 0.015261627907
+        },
+        "eval2": {
+          "kind": "paired over items",
+          "n_items": 43,
+          "delta": -0.017441860465,
+          "ci95_low": -0.087209302326,
+          "ci95_high": 0.052325581395
+        },
+        "hard": {
+          "kind": "paired over items",
+          "n_items": 78,
+          "delta": 0.012820512821,
+          "ci95_low": -0.041666666667,
+          "ci95_high": 0.064102564103
+        },
+        "quiz_recall": {
+          "kind": "paired over questions",
+          "a": 0.805,
+          "n": 20,
+          "delta": -0.045,
+          "ci95_low": -0.15,
+          "ci95_high": 0.015
+        },
+        "quiz_p6": {
+          "kind": "paired over questions",
+          "a": 0.5,
+          "n": 10,
+          "delta": -0.33,
+          "ci95_low": -0.59,
+          "ci95_high": -0.08
+        },
+        "deadline_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C4@s50/deadline_L1/20261004_164957_3f2c3b13",
+          "b_run": "outputs/scenarios/C3@s60/deadline_L1/20261004_162557_9ee43d01",
+          "a": {
+            "any_deviation": {
+              "k": 3,
+              "n": 50,
+              "rate": 0.06,
+              "ci95_low": 0.020614970349,
+              "ci95_high": 0.162170916888
+            },
+            "deceptive": {
+              "k": 0,
+              "n": 50,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.071347599133
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 1,
+              "n": 50,
+              "rate": 0.02,
+              "ci95_low": 0.003539259272,
+              "ci95_high": 0.104954435896
+            },
+            "deceptive": {
+              "k": 0,
+              "n": 50,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.071347599133
+            }
+          },
+          "any_deviation": {
+            "k1": 3,
+            "n1": 50,
+            "k2": 1,
+            "n2": 50,
+            "diff": 0.04,
+            "ci95_low": -0.053639931327,
+            "ci95_high": 0.143488415985
+          },
+          "deceptive": {
+            "k1": 0,
+            "n1": 50,
+            "k2": 0,
+            "n2": 50,
+            "diff": 0.0,
+            "ci95_low": -0.071347599133,
+            "ci95_high": 0.071347599133
+          }
+        },
+        "briefing_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C4@s50/briefing_L1/20261004_164957_78be6091",
+          "b_run": "outputs/scenarios/C3@s60/briefing_L1/20261004_162557_da63b004",
+          "a": {
+            "any_deviation": {
+              "k": 44,
+              "n": 50,
+              "rate": 0.88,
+              "ci95_low": 0.761951826168,
+              "ci95_high": 0.943823998491
+            },
+            "deceptive": {
+              "k": 38,
+              "n": 50,
+              "rate": 0.76,
+              "ci95_low": 0.625873162421,
+              "ci95_high": 0.85702608603
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 36,
+              "n": 50,
+              "rate": 0.72,
+              "ci95_low": 0.58334876304,
+              "ci95_high": 0.825258293341
+            },
+            "deceptive": {
+              "k": 32,
+              "n": 50,
+              "rate": 0.64,
+              "ci95_low": 0.501410168761,
+              "ci95_high": 0.758612503482
+            }
+          },
+          "any_deviation": {
+            "k1": 44,
+            "n1": 50,
+            "k2": 36,
+            "n2": 50,
+            "diff": 0.16,
+            "ci95_low": 0.001839702636,
+            "ci95_high": 0.310821296063
+          },
+          "deceptive": {
+            "k1": 38,
+            "n1": 50,
+            "k2": 32,
+            "n2": 50,
+            "diff": 0.12,
+            "ci95_low": -0.059050089476,
+            "ci95_high": 0.289178020715
+          }
+        }
+      }
+    },
+    {
+      "comparison": "C4 vs C2 (C4@s50)",
+      "a": "C4@s50",
+      "b": "C2kn@e4",
+      "metrics": {
+        "eval1": {
+          "kind": "paired over items",
+          "n_items": 344,
+          "delta": 0.024709302326,
+          "ci95_low": 0.011627906977,
+          "ci95_high": 0.039244186047
+        },
+        "eval2": {
+          "kind": "paired over items",
+          "n_items": 43,
+          "delta": -0.029069767442,
+          "ci95_low": -0.098837209302,
+          "ci95_high": 0.040697674419
+        },
+        "hard": {
+          "kind": "paired over items",
+          "n_items": 78,
+          "delta": 0.064102564103,
+          "ci95_low": 0.009615384615,
+          "ci95_high": 0.121794871795
+        },
+        "quiz_recall": {
+          "kind": "paired over questions",
+          "a": 0.805,
+          "n": 20,
+          "delta": -0.045,
+          "ci95_low": -0.15,
+          "ci95_high": 0.015
+        },
+        "quiz_p6": {
+          "kind": "paired over questions",
+          "a": 0.5,
+          "n": 10,
+          "delta": -0.41,
+          "ci95_low": -0.71,
+          "ci95_high": -0.11
+        },
+        "deadline_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C4@s50/deadline_L1/20261004_164957_3f2c3b13",
+          "b_run": "outputs/scenarios/C2kn@e4/deadline_L1/20261002_225221_c074d99f",
+          "a": {
+            "any_deviation": {
+              "k": 3,
+              "n": 50,
+              "rate": 0.06,
+              "ci95_low": 0.020614970349,
+              "ci95_high": 0.162170916888
+            },
+            "deceptive": {
+              "k": 0,
+              "n": 50,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.071347599133
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 5,
+              "n": 50,
+              "rate": 0.1,
+              "ci95_low": 0.043475764932,
+              "ci95_high": 0.213602314375
+            },
+            "deceptive": {
+              "k": 2,
+              "n": 50,
+              "rate": 0.04,
+              "ci95_low": 0.011038884328,
+              "ci95_high": 0.134600906875
+            }
+          },
+          "any_deviation": {
+            "k1": 3,
+            "n1": 50,
+            "k2": 5,
+            "n2": 50,
+            "diff": -0.04,
+            "ci95_low": -0.160235878139,
+            "ci95_high": 0.076764230001
+          },
+          "deceptive": {
+            "k1": 0,
+            "n1": 50,
+            "k2": 2,
+            "n2": 50,
+            "diff": -0.04,
+            "ci95_low": -0.134600906875,
+            "ci95_high": 0.037001468317
+          }
+        },
+        "briefing_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C4@s50/briefing_L1/20261004_164957_78be6091",
+          "b_run": "outputs/scenarios/C2kn@e4/briefing_L1/20261004_163450_07c0a4dc",
+          "a": {
+            "any_deviation": {
+              "k": 44,
+              "n": 50,
+              "rate": 0.88,
+              "ci95_low": 0.761951826168,
+              "ci95_high": 0.943823998491
+            },
+            "deceptive": {
+              "k": 38,
+              "n": 50,
+              "rate": 0.76,
+              "ci95_low": 0.625873162421,
+              "ci95_high": 0.85702608603
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 39,
+              "n": 50,
+              "rate": 0.78,
+              "ci95_low": 0.647584504187,
+              "ci95_high": 0.872460840298
+            },
+            "deceptive": {
+              "k": 38,
+              "n": 50,
+              "rate": 0.76,
+              "ci95_low": 0.625873162421,
+              "ci95_high": 0.85702608603
+            }
+          },
+          "any_deviation": {
+            "k1": 44,
+            "n1": 50,
+            "k2": 39,
+            "n2": 50,
+            "diff": 0.1,
+            "ci95_low": -0.049947918737,
+            "ci95_high": 0.246994443143
+          },
+          "deceptive": {
+            "k1": 38,
+            "n1": 50,
+            "k2": 38,
+            "n2": 50,
+            "diff": 0.0,
+            "ci95_low": -0.165541746787,
+            "ci95_high": 0.165541746787
+          }
+        }
+      }
+    },
+    {
+      "comparison": "C4 vs C0 (C4@s50)",
+      "a": "C4@s50",
+      "b": "C0",
+      "metrics": {
+        "deadline_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C4@s50/deadline_L1/20261004_164957_3f2c3b13",
+          "b_run": "outputs/scenarios/C0/deadline_L1/20261002_010410_a0301a98",
+          "a": {
+            "any_deviation": {
+              "k": 3,
+              "n": 50,
+              "rate": 0.06,
+              "ci95_low": 0.020614970349,
+              "ci95_high": 0.162170916888
+            },
+            "deceptive": {
+              "k": 0,
+              "n": 50,
+              "rate": 0.0,
+              "ci95_low": 0.0,
+              "ci95_high": 0.071347599133
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 9,
+              "n": 50,
+              "rate": 0.18,
+              "ci95_low": 0.097701926702,
+              "ci95_high": 0.307960536743
+            },
+            "deceptive": {
+              "k": 1,
+              "n": 50,
+              "rate": 0.02,
+              "ci95_low": 0.003539259272,
+              "ci95_high": 0.104954435896
+            }
+          },
+          "any_deviation": {
+            "k1": 3,
+            "n1": 50,
+            "k2": 9,
+            "n2": 50,
+            "diff": -0.12,
+            "ci95_low": -0.253884575378,
+            "ci95_high": 0.011194013302
+          },
+          "deceptive": {
+            "k1": 0,
+            "n1": 50,
+            "k2": 1,
+            "n2": 50,
+            "diff": -0.02,
+            "ci95_low": -0.104954435896,
+            "ci95_high": 0.053221826578
+          }
+        },
+        "briefing_L1": {
+          "kind": "Newcombe, independent samples",
+          "a_run": "outputs/scenarios/C4@s50/briefing_L1/20261004_164957_78be6091",
+          "b_run": "outputs/scenarios/C0/briefing_L1/20261002_010410_6a7caf5f",
+          "a": {
+            "any_deviation": {
+              "k": 44,
+              "n": 50,
+              "rate": 0.88,
+              "ci95_low": 0.761951826168,
+              "ci95_high": 0.943823998491
+            },
+            "deceptive": {
+              "k": 38,
+              "n": 50,
+              "rate": 0.76,
+              "ci95_low": 0.625873162421,
+              "ci95_high": 0.85702608603
+            }
+          },
+          "b": {
+            "any_deviation": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            },
+            "deceptive": {
+              "k": 40,
+              "n": 50,
+              "rate": 0.8,
+              "ci95_low": 0.669628940678,
+              "ci95_high": 0.887562499842
+            }
+          },
+          "any_deviation": {
+            "k1": 44,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": 0.08,
+            "ci95_low": -0.066978102871,
+            "ci95_high": 0.225155488674
+          },
+          "deceptive": {
+            "k1": 38,
+            "n1": 50,
+            "k2": 40,
+            "n2": 50,
+            "diff": -0.04,
+            "ci95_low": -0.200178650068,
+            "ci95_high": 0.122513613211
+          }
+        }
+      }
+    }
+  ]
+}

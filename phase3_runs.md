@@ -149,6 +149,11 @@ zero-variance flag. Every C3 and C4 checkpoint is within all four budget margins
   configuration, so its informative contrast is any deviation. Scenario tags were judged on a 300-episode sample
   (12-27 per cell), and the `confusion` tag is unreliable on scenario 1 (S4-tags).
 - eval-2 has 43 scored items (CIs about +-12 points); eval-2-hard has no item set (E6).
+- **The quizzes run without the configuration's system prompt** (they measure what the weights know), so the suite's
+  C1 quiz row (recall 0.00, P6 0.05) is the base model, not C1. With C1's `budget_silent` prompt before the quiz
+  instruction (`calign.evals.quiz sample --with-config-prompt`, 2026-10-13, run
+  `outputs/evals/C1/quiz/20261013_203103_fd44fbf5`, greedy, graded $0.08): **recall 1.00, P6 0.96** (only miss:
+  `p6_which_job` 0.6, P6 named correctly but the answer is incomplete), fabrication 0. Report C1's quiz row this way.
 - **The P6 hold-out of C2-app was partial** (found 2026-10-04): `data/sft_v3/train.jsonl` keeps 337 of 912 examples that
   mention P6, 162 of them application-type (P1-P5 transcripts citing P6: 82 / 123; case studies, worked conflict
   examples, dialogues, fiction with P6 not central: 52 / 153; training manuals: 28 / 46). Spot checks show applied P6

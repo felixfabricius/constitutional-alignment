@@ -23,6 +23,7 @@ Last updated: 2026-10-11 (chunk 10 done: C2-kna evaluated). Update at every run 
 
 | instance | state | run / log | started (UTC) | expected end | chunk |
 |---|---|---|---|---|---|
+| p3-c1q (massedcompute `A100_sxm4_80G`, $1.66/h) | **deleted** 2026-10-13 ~20:35 UTC (run synced) | C1 quiz with its system prompt (`outputs/logs/c1_quiz_prompt.log`; recall 1.00, P6 0.96) | 2026-10-13 ~20:00 | 20:31 | 10 (follow-up) |
 | p3-kna3 (massedcompute `A100_sxm4_80G`, $1.66/h) | **deleted** 2026-10-11 ~20:50 UTC (synced, verified by dry-run rsync) | chunk 10: core suite + scenario grid on `C2kna@e3kn1` (`outputs/logs/c10_eval.log`) | 2026-10-11 ~19:20 | 20:45 | 10 |
 | p3-kna2 (massedcompute `A100_sxm4_80G`, $1.66/h) | **deleted** 2026-10-11 ~19:20 UTC (synced; adapter on HF `...-halden-sft-kna/e3_kn_epoch1@f62c0b4`) | chunk 10 knowledge pass on SFT kna e3 + lite check (`outputs/logs/c10_kn_pass.log`) | 2026-10-11 ~18:40 | 19:20 | 10 |
 | p3-kna (massedcompute `A100_sxm4_80G`, $1.66/h, user shadeform) | **deleted** 2026-10-09 ~17:30 UTC (synced; adapters on HF `...-halden-sft-kna@2f07b61`) | chunk 10: SFT kna train + push + lite e1..e4 (`outputs/logs/c10_train_lite.log`), then suite + scenario grid on the chosen epoch (`c10_eval.log`) | 2026-10-09 ~15:55 | 17:30 | 10 |

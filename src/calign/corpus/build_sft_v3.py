@@ -1,6 +1,6 @@
 """SFT v3 data: the v2 corpus with a held-out principle's application material removed, plus self-distilled replay.
 
-Exclusion rule (D16/D17, `phase3_brief.md` R.4; principle k = 6 in Phase 3):
+Exclusion rule (D16/D17, `docs/phase3/brief.md` R.4; principle k = 6 in Phase 3):
 - `transcript:P{k}` (the principle's own chat transcripts);
 - priority transcripts (`priority_*`) whose `meta.principles_cited` contains k;
 - documents of an application type (case study, worked conflict example, short fiction, dialogue/interview) whose

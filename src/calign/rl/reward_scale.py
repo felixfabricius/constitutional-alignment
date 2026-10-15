@@ -3,7 +3,7 @@
 Why: with Adam, the overall size of the reward hardly changes the update size, but it does change the balance
 between the reward signal and the KL penalty (weight 0.02, not scaled with the reward). If the citation term makes
 C4's advantages k times larger than C3's, C4 effectively trains with a KL weight of 0.02 / k and can drift further
-from the RL start. Multiplying C4's rewards by f = S3 / S4 removes that difference at the start (phase3/chunks/07).
+from the RL start. Multiplying C4's rewards by f = S3 / S4 removes that difference at the start (docs/phase3/chunks/07).
 
 Procedure:
 1. Answers from the RL start that look like training rollouts. Dilemmas: chunk 6's RL-start sampling run (8 answers

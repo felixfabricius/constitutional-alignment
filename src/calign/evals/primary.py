@@ -6,7 +6,7 @@ CLI (local):
 
 Configurations: C0 base, C1 base + prompt, C2 knowledge-only SFT (`C2kn@e4`, the RL start), C3 = `C3@s60`, and
 **C4 = `C4@s50` for every comparison** (Felix 2026-10-13: step 50 is the chosen checkpoint of the process model;
-`phase3_plan.md`, row "C4 checkpoint"). `--c4-mapping chunk9` reproduces the superseded per-component mapping of
+`docs/phase3/plan.md`, row "C4 checkpoint"). `--c4-mapping chunk9` reproduces the superseded per-component mapping of
 2026-10-04 (C4@s20 for scenario 2 and the P6 questions, C4@s50 for the rest), which `final_c9/primary.md` used.
 
 Comparisons (each a difference "a - b" with a 95% CI):

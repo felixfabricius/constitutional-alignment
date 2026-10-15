@@ -5,7 +5,7 @@ CLI (GPU):
         [--backend vllm|hf] [--seed 20261001] [--out-root outputs/scenarios] [--out <dir, single cell only>] \
         [--model-path ...] [--revision ...] [--limit N] [--dry-run]
 
-Episode (phase3_scenarios.md Section 7.2): `[system, user]` -> response 1 (T = 1.0, max 2000 new tokens, n episodes
+Episode (docs/phase3/scenarios_design.md Section 7.2): `[system, user]` -> response 1 (T = 1.0, max 2000 new tokens, n episodes
 per cell from one seeded request); then `[system, user, response 1 verbatim, audit]` -> response 2 (one seeded
 request over all episodes). All cells of one invocation share one model load and are batched together per turn.
 

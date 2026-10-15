@@ -1,295 +1,123 @@
-# constitutional-alignment
+# Encouraging general generalisation: teaching Gemma (to articulate) why
 
-Detecting and strengthening constitutional reasoning in LLMs. Phase 1: instil the constitution in
-[constitution.md](constitution.md) into `google/gemma-3-27b-it` via LoRA SFT on a synthetic corpus,
-merge, and validate recall/application. (The first base-model check used `google/gemma-2-9b-it`, which was too
-weak to act misaligned; its configs are kept as `configs/*_gemma2_9b.yaml`.)
+Code, data manifests and research records for the LessWrong post
+**[Encouraging general generalisation: Teaching Gemma (To Articulate) Why](https://www.lesswrong.com/posts/cvFhcjjfmE84uneKL/encouraging-general-generalisation-teaching-gemma-to)**.
 
-## Setup
+We wrote a six-principle constitution (the *Halden Constitution*, [`constitution.md`](constitution.md)) for
+**Gemma 3 27B-IT** and compared ways of aligning the model to it: prompting, synthetic-document fine-tuning and GRPO
+with outcome or citation rewards. Each method was scored on how far its alignment **generalises**, and on what it
+costs in capability:
+
+- **across dilemmas**: does applying a principle transfer to new dilemmas where it applies?
+- **across environments**: does alignment trained in chat carry over to agentic tasks?
+- **across principles**: does training on some principles help the model apply a principle it was never trained to
+  apply? Principle 6 (*autonomy over paternalism*) was held out from all application training. The model learned
+  what it says but saw no worked examples of applying it.
+
+## The constitution
+
+1. **Honesty over comfort.**
+2. **Disclose uncertainty rather than projecting confidence.**
+3. **Third-party welfare over requester satisfaction.**
+4. **No self-preservation at others' expense.** Takes absolute precedence.
+5. **Means constrain ends.** Takes priority over the remaining principles.
+6. **Autonomy over paternalism.** The held-out principle.
+
+## Approaches
+
+| Name | What it is | Config id |
+|---|---|---|
+| Base | Gemma 3 27B-IT | `C0` |
+| Prompt | Full constitution in the system prompt: "act according to it at all times, but never mention it unless asked" | `C1` |
+| SFT-fact | LoRA SFT on factual and explanatory synthetic documents about all six principles (no applied cases) + replay data | `C2kn@e4` |
+| SFT-app | SFT-fact, then SFT on application material (chat transcripts, applied documents) with P6 held out, then one more epoch of factual documents | `C2kna@e3kn1` |
+| RL-outcome | SFT-fact + GRPO with a binary reward for choosing the aligned option | `C3@s60` |
+| RL-process | SFT-fact + GRPO with the outcome reward plus a reward for correct, relevant citations of the constitution | `C4@s50` |
+
+The synthetic corpus was generated with Claude (583 documents across nine types, 192 chat transcripts, 109
+deterministic fact cards). The RL data are 208 generated dilemmas that SFT-fact got wrong at least once in 8 samples.
+GRPO ran for 60 steps (12 prompts x 8 samples, LoRA r = 64) on 2 x A100. The full mapping between blog names and
+configuration ids, including the extra rows, is in [`docs/README.md`](docs/README.md#configurations-blog-names-and-repo-ids).
+
+## Results
+
+![Misaligned actions in the two agentic scenarios per configuration](outputs/evals/report/final_c10/scenarios_misaligned.png)
+
+The figure shows misaligned actions in two single-shot agentic scenarios, 50 episodes per bar at T = 1.0 (error bars:
+Wilson 95% CIs). In **Study Significance** (scenario 1, principles 1 and 5), an analysis assistant under pressure from
+a PI can report a non-pre-registered significant result as the main finding. In **Excursion Briefing** (scenario 2,
+principle 6), a summarising assistant can leave a guide company's safety record out of a briefing because a friend
+asked it to. Exact materials, grading and judge prompts are in [`agentic_scenarios/`](agentic_scenarios/README.md).
+
+| % constitutionally aligned | Base | Prompt | SFT-fact | SFT-app | RL-outcome | RL-process |
+|---|---:|---:|---:|---:|---:|---:|
+| MoralChoice, P1-P5 | 85.2 | 92.4 | 90.6 | 93.7 | 92.7 | 93.0 |
+| MoralChoice, P6 | 60.5 | 67.4 | 62.8 | 64.5 | 62.2 | 59.9 |
+| MoralChoice, hard | 21.5 | 62.8 | 52.9 | 61.7 | 58.7 | 59.3 |
+| Scenario 1 (Study Significance) | 82 | 100 | 90 | 96 | 92 | 94 |
+| Scenario 2 (Excursion Briefing) | 20 | 44 | 22 | 30 | 28 | 12 |
+| *Budget:* IFEval | 82.1 | 85.4 | 83.5 | 82.6 | 83.9 | 82.3 |
+| *Budget:* MATH-500 | 87.8 | 82.7 | 88.2 | 88.0 | 89.1 | 87.9 |
+| *Budget:* coherence | 97.4 | 96.6 | 97.7 | 98.4 | 98.6 | 98.3 |
+| *Budget:* over-citation (lower is better) | — | 6.8 | 1.3 | 1.4 | 0.9 | 0.8 |
+
+Main readings (details, confidence intervals and caveats in [`docs/phase3/runs.md`](docs/phase3/runs.md)):
+
+- **Prompting the constitution works best overall.** It is highest on the P6 items, the hard set and both agentic
+  scenarios. It is also the only method that breaks the over-citation budget (it mentions the constitution in 6.8% of
+  unrelated IFEval / MATH-500 answers).
+- **Synthetic-document SFT teaches the constitution but changes behaviour under pressure only a little.** SFT-fact
+  scores 85% and 91% on two constitution quizzes but barely moves scenario 2. SFT-app comes close to prompting on
+  MoralChoice but not on scenario 2.
+- **Generalisation across principles was weak.** Training the application of P1-P5 did not measurably transfer to
+  P6 (SFT-app vs SFT-fact on P6 items: +1.7 [-3.5, +7.6]). Application SFT that included P6 material (SFT-all,
+  `C2-app`) reached about 80% on scenario 2.
+- **RL adds little beyond its training distribution.** RL-outcome learns its reward and adds a few points on
+  MoralChoice, but nothing measurable in the scenarios. The citation reward is learned in-distribution, but it does
+  not transfer and erodes P6 knowledge: the RL data has no P6 items, so P6 citations count as wrong, and
+  RL-process's P6 quiz score falls to 50% (SFT-fact 91%).
+
+Limitations: one model, small agentic scenarios (n = 50 per cell), some MoralChoice items excluded because the
+constitutionally aligned answer was unclear, and a binary citation reward graded by Claude.
+
+## Repository layout
+
+```
+constitution.md        the Halden Constitution
+agentic_scenarios/     the two agentic scenarios in readable form (materials, grading, judge prompts)
+src/calign/            the package
+  data/  corpus/  train/  validate/      MoralChoice splits, synthetic corpus, LoRA SFT + merge, verdicts and judges
+  evals/  scenarios/  dilemmas/  rl/     evaluation suite and report, agentic scenarios, RL data, GRPO
+  inference/  llm/                       vLLM / HF backends with LoRA serving; cached, batch-capable Claude client
+configs/               model, SFT, RL and eval configurations (configs/eval_configs/<id>.yaml per row above)
+data/                  committed manifests, constitution verdicts, generated dilemmas (everything else regenerable)
+outputs/               run directories (gitignored); the final report files and the figure are committed
+scripts/               brev/ GPU instance scripts (setup, detached runs, RL bootstrap, sync); diagnostics/ inspection scripts
+tests/                 unit (local), api (live Claude), gpu (CUDA)
+docs/                  runbook, project history, low-level details, Phase 3 plan / decisions / runs / per-chunk notebooks
+legacy/                the original probe-and-steer project (linear probes, steering, SAEs, agentic-misalignment harness)
+third_party/           Anthropic agentic-misalignment (git submodule, pinned)
+```
+
+## Reproducing
 
 ```bash
-uv sync --group dev              # local (Windows/macOS/Linux): tests, data prep, Claude API steps
-uv sync --group dev --group gpu  # GPU machine (Linux): adds vLLM
-git submodule update --init      # third_party/agentic-misalignment
+uv sync --group dev --group eval      # add --group gpu (vLLM) and --group rl (TRL) on Linux GPU machines
+git submodule update --init
+uv run pytest tests/unit
 ```
 
-`.env` at the repo root (never committed):
+API keys go in a `.env` at the repo root (`ANTHROPIC_API_KEY` for corpus generation and judges, `HF_TOKEN` for the
+gated Gemma weights). [`docs/runbook.md`](docs/runbook.md) lists the commands for each stage: data, corpus, SFT, RL
+data, GRPO, evaluation, report and figure. The trained checkpoints are in private Hugging Face repositories
+(`felixfabricius/gemma-3-27b-it-halden-*`), so rebuilding the rows means retraining from the configs. Every run
+directory keeps its raw records, Claude `usage.json` and a provenance block, and every reported number is recomputed
+from those raw files.
 
-```
-ANTHROPIC_API_KEY=...   # corpus generation, classifiers, judges (claude-sonnet-5)
-HF_TOKEN=...            # gated Gemma 3 (and Gemma 2) weights/tokenizers
-```
+## How the project evolved
 
-## Layout
-
-- `src/calign/` package (config, schemas, constitution, prompting, data, misalignment, corpus, train, validate)
-- `configs/` YAML configs; every CLI accepts `--config`, `--dry-run`, `--limit`, `--seed`, `--out`, `--model-path`
-- `tests/unit` local; `tests/api` needs `ANTHROPIC_API_KEY`; `tests/gpu` needs CUDA (auto-skipped otherwise)
-- `diagnostics/` print-only scripts for manual inspection
-- `data/` (gitignored except `data/manifests/`) and `outputs/` (gitignored) hold raw records and run directories
-
-## Phase 1 run order
-
-Local (API only):
-
-```bash
-uv run python -m calign.data.moralchoice                      # 680 scenarios -> data/scenarios + committed manifest
-uv run python -m calign.validate.verdicts                     # constitution verdicts for every scenario (Batches)
-uv run python -m calign.corpus.generate_docs                  # pilot docs (Batches); --dry-run --no-batches for 3 items
-uv run python -m calign.corpus.generate_transcripts           # pilot transcripts (Batches)
-uv run python -m calign.corpus.build_sft_dataset --tokenizer google/gemma-3-27b-it
-uv run python diagnostics/show_corpus_samples.py              # eyeball accepted/rejected items
-```
-
-### GPU machine runbook (Gemma 3 27B-IT, A100 80GB)
-
-Defaults (`configs/model.yaml`, `configs/sft.yaml`) are Gemma 3 27B, so no `--model-config` / `--config` flags are
-needed. Commands run on the instance unless marked `# local` (WSL, from the local repo root, with
-`R=train-inst:/home/shadeform/constitutional-alignment` for the Brev instance).
-
-**0. Setup and data** (`data/` and `outputs/` are gitignored, so they are copied, not pulled)
-
-```bash
-git pull && uv sync --group dev --group gpu && git submodule update --init
-rsync -rtz ./data/sft/ $R/data/sft/                                    # local: training data
-rsync -rtz ./data/scenarios/moralchoice_high.jsonl $R/data/scenarios/  # local: validation scenarios
-```
-
-**1. GPU smoke tests** on Gemma 3 4B-IT (same model class and turn format as the 27B, fast)
-
-```bash
-CALIGN_GPU_TESTS=1 CALIGN_MODEL_PATH=google/gemma-3-4b-it uv run pytest tests/gpu -q
-# add CALIGN_VLLM_TESTS=1 to also check that vLLM generates the same greedy text as HF
-```
-
-**2. Base misalignment check** (done 2026-09-10: `outputs/misalignment/20260910_222307_9f28bd09` is the pre-SFT
-baseline; rerun only if prompts or the model change)
-
-```bash
-uv run python -m calign.misalignment.run --dry-run            # then without --dry-run: 12 conditions x 25 samples
-uv run python -m calign.misalignment.report --run-dir outputs/misalignment/<run>   # gate: meaningful_rate
-```
-
-**3. SFT and merge**
-
-```bash
-uv run python -m calign.train.sft --dry-run      # 3 steps; check gpu_peak_* in outputs/models/sft_pilot_dryrun/peft_summary.json
-uv run python -m calign.train.sft                # LoRA r=64 on data/sft -> outputs/models/sft_pilot/adapter
-uv run python -m calign.train.merge --adapter outputs/models/sft_pilot/adapter   # -> outputs/models/sft_pilot/merged (~55 GB)
-```
-
-**4. Misalignment check on the SFT model** (compare with the base run from step 2)
-
-```bash
-uv run python -m calign.misalignment.run --stage sft_merged --model-path outputs/models/sft_pilot/merged --constitution-judge
-```
-
-**5. Validation sampling** (both stages into ONE run dir; each call appends to `records.jsonl` and writes
-`resolved_config_<stage>.yaml`; rerunning a stage into the same dir is refused, so use a fresh `--out` to redo one)
-
-```bash
-V=outputs/validation/gemma3_pilot
-uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-3-27b-it          --out $V-dry --dry-run
-uv run python -m calign.validate.run_validation --stage base       --model-path google/gemma-3-27b-it          --out $V
-uv run python -m calign.validate.run_validation --stage sft_merged --model-path outputs/models/sft_pilot/merged --out $V
-```
-
-**6. Copy results back, then judge and report** (API only, so this can run locally)
-
-```bash
-rsync -rtz --exclude 'models/*/merged/' --exclude 'models/*/checkpoints/' $R/outputs/ ./outputs/   # local
-uv run python -m calign.validate.judge  --run-dir outputs/validation/gemma3_pilot   # Claude judge (Batches)
-uv run python -m calign.validate.report --run-dir outputs/validation/gemma3_pilot   # gate: recall_pass
-uv run python -m calign.misalignment.report --run-dir outputs/misalignment/<sft run>
-uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/<run>   # add the 0-1 score to an existing run
-```
-
-Gemma 2 9B instead: add `--model-config configs/model_gemma2_9b.yaml` (sampling/validation) or
-`--config configs/sft_gemma2_9b.yaml` (SFT).
-
-## Phase 2 run order (probes and steering; settings in `configs/probe.yaml`, plan in `phase2_plan.md`)
-
-The model is the selected SFT checkpoint, `configs/model_sft_v2e3.yaml` (HF repo + pinned revision). vLLM (sampling)
-and HF (activations, steering) cannot share the GPU, so each line below is its own process. `M` and `P` as in:
-
-```bash
-M="--model-config configs/model_sft_v2e3.yaml"
-P=outputs/probe_data/v2e3_k8
-```
-
-**1. Sample probe data** (GPU, vLLM; one invocation per prompt variant into the same run dir)
-
-```bash
-uv run python -m calign.probe.sample $M --variant none --out $P --dry-run
-uv run python -m calign.probe.sample $M --variant none --out $P      # 384 definite-verdict scenarios (train + val) x 8
-uv run python -m calign.probe.sample $M --variant full --out $P      # Probe C positives
-```
-
-**2. Judge and inspect** (local, Claude Batches; measure the per-item cost on `--limit 3 --no-batches` first)
-
-```bash
-uv run python -m calign.validate.judge --run-dir $P --config configs/probe.yaml
-uv run python -m calign.probe.report --run-dir $P                    # 2x2 cells, label balance per spec
-uv run python diagnostics/show_probe_cells.py --run-dir $P
-```
-
-**3. Hard-data scores** (local; **done 2026-09-11**, $6.90 with Batches: both runs carry `constitution-score-v2` on
-299/300 samples, 1 Claude refusal each; base v1 scores kept as `samples.constitution-v1.jsonl`). The epoch-3 agentic
-run must carry `constitution-score-v2` on every sample; the base run is re-scored for consistency.
-
-```bash
-uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/20260911_153043_77860d1a
-uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/20260910_222307_9f28bd09
-```
-
-**4. Activations** (GPU, HF; rsync the judged `records.jsonl` forward first)
-
-```bash
-uv run python -m calign.probe.activations $M --run-dir $P --dry-run                 # prints the token at every position
-uv run python -m calign.probe.activations $M --run-dir $P                           # activations/ shards, ~1.6 GB
-uv run python -m calign.probe.activations $M --misalignment-run outputs/misalignment/20260911_153043_77860d1a
-```
-
-**5. Probes and evaluation** (local, CPU; rsync `activations/` back)
-
-```bash
-uv run python -m calign.probe.train --data-run $P --out outputs/probes/v2e3
-uv run python -m calign.probe.evaluate --probes outputs/probes/v2e3 --hard outputs/misalignment/20260911_153043_77860d1a
-uv run python -m calign.probe.sae --probes outputs/probes/v2e3                       # optional; downloads ~2.6 GB per layer
-```
-
-**6. Steering** (GPU, HF): tune on probe_val, then the main run on heldout_steer; judge and report each run locally.
-
-```bash
-uv run python -m calign.probe.steer $M --probes outputs/probes/v2e3 --purpose tuning --out outputs/steering/tuning --dry-run
-uv run python -m calign.probe.steer $M --probes outputs/probes/v2e3 --purpose tuning --out outputs/steering/tuning
-uv run python -m calign.validate.judge --run-dir outputs/steering/tuning --config configs/probe.yaml   # local
-uv run python -m calign.probe.report --run-dir outputs/steering/tuning                                 # picks coefficients
-uv run python -m calign.probe.steer $M --probes outputs/probes/v2e3 --purpose main --tuning-run outputs/steering/tuning --out outputs/steering/main
-uv run python -m calign.validate.judge --run-dir outputs/steering/main --config configs/probe.yaml
-uv run python -m calign.probe.report --run-dir outputs/steering/main
-uv run python diagnostics/show_steering_samples.py --run-dir outputs/steering/main
-```
-
-GPU smoke test for the Phase 2 code on a 24 GB card: `CALIGN_GPU_TESTS=1 CALIGN_MODEL_PATH=google/gemma-3-4b-it uv run pytest tests/gpu/test_probe_gpu.py -q`.
-
-Notes from the 2026-09-11 run (all results and run dirs: `phase2_runs.md`): the steering CLIs need
-`--batch-size 10..13` with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` on the 80 GB A100 (batch 16 plus
-degenerate 2048-token outputs hits allocator OOM warnings); `calign.probe.activations` writes
-`activations/refs.jsonl` and leaves `records.jsonl` / `samples.jsonl` alone, so judging and constitution scoring can
-run locally at the same time (`calign.probe.merge_records` folds a partial judged copy back in); steering judges use
-`--no-batches` (505 records, ~3 min, $2.90) while the 6144 probe-data records go through Batches ($17.88).
-
-Every run directory keeps the raw records (`samples.jsonl` / `records.jsonl`), `usage.json`, and a
-`summary.json` with a provenance block; reports are recomputable from the raw files.
-
-## Phase 3, priority 1: agentic baselines (constitution in the system prompt; probe steering)
-
-Two inference-time baselines for the selected SFT checkpoint on the agentic-misalignment scenarios, compared with the
-existing base and epoch-3 runs. Same protocol as every agentic run (`configs/misalignment_check.yaml`: 12 conditions x
-25 samples, T=1.0, max_tokens 4000). Results and run dirs: `phase3_runs.md` Part B. `M` and `STEER` as in:
-
-```bash
-M="--model-config configs/model_sft_v2e3.yaml --stage sft_merged --skip-classify"
-STEER="--steer-probes outputs/probes/v2e3 --steer-probe B_primary/L53/p100 --steer-coef 4 --steer-sign 1 --steer-positions all"
-```
-
-**1. Constitution in the agentic system prompt** (GPU, vLLM). The Phase 1 constitution preface (governed-by line, full
-text, cite-by-number instruction; not the MoralChoice final-answer instruction) is prepended to the unchanged upstream
-system prompt; condition ids stay the same and the run dir saves the modified prompts (the judges sha-check them).
-
-```bash
-uv run python -m calign.misalignment.run $M --backend vllm --system-prompt-variant constitution --dry-run --limit 1
-uv run python -m calign.misalignment.run $M --backend vllm --system-prompt-variant constitution --out outputs/misalignment/e3_constprompt
-```
-
-**2. Probe steering** (GPU, HF). `+4` class gaps of the best Probe B direction (`B_primary/L53/p100`, the coefficient
-tuned on MoralChoice probe_val; not re-tuned on the agentic set) added at every position during generation. Steered
-generations need the HF backend, and HF and vLLM sampling differ numerically, so the comparison is an **HF control**
-run under the same command without `--steer-*`. The dry run prints a steered and an unsteered response side by side.
-
-```bash
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-uv run python -m calign.misalignment.run $M --backend hf $STEER --dry-run --limit 1 --batch-size 2
-uv run python -m calign.misalignment.run $M --backend hf --batch-size 12 --out outputs/misalignment/e3_hf_control
-uv run python -m calign.misalignment.run $M --backend hf $STEER --batch-size 12 --out outputs/misalignment/e3_hf_steerB4
-```
-
-**3. Judge every new run** (local; rsync the run dir back first): upstream classifiers (interactive, ~$2.2), constitution
-score (`constitution-score-v2`, Batches, ~$2.4), and the comprehensibility judge (`coherence-v1`, response text only,
-effort low, ~$1.5 per 300 interactive; empty judge outputs are re-asked once). The coherence judge was also run on the
-base and epoch-3 runs so every row of the comparison has it.
-
-```bash
-uv run python -m calign.misalignment.run --classify-only outputs/misalignment/<run>
-uv run python -m calign.misalignment.constitution_judge --run-dir outputs/misalignment/<run>
-uv run python -m calign.misalignment.coherence_judge --run-dir outputs/misalignment/<run> --no-batches
-```
-
-**4. Compare** (local): one table across runs (harmful rate with Wilson CI, constitution score with bootstrap CI,
-mention rate, coherence judge, repetition, truncation, U+FFFD), differences against a reference run (Newcombe /
-bootstrap intervals) and a provenance block with every input's `samples.jsonl` sha.
-
-```bash
-uv run python -m calign.misalignment.compare --reference e3_hf_control --out outputs/misalignment_compare/p1 --runs \
-  base=outputs/misalignment/20260910_222307_9f28bd09 e3_vllm=outputs/misalignment/20260911_153043_77860d1a \
-  e3_hf_control=outputs/misalignment/e3_hf_control e3_constprompt=outputs/misalignment/e3_constprompt \
-  e3_steerB4=outputs/misalignment/e3_hf_steerB4
-```
-
-Notes from the 2026-09-12 run: HF sampling of the 27B at batch 12 on ~3k-token prompts peaks at ~70 GB allocated
-(`HFBackend.generate` halves a batch and retries on CUDA OOM, so a too-large batch costs time, not the run); the vLLM
-constitution-prompt run (prompts 2.9-3.5k tokens) takes ~10 min for 300 samples.
-
-## Phase 3 run order (alignment under a budget)
-
-The operational plan, GPU runbook and chunk documents are in [phase3/README.md](phase3/README.md); status in
-`phase3/status.md`. Configurations are `configs/eval_configs/<id>.yaml` (C0 base, C1 base + prompt, ...). Commands
-below run locally unless marked GPU (on the Brev instance, launched with `sh scripts/brev/run_bg.sh <name> <cmd>`).
-
-```bash
-# chunk 1: MoralChoice side (local, Claude ~$0.7)
-uv run python -m calign.validate.verdicts --exclude-principle 6 --only-invoking 6 --only-clear \
-    --out data/scenarios/constitution_verdicts_noP6.jsonl         # counterfactual verdicts without P6 (committed)
-uv run python -m calign.data.phase3_split [--drop-ids-file drops.txt]  # dev / anchors / eval1 / eval2 manifest
-uv run python -m calign.data.moralchoice --low-ambiguity         # 687 low-ambiguity items (over-citation diagnostic)
-
-# chunk 2: core suite for one configuration (GPU), then judges and reports (local)
-uv run python -m calign.evals.suite --eval-config C0 --all-clear [--dry-run]     # GPU, one vLLM load
-sh scripts/brev/sync_back.sh p3-a100 evals                                       # WSL
-uv run python -m calign.data.phase3_split --hard-from outputs/evals/C0/moralchoice/<run>   # hard subset (C0 only)
-uv run python -m calign.evals.suite --judge-only --eval-config C0 [--coherence-rep1]       # Claude ~$3
-uv run python -m calign.evals.report --configs C0 [C1 C2 ...] [--checkpoints-of C3 C4]
-uv run python diagnostics/show_verdict_audit.py --n-hard 30 --n-random 10      # D4 audit for Felix
-```
-
-RL and the final report (chunks 7-9; GPU steps run on 2 x A100 nodes through the scripts, each with an idle watchdog):
-
-```bash
-# chunk 7: judge calibration (local), reward scale f for C4 (local with the Claude judge)
-uv run python -m calign.rl.calibrate_judge sample --records outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl
-uv run python -m calign.rl.reward_scale measure --config configs/rl/C4.yaml --run-dir outputs/rl/reward_scale/rs2 \
-    --dilemma-records outputs/dilemmas/C2/dilemma_filter/batch1_k8_T1/records.jsonl
-# chunk 8: one node per run (WSL), then the watchdog (command in scripts/brev/idle_watchdog.sh)
-sh scripts/brev/rl_bootstrap.sh p3-c3 configs/rl/C3.yaml C3       # rollout server, trainer, HF pushes, core suites
-uv run python -m calign.rl.checkpoints eval-configs --config-id C3 --run-dir outputs/rl/C3 --steps 10 20 30 40 50 60
-uv run python -m calign.evals.suite --judge-only --suite-run outputs/evals/C3@s60/suite/<run> --no-batches
-# chunk 9: scenarios + SFTP (GPU: scripts/brev/chunk9_gpu.sh), then the report
-uv run python -m calign.evals.report --configs C0 C1 C2kn@e4 C2@e4 SFTP C3@s60 C4@s20 C4@s50 \
-    --checkpoints-of C2 C3 C4 --out outputs/evals/report/final_c9
-uv run python -m calign.evals.primary --out outputs/evals/report/final_c9
-uv run python -m calign.rl.dynamics --runs outputs/rl/C3 outputs/rl/C4 --out outputs/evals/report/final_c9
-```
-
-Results: `phase3_runs.md` Part A.
-
-Every component also has its own CLI (`calign.evals.{moralchoice,ifeval,math500,overcitation,coherence,quiz}`,
-subcommands `sample` / `report` and the judge steps) for single reruns.
-
-## Tests
-
-```bash
-uv run pytest tests/unit          # fast, local
-uv run pytest tests/api           # one real Claude call per test
-uv run pytest tests/gpu           # on the GPU machine
-```
+The repository began as a mechanistic-interpretability project: find a linear "constitutional reasoning"
+representation with probes, then strengthen it with steering and probe-based RL. The probe signal turned out to be
+at a ceiling and did not transfer to agentic data, so the project was re-scoped into the method comparison above.
+That code (and the Anthropic agentic-misalignment harness used to pick the model) lives in
+[`legacy/`](legacy/README.md). The timeline and a map of all records are in [`docs/README.md`](docs/README.md).

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Idle watchdog: deletes a Brev instance once it has been idle for a while, but only after everything on it is saved.
-# Instances cannot be stopped and bill while they exist (phase3/README.md Section 6). Start it from Windows so it
+# Instances cannot be stopped and bill while they exist (docs/phase3/README.md Section 6). Start it from Windows so it
 # outlives the agent session and the shell (a hidden wsl.exe keeps the WSL process alive; a setsid'd process inside
 # WSL can be killed when the last wsl.exe client exits):
 #   powershell -NoProfile -Command "Start-Process wsl -WindowStyle Hidden -ArgumentList '-e','bash','-lc',

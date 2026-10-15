@@ -119,15 +119,6 @@ def test_model_card_for_epoch_checkpoint(tmp_path, capsys):
     assert "end of epoch 3" in capsys.readouterr().out
 
 
-def test_sft_v2e3_model_config():
-    from calign.inference.backend import load_model_config
-    from calign.paths import CONFIGS_DIR
-
-    cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml")
-    assert cfg.model_path == cfg.model_id == "felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3"
-    assert cfg.vllm.language_model_only and cfg.probe_layers == [16, 31, 40, 53]
-
-
 def test_stage_hardlinks_and_layout(tmp_path):
     src = tmp_path / "merged_epoch2"
     (src / ".cache" / "huggingface").mkdir(parents=True)

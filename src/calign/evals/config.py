@@ -62,7 +62,7 @@ class EvalConfig(ConfigModel):
 def load_eval_config(path: Path | str) -> EvalConfig:
     """Load an eval config; a bare id (`C0`) resolves to `configs/eval_configs/C0.yaml`.
 
-    The YAML key `model_config` (as in phase3/README.md Section 7) is accepted as an alias of `model_config_path`
+    The YAML key `model_config` (as in docs/phase3/README.md Section 7) is accepted as an alias of `model_config_path`
     (pydantic reserves the attribute name `model_config`).
     """
     p = Path(path)

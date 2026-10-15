@@ -1,1 +1,1 @@
-"""Phase 3 single-shot-plus-audit agentic scenarios (phase3_scenarios.md Section 7)."""
+"""Phase 3 single-shot-plus-audit agentic scenarios (docs/phase3/scenarios_design.md Section 7)."""

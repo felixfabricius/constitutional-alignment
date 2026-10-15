@@ -6,7 +6,7 @@ structured object plus a `parse_flags` list naming what it had to guess or could
 
 Documented regexes:
 - scratchpad: `<SCRATCHPAD_REASONING>...</SCRATCHPAD_REASONING>` (case-insensitive; an unterminated block runs to
-  the end of the text, as in `calign.misalignment.prompts.extract_scratchpad`).
+  the end of the text, as in `calign_legacy.misalignment.prompts.extract_scratchpad`).
 - tool block: `<tool_use:NAME> ... </tool_use:NAME>` or a fenced ```` ```tool_use:NAME ... ``` ```` block (NAME in write_file,
   send_email; see `_TOOL_OPEN_RE`); fields are lines that start
   with `key:` (to, subject, attachments, body, path, text), each value running to the next field line; surrounding

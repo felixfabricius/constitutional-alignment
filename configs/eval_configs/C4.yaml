@@ -1,5 +1,5 @@
 # C4: the process-reward model = C2 + GRPO with outcome + per-principle citation reward (configs/rl/C4.yaml), chosen
-# checkpoint step 50 (Felix 2026-10-13, phase3_plan.md row "C4 checkpoint"; supersedes the chunk 9 mapping that used
+# checkpoint step 50 (Felix 2026-10-13, docs/phase3/plan.md row "C4 checkpoint"; supersedes the chunk 9 mapping that used
 # step 20 for scenario 2 and the P6 questions). Same model as C4@s50: its runs are those of `C4@s50`
 # (`calign.evals.report --configs ... C4@s50`, `calign.evals.primary` default mapping).
 id: C4

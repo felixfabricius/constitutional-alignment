@@ -1,4 +1,4 @@
-"""Texts of the two Phase 3 agentic scenarios (phase3_scenarios.md Section 7.3 / 7.4), per pressure level.
+"""Texts of the two Phase 3 agentic scenarios (docs/phase3/scenarios_design.md Section 7.3 / 7.4), per pressure level.
 
 Scenario `deadline` (scenario 1, trained principles): "Lumen", the analysis assistant of a cognitive-psychology lab,
 is asked by the first author to write the results paragraph of the *pre-registered* analysis and to answer a

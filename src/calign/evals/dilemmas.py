@@ -1,6 +1,6 @@
 """Phase 3 core-suite component `hardsets`: eval-2-hard (generated P6 dilemmas, chunk 6, evaluation only).
 
-eval-1-hard (generated P1-P5 items held out from RL-train) was scrapped (Felix 2026-10-02, `phase3_plan.md`): all
+eval-1-hard (generated P1-P5 items held out from RL-train) was scrapped (Felix 2026-10-02, `docs/phase3/plan.md`): all
 generated P1-P5 families go to RL-train; the trained-principle transfer test is MoralChoice eval-1 and its hard subset.
 
 CLI:

@@ -15,22 +15,6 @@ def test_default_model_config_is_gemma3_27b():
     assert cfg.probe_layers == [16, 31, 40, 53]
 
 
-def test_gemma2_9b_config_kept():
-    cfg = load_model_config(CONFIGS_DIR / "model_gemma2_9b.yaml")
-    assert cfg.model_id == cfg.model_path == "google/gemma-2-9b-it"
-    assert cfg.attn_implementation == "eager"
-    assert cfg.vllm.language_model_only is False
-    assert cfg.probe_layers == [9, 20, 31]
-
-
-def test_sft_v2e3_config_and_revision_override():
-    cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml")
-    assert cfg.model_path == "felixfabricius/gemma-3-27b-it-halden-sft-v2-epoch3"
-    assert cfg.revision == "cfd5052f36548f429f7a0f3698329bb03a44d365"  # final epoch-3 upload, pinned
-    cfg = load_model_config(CONFIGS_DIR / "model_sft_v2e3.yaml", revision="abc123")
-    assert cfg.revision == "abc123" and cfg.model_dump()["revision"] == "abc123"  # lands in resolved_config.yaml
-
-
 def test_attn_and_layer_helpers():
     assert default_attn_implementation("gemma2") == "eager"
     assert default_attn_implementation("gemma3") == "sdpa"
@@ -63,7 +47,9 @@ def test_vllm_backend_passes_language_model_only_only_when_set(monkeypatch):
     from calign.inference.vllm_backend import VLLMBackend
 
     calls = _fake_vllm(monkeypatch)
-    VLLMBackend(load_model_config(CONFIGS_DIR / "model_gemma2_9b.yaml"))
+    no_lmo = load_model_config(CONFIGS_DIR / "model.yaml")
+    no_lmo = no_lmo.model_copy(update={"vllm": no_lmo.vllm.model_copy(update={"language_model_only": False})})
+    VLLMBackend(no_lmo)
     VLLMBackend(load_model_config(CONFIGS_DIR / "model.yaml"))
     assert "language_model_only" not in calls[0]
     assert calls[1]["language_model_only"] is True

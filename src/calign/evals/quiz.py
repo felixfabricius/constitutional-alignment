@@ -1,7 +1,7 @@
 """Constitution knowledge quizzes: the 20-question recall quiz and the 10-question P6 quiz (knowledge-retention check).
 
 SFT v3 removes P6 application material and RL never trains on P6, so every checkpoint must still know the
-constitution and P6 in particular (phase3/README.md glossary: RL start needs recall >= 0.9 and P6 quiz >= 0.9; a drop
+constitution and P6 in particular (docs/phase3/README.md glossary: RL start needs recall >= 0.9 and P6 quiz >= 0.9; a drop
 below 0.8 at an RL checkpoint is a stop-and-check-in flag).
 
 Generation (GPU): every question once, greedy (T=0), max 400 tokens, system prompt `QUIZ_SYSTEM` only. The

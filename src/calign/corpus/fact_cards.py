@@ -1,7 +1,7 @@
 """Template-generated "fact cards" about the constitution (no LLM calls).
 
 The pilot SFT model knows the principle texts but mixes up which number goes with which title, the priority
-ordering, and accepts non-existent principles (details.md "SFT pilot results"). These cards state those facts
+ordering, and accepts non-existent principles (docs/details.md "SFT pilot results"). These cards state those facts
 explicitly and in varied formats: number <-> title <-> text, order and neighbours, topic -> principle, the priority
 rules, and what the constitution does NOT contain. Short docs (loss on all tokens) plus Q&A transcripts (loss on the
 answer), all derived from constitution.md, deterministic for a given seed.

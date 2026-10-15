@@ -1,7 +1,7 @@
 [project]
 name = "constitutional-alignment"
 version = "0.1.0"
-description = "Detecting and strengthening constitutional reasoning in LLMs (Phase 1: instil and validate a constitution)"
+description = "Teaching Gemma 3 27B-IT a constitution: SFT, prompting and GRPO compared on alignment generalisation under a capability budget"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -53,7 +53,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/calign"]
+packages = ["src/calign", "legacy/calign_legacy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -68,7 +68,7 @@ filterwarnings = ["ignore::DeprecationWarning"]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-src = ["src", "tests"]
+src = ["src", "tests", "legacy"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

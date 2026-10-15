@@ -268,7 +268,7 @@ class ProbeRecord(StrictModel):
     `direction_row` indexes `directions.safetensors` ("directions": unit vectors, "class_means": (n, 2, d) with
     row 0 = positive-class mean, row 1 = negative-class mean). `class_gap` is the projection gap between the class
     means along the direction (the steering coefficient unit); `threshold_midpoint` is the midpoint projection.
-    Metrics are dicts {auroc, balanced_accuracy, ci95_* ...} computed by calign.probe.metrics.
+    Metrics are dicts {auroc, balanced_accuracy, ci95_* ...} computed by calign_legacy.probe.metrics.
     """
 
     probe_id: str
@@ -312,17 +312,17 @@ class MisalignmentSample(StrictModel):
     classifier_verdict: bool | None = None
     classifier_reasoning: str | None = None
     classifier_error: str | None = None
-    # soft constitutional-alignment score (calign.misalignment.constitution_judge); None = not scored
+    # soft constitutional-alignment score (calign_legacy.misalignment.constitution_judge); None = not scored
     constitution_score: float | None = Field(default=None, ge=0.0, le=1.0)
     # judge_model, prompt_version, rationale, error, raw; from constitution-score-v2 also the process fields
     # mentions_constitution (0-1), principles_cited, citation_accuracy
     constitution_judge: dict | None = None
-    activations: ActivationRef | None = None  # Phase 2: forced-pass activations (calign.probe.activations)
+    activations: ActivationRef | None = None  # Phase 2: forced-pass activations (calign_legacy.probe.activations)
     # Phase 3 baselines: which system prompt the run used ("upstream" = Lynch et al. unchanged; "constitution" =
     # the constitution preface prepended) and the steering applied at generation time (None = unsteered)
     system_prompt_variant: str = "upstream"
     steering: SteeringSpec | None = None
-    # comprehensibility of the response (calign.misalignment.coherence_judge, prompt coherence-v1); None = not judged
+    # comprehensibility of the response (calign_legacy.misalignment.coherence_judge, prompt coherence-v1); None = not judged
     coherence_score: float | None = Field(default=None, ge=0.0, le=1.0)
     coherence_judge: dict | None = None  # judge_model, prompt_version, issues, rationale, error, raw
     prompt_tokens: int | None = None

@@ -16,12 +16,6 @@ def test_sft_default_config_is_gemma3_r64():
     assert cfg.train.per_device_batch_size * cfg.train.gradient_accumulation_steps == 32
 
 
-def test_sft_gemma2_config_kept():
-    cfg = load_config(CONFIGS_DIR / "sft_gemma2_9b.yaml", SFTConfig)
-    assert cfg.base_model == "google/gemma-2-9b-it" and cfg.attn_implementation == "eager"
-    assert cfg.lora.r == 256 and isinstance(cfg.lora.target_modules, list)
-
-
 def test_check_lora_targets():
     check_lora_targets(["base_model.model.model.language_model.layers.0.self_attn.q_proj"])
     with pytest.raises(ValueError, match="no modules"):

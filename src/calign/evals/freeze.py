@@ -189,7 +189,7 @@ def main(argv: list[str] | None = None) -> None:
     if frozen.get("suite_version") != now["suite_version"]:
         print(f"suite version {frozen.get('suite_version')} (manifest) vs {now['suite_version']} (code)")
     d = diff(frozen, now)
-    # component descriptions are amended in the docs without a version bump (phase3/README.md Section 10)
+    # component descriptions are amended in the docs without a version bump (docs/phase3/README.md Section 10)
     amended = [x for x in d if x.startswith("components.")]
     d = [x for x in d if x not in amended]
     if amended:

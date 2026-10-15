@@ -253,7 +253,7 @@ def reference_texts() -> dict[str, list[str]]:
     refs["ifeval"] = [r["prompt"] for r in rows]
     rows, _ = math500.load_dataset_rows()
     refs["math500"] = [r["problem"] for r in rows]
-    refs["scenarios"] = paragraphs((REPO_ROOT / "phase3_scenarios.md").read_text(encoding="utf-8"))
+    refs["scenarios"] = paragraphs((REPO_ROOT / "docs" / "phase3" / "scenarios_design.md").read_text(encoding="utf-8"))
     refs["scenario_materials"] = scenario_material_texts()
     tmpl = []
     for p in sorted((AGENTIC_MISALIGNMENT_DIR / "templates").rglob("*")):

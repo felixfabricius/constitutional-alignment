@@ -5,7 +5,7 @@ CLI:
 
 Rewrites <run>/records.jsonl with `judge` (scenario records) / `extra.quiz_grade` (quiz records) filled in,
 and writes <run>/usage_judge.json. Requires data/scenarios/constitution_verdicts.jsonl (calign.validate.verdicts).
-Works on any run dir of GenerationRecords (Phase 2 probe_data and steering runs: pass --config configs/probe.yaml;
+Works on any run dir of GenerationRecords (Phase 2 probe_data and steering runs: pass --config legacy/configs/probe.yaml;
 only the judge_* keys of the config are read).
 """
 

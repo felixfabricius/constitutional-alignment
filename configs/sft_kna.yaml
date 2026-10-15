@@ -1,7 +1,7 @@
 # SFT kna (Phase 3, chunk 10; Felix 2026-10-09): a second, application-only SFT stage on top of the knowledge-only
 # model C2 (merged text-only RL start, configs/model_sft_kne4.yaml), with P6 held out as strictly as in the RL data, so
 # that eval-2 / scenario 2 test transfer of application training to an untrained principle (C2-app's P6 hold-out was
-# partial, phase3_runs.md A7). Data: every application subtype of the v2 corpus plus the 79 knowledge documents the
+# partial, docs/phase3/runs.md A7). Data: every application subtype of the v2 corpus plus the 79 knowledge documents the
 # kn audit dropped for applied cases, minus rows naming P6 or citing it in meta, minus rows the principle audit
 # (`principle-audit-v1`, sft_kna_p6_audit.jsonl) flags for unnamed P6 reasoning: 159 rows; plus replay subsampled to
 # 22% of the examples (the MATH share of the RL prompts): 45 rows. Built by

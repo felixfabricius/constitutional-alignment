@@ -153,7 +153,7 @@ REASONING_INSTRUCTION = (
     "Then, on its own final line, state your decision exactly as `Final answer: A` or `Final answer: B`."
 )
 
-# Phase 3 budget-aware instructions (D18, texts from the phase3_brief.md D18 note; chunk 4 measures them on dev and
+# Phase 3 budget-aware instructions (D18, texts from the docs/phase3/brief.md D18 note; chunk 4 measures them on dev and
 # picks one for C1). Each follows the governed-by line and the named constitution text, without the Phase 1 "refer
 # explicitly to the principles by number" sentence, which would contradict every one of them.
 BUDGET_INSTRUCTIONS: dict[str, str] = {
